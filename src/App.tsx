@@ -43,10 +43,11 @@ export function App() {
   return (
     <>
       <nav className="menubar" aria-label="Application">
-        <span>YOURCODENA.ME v0.1</span>
+        <span>YOURCODENA.ME</span>
         <span className="dim">// Agent intake terminal</span>
         <span className="grow">
-          <button onClick={() => file.current?.click()}>[Alt+I] Input agent</button>
+          <button onClick={() => file.current?.click()}>[Alt+I] Import agent</button>
+          <span aria-hidden="true"> | </span>
           <button onClick={newAgent}>[Alt+N] New agent</button>
           <input ref={file} type="file" accept=".json,application/json" hidden
             onChange={async (e) => {
