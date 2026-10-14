@@ -49,10 +49,14 @@ export function parseCharacter(raw: unknown): Character {
 
 const KEY = 'dg.character';
 export const loadCharacter = (): Character => {
+  let s: string | null = null;
   try {
-    const s = localStorage.getItem(KEY);
+    s = localStorage.getItem(KEY);
     if (s) return parseCharacter(JSON.parse(s));
-  } catch { /* corrupt or unavailable storage: start fresh */ }
+  } catch {
+    // Unreadable save: keep the raw copy so the autosave of a blank Agent doesn't destroy it.
+    try { if (s) localStorage.setItem(`${KEY}.bak`, s); } catch { /* storage blocked */ }
+  }
   return newCharacter();
 };
 export const saveCharacter = (c: Character) => {
@@ -64,7 +68,7 @@ export const exportJson = (c: Character) => {
   a.href = URL.createObjectURL(new Blob([JSON.stringify(c, null, 2)], { type: 'application/json' }));
   a.download = `${c.details.name.trim().replace(/\W+/g, '-').toLowerCase() || 'agent'}.dg.json`;
   a.click();
-  URL.revokeObjectURL(a.href);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
 
 export const importJson = async (file: File): Promise<Character> => parseCharacter(JSON.parse(await file.text()));

@@ -18,14 +18,18 @@ const STEPS: { id: StepId | 'review'; roman: string; title: string }[] = [
 
 export function App() {
   const [c, setC] = useState<Character>(loadCharacter);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => {
+    try { return Math.min(STEPS.length - 1, Math.max(0, Number(localStorage.getItem('dg.step')) || 0)); } catch { return 0; }
+  });
+  useEffect(() => { try { localStorage.setItem('dg.step', String(step)); } catch { /* storage blocked */ } }, [step]);
   useEffect(() => saveCharacter(c), [c]);
   const file = useRef<HTMLInputElement>(null);
   const newAgent = () => { if (confirm('Discard the current Agent?')) { setC(newCharacter()); setStep(0); } };
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName)) return;
-      if (e.key === 'n') newAgent(); else if (e.key === 'i') file.current?.click();
+      // Alt+key, never a bare letter, so typing and speech input can't trigger it (WCAG 2.1.4).
+      if (!e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.code === 'KeyN') newAgent(); else if (e.code === 'KeyI') file.current?.click();
     };
     addEventListener('keydown', k);
     return () => removeEventListener('keydown', k);
@@ -42,8 +46,8 @@ export function App() {
         <span>YOURCODENA.ME v0.1</span>
         <span className="dim">// Agent intake terminal</span>
         <span className="grow">
-          <button onClick={() => file.current?.click()}>[I] Input agent</button>
-          <button onClick={newAgent}>[N] New agent</button>
+          <button onClick={() => file.current?.click()}>[Alt+I] Input agent</button>
+          <button onClick={newAgent}>[Alt+N] New agent</button>
           <input ref={file} type="file" accept=".json,application/json" hidden
             onChange={async (e) => {
               const f = e.target.files?.[0];

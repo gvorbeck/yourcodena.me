@@ -24,7 +24,8 @@ export function DetailsStep({ c, up }: StepProps) {
   };
   const rollMotivation = (i: number) => up((d) => {
     const m = [...d.motivations]; while (m.length < 5) m.push('');
-    m[i] = pick(R.MOTIVATIONS.filter((x) => !m.includes(x)));
+    const free = R.MOTIVATIONS.filter((x) => !m.includes(x));
+    if (free.length) m[i] = pick(free);
     d.motivations = m;
   });
   return (

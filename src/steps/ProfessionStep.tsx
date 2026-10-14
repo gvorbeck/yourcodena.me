@@ -1,17 +1,10 @@
 import { PROFESSIONS, GROUP_LABEL, POSTINGS, type Group } from '../rules/data/professions';
 import { PACKAGES } from '../rules/data/creation';
-import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPE_SUGGESTIONS, makeKey } from '../rules/data/skills';
-import type { Character } from '../model/character';
-import { kitOf, professionOf, slotsOf, type Alt, type Slot } from '../rules';
+import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPE_SUGGESTIONS } from '../rules/data/skills';
+import { duplicatesKit, professionOf, slotsOf, type Alt, type Slot } from '../rules';
 import { Choice, Pick, RadioGroup, Label, Rule, SkillPicker, SkillTable, type StepProps } from '../ui';
 
 const altLabel = (a: Alt) => `${a.family}${a.type ? `(${a.type})` : a.askType ? ' (type)' : ''} ${a.rating}%`;
-
-/** p. 20: optional skills must be ones the Agent doesn't already have from the fixed kit. */
-const duplicatesKit = (c: Character, o: Slot) => {
-  const owned = new Set(kitOf(c).filter((k) => k.slot.startsWith('f') && !k.missingType).map((k) => k.key));
-  return o.alts.every((a) => !a.askType && owned.has(makeKey(a.family, a.type)));
-};
 
 export function ProfessionStep({ c, up }: StepProps) {
   const p = professionOf(c);

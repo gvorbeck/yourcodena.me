@@ -1,7 +1,7 @@
 import type { Character } from '../model/character';
 import { STATS, STAT_SETS, POINT_BUY_TOTAL, VETERANS, FEATURES, type Stat } from './data/creation';
 import { PROFESSIONS, type ProfessionDef } from './data/professions';
-import { BASE_RATINGS, BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, baseRating, makeKey } from './data/skills';
+import { BASE_RATINGS, BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPED_SKILLS, baseRating, makeKey } from './data/skills';
 
 // ---- Statistics (pp. 14, 18–19)
 export const roll4d6dl = (rng = Math.random) => {
@@ -78,6 +78,12 @@ export function kitOf(c: Character): KitSkill[] {
   return [...fixed, ...options.filter((o) => c.picks.includes(o.id))].map((s) => resolve(s, c));
 }
 
+/** p. 20: an optional skill must not duplicate one the Agent already has from the fixed kit. */
+export const duplicatesKit = (c: Character, o: Slot) => {
+  const owned = new Set(kitOf(c).filter((k) => k.slot.startsWith('f') && !k.missingType).map((k) => k.key));
+  return o.alts.every((a) => !a.askType && owned.has(makeKey(a.family, a.type)));
+};
+
 // ---- Skills
 export interface SkillLine { key: string; base: number; professional: number | null; bonus: number; veteran: number; total: number }
 
@@ -92,7 +98,7 @@ export function skillsOf(c: Character): SkillLine[] {
   if (v?.unnatural) vet.set('Unnatural', v.unnatural);
   if (v?.extraSkills) for (const k of c.veteranSkills.slice(0, v.extraSkills.count)) if (k) vet.set(k, (vet.get(k) ?? 0) + v.extraSkills.amount);
 
-  const keys = new Set([...Object.keys(BASE_RATINGS).filter((k) => !('Art Craft Foreign Language Military Science Pilot Science'.split(' ').includes(k))), ...kit.keys(), ...bonus.keys(), ...vet.keys()]);
+  const keys = new Set([...Object.keys(BASE_RATINGS).filter((k) => !TYPED_SKILLS.includes(k)), ...kit.keys(), ...bonus.keys(), ...vet.keys()]);
   return [...keys].sort().map((key) => {
     const professional = kit.get(key) ?? null;
     const base = baseRating(key);
@@ -145,5 +151,9 @@ export function validate(c: Character): Issue[] {
   if (!c.details.name.trim()) add('details', 'Give the Agent a name.');
   const v = veteranOf(c);
   if (v?.extraSkills && c.veteranSkills.filter(Boolean).length !== v.extraSkills.count) add('details', `${v.name}: pick ${v.extraSkills.count} skills for +${v.extraSkills.amount}%.`);
+  if (v?.extraSkills) {
+    const { cap } = v.extraSkills;
+    for (const s of skillsOf(c)) if (c.veteranSkills.includes(s.key) && s.total > cap) add('details', `${s.key} exceeds ${cap}% — ${v.name} can't raise a skill past ${cap}%.`);
+  }
   return out;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { newCharacter } from '../model/character';
-import { derived, roll4d6dl, skillsOf, slotsOf, validate } from './index';
+import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
+import { bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
 
@@ -54,5 +54,59 @@ describe('ascii sheet', () => {
     const out = asciiSheet(c);
     for (const l of out.split('\n')) expect(l.length, l).toBeLessThanOrEqual(MAX_COL);
     expect(out).toContain('Violence:');
+  });
+});
+
+describe('professional skill duplicates (p. 20)', () => {
+  it('flags an optional pick that repeats a fixed skill, and duplicatesKit spots it', () => {
+    for (const p of PROFESSIONS) {
+      const { options } = slotsOf(p);
+      const c = newCharacter();
+      c.professionId = p.id;
+      const dup = options.find((o) => duplicatesKit(c, o));
+      if (!dup) continue;
+      c.picks = [dup.id];
+      expect(kitOf(c).length).toBeGreaterThan(0);
+      expect(validate(c).some((i) => i.msg.includes('appears twice')), p.id).toBe(true);
+      return;
+    }
+    throw new Error('no profession with a duplicating option — data or rule changed');
+  });
+});
+
+describe('damaged veterans (p. 38)', () => {
+  it('Extreme Violence drops CHA, bond scores and SAN', () => {
+    const c = newCharacter();
+    c.stats.CHA = 12; c.stats.POW = 12; c.veteran = 'violence';
+    expect(derived(c)).toMatchObject({ cha: 9, bondScore: 9, san: 55 });
+  });
+  it('Hard Experience removes a bond and wants five +10% skills', () => {
+    const c = newCharacter();
+    c.professionId = 'police-officer';
+    const before = bondCount(c);
+    c.veteran = 'hard';
+    expect(bondCount(c)).toBe(before - 1);
+    expect(validate(c).some((i) => i.msg.includes('pick 5 skills'))).toBe(true);
+    c.veteranSkills = ['Alertness', 'Law', 'Stealth', 'Search', 'Drive'];
+    expect(validate(c).some((i) => i.msg.includes('pick 5 skills'))).toBe(false);
+    expect(validate(c).some((i) => i.msg.includes('past 90%'))).toBe(false);
+    c.bonus = ['Alertness', 'Alertness', 'Alertness', 'Alertness', '', '', '', '']; // 20 + 80 + 10 > 90
+    expect(validate(c).some((i) => i.msg.includes('Alertness exceeds 90%'))).toBe(true);
+  });
+});
+
+describe('persistence', () => {
+  it('round-trips and rejects bad files', () => {
+    const c = newCharacter();
+    expect(parseCharacter(JSON.parse(JSON.stringify(c)))).toEqual(c);
+    expect(() => parseCharacter({ version: 1, stats: {} })).toThrow();
+    expect(() => parseCharacter(null)).toThrow();
+  });
+  it('keeps a backup when the saved Agent is unreadable', () => {
+    const store: Record<string, string> = { 'dg.character': '{"version":1,"stats":"broken"}' };
+    (globalThis as any).localStorage = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; } };
+    expect(loadCharacter()).toEqual(newCharacter());
+    expect(store['dg.character.bak']).toBe('{"version":1,"stats":"broken"}');
+    delete (globalThis as any).localStorage;
   });
 });

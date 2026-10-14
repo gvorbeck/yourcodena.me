@@ -17,7 +17,7 @@ export function BondsStep({ c, up }: StepProps) {
       {!professionOf(c) && <p className="warn">Choose a profession in step II first.</p>}
       <div className="grid">
         {Array.from({ length: need }, (_, i) => (
-          <div key={i} className="field">
+          <div key={i}>
             <Text label={`Bond ${i + 1} — score ${score}`} value={c.bonds[i]?.name ?? ''} onChange={(v) => set(i, 'name', v)} />
             <Text label="Note" value={c.bonds[i]?.note ?? ''} onChange={(v) => set(i, 'note', v)} />
           </div>

@@ -1,5 +1,5 @@
 import { STATS } from '../rules/data/creation';
-import { derived, featureOf, professionOf, skillsOf, veteranOf } from '../rules';
+import { bondCount, derived, featureOf, professionOf, skillsOf, veteranOf } from '../rules';
 import type { Character } from './character';
 
 export const MAX_COL = 30;
@@ -61,7 +61,7 @@ export function asciiSheet(c: Character): string {
       'Sanity (SAN):', `MAX: ${pad(d.maxSan)}   CURRENT: ${pad(d.san)}`, '',
       'Breaking Point (BP):', `MAX: ${pad(d.bp)}`),
 
-    ...section('BONDS', ...c.bonds.filter((b) => b.name.trim()).map((b, i) => `${i + 1}. ${b.name.trim()}: ${d.bondScore}${b.note ? ` (${b.note})` : ''}`)),
+    ...section('BONDS', ...c.bonds.slice(0, bondCount(c)).filter((b) => b.name.trim()).map((b, i) => `${i + 1}. ${b.name.trim()}: ${d.bondScore}${b.note ? ` (${b.note})` : ''}`)),
     ...section('MOTIVATIONS', ...c.motivations.filter((m) => m.trim()).map((m) => `- ${m.trim()}`)),
 
     ...prose('PHYS DESC', det.appearance),
