@@ -1,0 +1,12 @@
+// Flavor lists for the "Randomize details" button. Not from the Handbook.
+export const FIRST = ['James', 'Mary', 'Robert', 'Patricia', 'Michael', 'Linda', 'David', 'Barbara', 'Daniel', 'Susan', 'Carlos', 'Maria', 'Wei', 'Priya', 'Omar', 'Aisha', 'Thomas', 'Karen', 'Marcus', 'Elena'];
+export const LAST = ['Smith', 'Johnson', 'Williams', 'Brown', 'Garcia', 'Miller', 'Davis', 'Nguyen', 'Kowalski', 'Okafor', 'Patel', 'Reyes', 'Sullivan', 'Hoffman', 'Tanaka', 'Rossi', 'Haddad', 'Larsen', 'Whitaker', 'Moreau'];
+export const CODENAMES = ['Anvil', 'Bellwether', 'Cinder', 'Dovetail', 'Echo', 'Foxglove', 'Gannet', 'Halcyon', 'Ironbark', 'Jackdaw', 'Kestrel', 'Lantern', 'Marlin', 'Nightjar', 'Obsidian', 'Plover', 'Quarry', 'Raven', 'Sable', 'Tamarack', 'Umber', 'Vesper', 'Wren', 'Yarrow'];
+export const NATIONALITIES = ['American', 'American', 'American', 'American', 'Canadian', 'British', 'Mexican', 'Polish', 'Nigerian', 'Indian', 'Korean'];
+export const APPEARANCE = ['Tall and rangy, with tired eyes.', 'Compact and neat, always in pressed clothes.', 'Heavyset, with a quick, nervous smile.', 'Wiry, close-cropped hair, a visible scar on one hand.', 'Unremarkable on purpose; people forget the face.', 'Broad-shouldered, soft-spoken, dressed for a different job.'];
+export const PERSONALITY = ['Methodical and dry-humored.', 'Warm in public, guarded in private.', 'Restless; fills every silence.', 'Stubborn and fiercely loyal.', 'Quiet, watchful, slow to trust.', 'Overly cheerful, hiding a short fuse.'];
+export const ADMIRES = ['Their mother’s resilience.', 'People who finish what they start.', 'Old craftsmen and their patience.', 'Anyone who tells the truth when it costs them.', 'A former mentor who never gave up.'];
+export const DISLIKES = ['Loud crowds.', 'Anyone who lies to a victim’s family.', 'Paperwork that hides the truth.', 'Being told it is not their concern.', 'The dark, since the incident.'];
+export const TRUST = ['Steady under pressure and discreet by habit.', 'Saw something unexplainable and kept quiet about it.', 'Vouched for by a trusted Delta Green Agent.', 'Has a record of results and no loose ends.'];
+export const HELPS = ['Has seen what is out there and can’t look away.', 'Wants to protect someone who can’t protect themselves.', 'Believes someone has to do the work no one will thank them for.', 'Owes a debt that only the Program can settle.'];
+export const MOTIVATIONS = ['Duty', 'Family', 'Justice', 'Revenge', 'Curiosity', 'Faith', 'Loyalty', 'Guilt', 'Ambition', 'Protecting the innocent', 'Truth', 'Survival'];

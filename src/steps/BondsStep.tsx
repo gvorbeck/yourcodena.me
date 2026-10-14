@@ -14,7 +14,7 @@ export function BondsStep({ c, up }: StepProps) {
     <>
       <p className="dim">Handbook p. 36 — real people or groups. Each Bond starts at your CHA ({score}) and can never exceed it.</p>
       <Rule />
-      {!professionOf(c) && <p className="warn">Choose a profession in step III first.</p>}
+      {!professionOf(c) && <p className="warn">Choose a profession in step II first.</p>}
       <div className="grid">
         {Array.from({ length: need }, (_, i) => (
           <div key={i} className="field">

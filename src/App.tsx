@@ -1,27 +1,35 @@
-import { useEffect, useState } from 'react';
-import { loadCharacter, newCharacter, saveCharacter, type Character } from './model/character';
+import { useEffect, useRef, useState } from 'react';
+import { loadCharacter, importJson, newCharacter, saveCharacter, type Character } from './model/character';
 import { validate, type StepId } from './rules';
 import { Btn, Win, type Up } from './ui';
 import { StatsStep } from './steps/StatsStep';
-import { DerivedStep } from './steps/DerivedStep';
 import { ProfessionStep } from './steps/ProfessionStep';
 import { BondsStep } from './steps/BondsStep';
 import { DetailsStep } from './steps/DetailsStep';
 import { ReviewStep } from './steps/ReviewStep';
 
 const STEPS: { id: StepId | 'review'; roman: string; title: string }[] = [
-  { id: 'stats', roman: 'I', title: 'Statistics' },
-  { id: 'derived', roman: 'II', title: 'Derived attributes' },
-  { id: 'profession', roman: 'III', title: 'Profession & skills' },
-  { id: 'bonds', roman: 'IV', title: 'Bonds' },
-  { id: 'details', roman: 'V', title: 'Final details' },
-  { id: 'review', roman: 'VI', title: 'Review & output' },
+  { id: 'stats', roman: 'I', title: 'Statistics & derived attributes' },
+  { id: 'profession', roman: 'II', title: 'Profession & skills' },
+  { id: 'bonds', roman: 'III', title: 'Bonds' },
+  { id: 'details', roman: 'IV', title: 'Final details' },
+  { id: 'review', roman: 'V', title: 'Review & output' },
 ];
 
 export function App() {
   const [c, setC] = useState<Character>(loadCharacter);
   const [step, setStep] = useState(0);
   useEffect(() => saveCharacter(c), [c]);
+  const file = useRef<HTMLInputElement>(null);
+  const newAgent = () => { if (confirm('Discard the current Agent?')) { setC(newCharacter()); setStep(0); } };
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName)) return;
+      if (e.key === 'n') newAgent(); else if (e.key === 'i') file.current?.click();
+    };
+    addEventListener('keydown', k);
+    return () => removeEventListener('keydown', k);
+  }, []);
 
   const up: Up = (fn) => setC((prev) => { const d = structuredClone(prev); fn(d); return d; });
   const issues = validate(c);
@@ -34,7 +42,15 @@ export function App() {
         <span>YOURCODENA.ME v0.1</span>
         <span className="dim">// Agent intake terminal</span>
         <span className="grow">
-          <button onClick={() => { if (confirm('Discard the current Agent?')) { setC(newCharacter()); setStep(0); } }}>[N] New agent</button>
+          <button onClick={() => file.current?.click()}>[I] Input agent</button>
+          <button onClick={newAgent}>[N] New agent</button>
+          <input ref={file} type="file" accept=".json,application/json" hidden
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (!f) return;
+              try { setC(await importJson(f)); } catch { alert('Not a valid Agent file.'); }
+            }} />
         </span>
       </nav>
 
@@ -57,11 +73,10 @@ export function App() {
 
         <Win title={`STEP ${cur.roman} // ${cur.title.toUpperCase()}`} right={`${step + 1}/${STEPS.length}`}>
           {cur.id === 'stats' && <StatsStep {...props} />}
-          {cur.id === 'derived' && <DerivedStep {...props} />}
           {cur.id === 'profession' && <ProfessionStep {...props} />}
           {cur.id === 'bonds' && <BondsStep {...props} />}
           {cur.id === 'details' && <DetailsStep {...props} />}
-          {cur.id === 'review' && <ReviewStep {...props} replace={setC} />}
+          {cur.id === 'review' && <ReviewStep {...props} />}
           <div className="row noprint" style={{ marginTop: '1.5rem' }}>
             <Btn disabled={step === 0} onPress={() => setStep(step - 1)}>◂ Back</Btn>
             <Btn disabled={step === STEPS.length - 1} onPress={() => setStep(step + 1)}>Next ▸</Btn>
@@ -74,7 +89,7 @@ export function App() {
         <span className={issues.length ? 'warn' : 'ok'}>{issues.length ? `${issues.length} open item${issues.length === 1 ? '' : 's'}` : 'All steps complete'}</span>
         <span className="dim">Autosaved locally · Source: Agent's Handbook</span>
         <span className="cursor" aria-hidden />
-        <small className="legal dim">Unofficial fan tool, not affiliated with or endorsed by the Delta Green Partnership or Arc Dream Publishing. Delta Green is a trademark and copyright of the Delta Green Partnership.</small>
+        <small className="legal dim">Published by arrangement with the Delta Green Partnership. The intellectual property known as Delta Green is a trademark and copyright owned by the Delta Green Partnership, who has licensed its use here. The contents of this document are ©J. Garrett Vorbeck, excepting those elements that are components of the Delta Green intellectual property.</small>
       </footer>
     </>
   );

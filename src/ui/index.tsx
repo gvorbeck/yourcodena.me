@@ -16,10 +16,20 @@ export const Win = ({ title, right, children }: { title: string; right?: ReactNo
 
 export const Rule = () => <div className="rule" aria-hidden />;
 
-export const Text = ({ label, value, onChange, area }: { label: string; value: string; onChange: (v: string) => void; area?: boolean }) => (
+/** 8x8 pixel d6 showing five; drawn on a grid so it stays crisp at any size. */
+const Dice = () => (
+  <svg viewBox="0 0 8 8" width="16" height="16" shapeRendering="crispEdges" aria-hidden fill="currentColor">
+    <path d="M1 0h6v1h1v6h-1v1H1V7H0V1h1z M2 2h1v1H2z M5 2h1v1H5z M3.5 3.5h1v1h-1z M2 5h1v1H2z M5 5h1v1H5z" fillRule="evenodd" />
+  </svg>
+);
+
+export const Text = ({ label, value, onChange, area, onRoll }: { label: string; value: string; onChange: (v: string) => void; area?: boolean; onRoll?: () => void }) => (
   <TextField className="field" value={value} onChange={onChange}>
     <Label>{label}</Label>
-    {area ? <TextArea /> : <Input />}
+    <div className="with-roll">
+      {area ? <TextArea /> : <Input />}
+      {onRoll && <Button className="btn roll" aria-label={`Randomize ${label}`} onPress={onRoll}><Dice /></Button>}
+    </div>
   </TextField>
 );
 

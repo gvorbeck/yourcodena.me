@@ -1,5 +1,6 @@
 import { STATS, STAT_NAMES, STAT_SETS, POINT_BUY_TOTAL } from '../rules/data/creation';
 import { featureOf, roll4d6dl } from '../rules';
+import { DerivedStep } from './DerivedStep';
 import { Btn, Choice, Num, Rule, RadioGroup, Label, type StepProps } from '../ui';
 
 export function StatsStep({ c, up }: StepProps) {
@@ -37,6 +38,9 @@ export function StatsStep({ c, up }: StepProps) {
         })}
       </div>
       {c.statMethod === 'set' && <p className="dim" style={{ marginTop: '.5rem' }}>Reorder by editing scores; the set must keep the same values.</p>}
+      <Rule />
+      <h3>Derived attributes</h3>
+      <DerivedStep c={c} up={up} />
     </>
   );
 }

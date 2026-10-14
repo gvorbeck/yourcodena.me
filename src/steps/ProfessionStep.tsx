@@ -1,10 +1,17 @@
 import { PROFESSIONS, GROUP_LABEL, POSTINGS, type Group } from '../rules/data/professions';
 import { PACKAGES } from '../rules/data/creation';
-import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPE_SUGGESTIONS } from '../rules/data/skills';
-import { professionOf, slotsOf, type Alt, type Slot } from '../rules';
+import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPE_SUGGESTIONS, makeKey } from '../rules/data/skills';
+import type { Character } from '../model/character';
+import { kitOf, professionOf, slotsOf, type Alt, type Slot } from '../rules';
 import { Choice, Pick, RadioGroup, Label, Rule, SkillPicker, SkillTable, type StepProps } from '../ui';
 
 const altLabel = (a: Alt) => `${a.family}${a.type ? `(${a.type})` : a.askType ? ' (type)' : ''} ${a.rating}%`;
+
+/** p. 20: optional skills must be ones the Agent doesn't already have from the fixed kit. */
+const duplicatesKit = (c: Character, o: Slot) => {
+  const owned = new Set(kitOf(c).filter((k) => k.slot.startsWith('f') && !k.missingType).map((k) => k.key));
+  return o.alts.every((a) => !a.askType && owned.has(makeKey(a.family, a.type)));
+};
 
 export function ProfessionStep({ c, up }: StepProps) {
   const p = professionOf(c);
@@ -24,7 +31,7 @@ export function ProfessionStep({ c, up }: StepProps) {
       <li key={s.id}>{altLabel(s.alts[0])}{typeInput(s.id, s.alts[0])}</li>
     ) : (
       <li key={s.id}>
-        <RadioGroup aria-label="Either/or" value={String(c.orPicks[s.id] ?? 0)} onChange={(v) => up((d) => { d.orPicks[s.id] = Number(v); })}>
+        <RadioGroup aria-label="Either/or" value={String(c.orPicks[s.id] ?? 0)} onChange={(v) => up((d) => { d.orPicks[s.id] = Number(v); d.picks = d.picks.filter((id) => !duplicatesKit(d, kit!.options.find((o) => o.id === id)!)); })}>
           {s.alts.map((a, i) => <Choice key={i} value={String(i)}>{altLabel(a)}</Choice>)}
         </RadioGroup>
         {typeInput(s.id, s.alts[c.orPicks[s.id] ?? 0])}
@@ -67,11 +74,12 @@ export function ProfessionStep({ c, up }: StepProps) {
                   <h3>Choose {kit.n} <span className={c.picks.length === kit.n ? 'ok' : 'warn'}>({c.picks.length}/{kit.n})</span></h3>
                   {kit.options.map((o) => {
                     const on = c.picks.includes(o.id);
+                    const have = !on && duplicatesKit(c, o);
                     return (
                       <div key={o.id}>
-                        <Pick id={o.id} selected={on} disabled={!on && c.picks.length >= kit.n}
+                        <Pick id={o.id} selected={on} disabled={!on && (have || c.picks.length >= kit.n)}
                           onChange={(v) => up((d) => { d.picks = v ? [...d.picks, o.id] : d.picks.filter((x) => x !== o.id); })}>
-                          {o.alts.map(altLabel).join(' / ')}
+                          {o.alts.map(altLabel).join(' / ')}{have && <span className="dim"> · already have</span>}
                         </Pick>
                         {on && typeInput(o.id, o.alts[0])}
                       </div>

@@ -1,11 +1,12 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import { STATS, STAT_NAMES } from '../rules/data/creation';
 import { derived, featureOf, professionOf, validate } from '../rules';
-import { exportJson, importJson, type Character } from '../model/character';
+import { asciiSheet } from '../model/sheet';
+import { exportJson } from '../model/character';
 import { Btn, SkillTable, Rule, type StepProps } from '../ui';
 
-export function ReviewStep({ c, up, replace }: StepProps & { replace: (c: Character) => void }) {
-  const file = useRef<HTMLInputElement>(null);
+export function ReviewStep({ c }: StepProps) {
+  const [copied, setCopied] = useState(false);
   const issues = validate(c);
   const d = derived(c);
   const p = professionOf(c);
@@ -15,14 +16,7 @@ export function ReviewStep({ c, up, replace }: StepProps & { replace: (c: Charac
       <div className="row noprint">
         <Btn onPress={() => window.print()}>Print / PDF</Btn>
         <Btn onPress={() => exportJson(c)}>Export JSON</Btn>
-        <Btn onPress={() => file.current?.click()}>Import JSON</Btn>
-        <input ref={file} type="file" accept=".json,application/json" hidden
-          onChange={async (e) => {
-            const f = e.target.files?.[0];
-            e.target.value = '';
-            if (!f) return;
-            try { replace(await importJson(f)); } catch { alert('Not a valid Agent file.'); }
-          }} />
+        <Btn onPress={() => { navigator.clipboard.writeText(asciiSheet(c)).then(() => setCopied(true), () => alert('Clipboard unavailable.')); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied ✓' : 'Copy Text'}</Btn>
       </div>
       {issues.length > 0 && (
         <ul className="issues noprint">{issues.map((i, n) => <li key={n}>[{i.step}] {i.msg}</li>)}</ul>
@@ -31,7 +25,7 @@ export function ReviewStep({ c, up, replace }: StepProps & { replace: (c: Charac
         <Rule />
         <h2>Personnel file {issues.length ? <span className="stamp">Incomplete</span> : <span className="ok">Cleared</span>}</h2>
         <div className="cols">
-          <p>Name: {det.name || '—'}</p>
+          <p>Name: {det.name || '—'}{det.codename && ` (codename ${det.codename})`}</p>
           <p>Profession: {p?.name ?? '—'}</p>
           <p>Employer: {det.employer || '—'} {det.rank && `(${det.rank})`}</p>
           <p>Age: {det.age || '—'} · Sex: {det.sex || '—'} · Nationality: {det.nationality || '—'}</p>
@@ -53,6 +47,10 @@ export function ReviewStep({ c, up, replace }: StepProps & { replace: (c: Charac
         <ul>{c.motivations.filter(Boolean).map((m, i) => <li key={i}>{m}</li>)}</ul>
         {(['education', 'appearance', 'personality', 'admires', 'dislikes', 'trust', 'helps'] as const).map((k) => det[k] && (
           <p key={k}><span className="dim">{k}:</span> {det[k]}</p>
+        ))}
+        <h3>Incidents of SAN loss without going insane</h3>
+        {([['Violence', 'violence'], ['Helplessness', 'captivity']] as const).map(([label, vet]) => (
+          <p key={label} className="boxes">{label} ☐ ☐ ☐ · adapted {c.veteran === vet ? '☒' : '☐'}</p>
         ))}
       </div>
     </>

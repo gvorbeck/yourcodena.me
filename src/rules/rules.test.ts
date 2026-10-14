@@ -40,3 +40,19 @@ describe('skills', () => {
     expect(validate(c).some((i) => i.msg.includes('Alertness exceeds'))).toBe(true);
   });
 });
+
+describe('ascii sheet', () => {
+  it('never exceeds 30 columns', async () => {
+    const { asciiSheet, MAX_COL } = await import('../model/sheet');
+    const c = newCharacter();
+    c.professionId = 'police-officer';
+    c.veteran = 'violence';
+    c.details.name = 'Bartholomew Montgomery-Featherstonehaugh';
+    c.details.appearance = 'A petite blonde with short hair, the world has not been kind to her. Supercalifragilisticexpialidocious.';
+    c.bonds = [{ name: 'My ex-husband, Jack', note: 'a very long note about the bond' }];
+    c.bonus = ['Science(Chemistry)', 'Foreign Language(Mandarin)', 'Occult', '', '', '', '', ''];
+    const out = asciiSheet(c);
+    for (const l of out.split('\n')) expect(l.length, l).toBeLessThanOrEqual(MAX_COL);
+    expect(out).toContain('Violence:');
+  });
+});

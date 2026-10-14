@@ -22,7 +22,7 @@ export const characterSchema = z.object({
   veteranSkills: z.array(z.string()).default([]),
   motivations: z.array(z.string()).max(5).default([]),
   details: z.object({
-    name: text, age: text, sex: text, nationality: text, employer: text, rank: text,
+    name: text, codename: text, age: text, sex: text, nationality: text, employer: text, rank: text,
     education: text, appearance: text, personality: text, admires: text, dislikes: text,
     trust: text, helps: text,
   }),
@@ -35,7 +35,7 @@ export const newCharacter = (): Character => ({
   stats: { STR: 10, DEX: 10, CON: 10, INT: 10, POW: 10, CHA: 10 },
   statMethod: 'roll', statSet: '', professionId: '', orPicks: {}, picks: [], types: {},
   bonusPackage: '', bonus: Array(8).fill(''), bonds: [], veteran: '', veteranSkills: [], motivations: [],
-  details: { name: '', age: '', sex: '', nationality: '', employer: '', rank: '', education: '', appearance: '', personality: '', admires: '', dislikes: '', trust: '', helps: '' },
+  details: { name: '', codename: '', age: '', sex: '', nationality: '', employer: '', rank: '', education: '', appearance: '', personality: '', admires: '', dislikes: '', trust: '', helps: '' },
 });
 
 /** Bump CHARACTER_VERSION and add a step here when the schema changes shape. */

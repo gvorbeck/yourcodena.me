@@ -102,7 +102,7 @@ export function skillsOf(c: Character): SkillLine[] {
 }
 
 // ---- Validation
-export type StepId = 'stats' | 'derived' | 'profession' | 'bonds' | 'details';
+export type StepId = 'stats' | 'profession' | 'bonds' | 'details';
 export interface Issue { step: StepId; msg: string }
 
 export function bondCount(c: Character) {
@@ -129,7 +129,8 @@ export function validate(c: Character): Issue[] {
     if (c.picks.filter((id) => options.some((o) => o.id === id)).length !== n) add('profession', `Choose exactly ${n} optional professional skill${n === 1 ? '' : 's'}.`);
     const kit = kitOf(c);
     if (kit.some((k) => k.missingType)) add('profession', 'Name the type for each typed skill (language, science, craft…).');
-    if (new Set(kit.map((k) => k.key)).size < kit.length) add('profession', 'Two professional skills resolve to the same skill — pick different types or options.');
+    const dupes = [...new Set(kit.map((k) => k.key).filter((k, i, a) => a.indexOf(k) !== i))];
+    if (dupes.length) add('profession', `${dupes.join(', ')} appears twice in the professional skills — change one of the picks.`);
   }
 
   if (c.bonus.some((k) => !k)) add('profession', `Pick all ${BONUS_PICKS} bonus skills.`);
