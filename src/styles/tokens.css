@@ -1,0 +1,32 @@
+/* Departure Mono: drop DepartureMono-Regular.woff2 (OFL) into public/fonts/. Falls back to system mono. */
+@font-face {
+  font-family: 'Departure Mono';
+  src: local('Departure Mono'), url('/fonts/DepartureMono-Regular.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+  --font: 'Departure Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --bg: #e6dfc8;       /* manila folder */
+  --panel: #efe9d6;
+  --fg: #1d1d1b;
+  --dim: #6b665a;
+  --line: #1d1d1b;
+  --accent: #b5530a;
+  --inv-bg: #1d1d1b;
+  --inv-fg: #e6dfc8;
+  --warn: #a4160f;
+  --ok: #2c6b2f;
+  --gap: 1rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #141414; --panel: #1b1a17; --fg: #ffa133; --dim: #a8691d; --line: #ffa133;
+    --accent: #ffd08a; --inv-bg: #ffa133; --inv-fg: #141414; --warn: #ff6a5a; --ok: #8fd18a;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #141414; --panel: #1b1a17; --fg: #ffa133; --dim: #a8691d; --line: #ffa133;
+  --accent: #ffd08a; --inv-bg: #ffa133; --inv-fg: #141414; --warn: #ff6a5a; --ok: #8fd18a;
+}
