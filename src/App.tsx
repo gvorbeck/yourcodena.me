@@ -29,7 +29,10 @@ export function App() {
     const k = (e: KeyboardEvent) => {
       // Alt+key, never a bare letter, so typing and speech input can't trigger it (WCAG 2.1.4).
       if (!e.altKey || e.ctrlKey || e.metaKey) return;
-      if (e.code === 'KeyN') newAgent(); else if (e.code === 'KeyI') file.current?.click();
+      // Option+N/I are dead keys on macOS (ñ, î), so leave text fields alone.
+      if (e.target instanceof Element && e.target.matches('input, textarea, select, [contenteditable]')) return;
+      if (e.code === 'KeyN') { e.preventDefault(); newAgent(); }
+      else if (e.code === 'KeyI') { e.preventDefault(); file.current?.click(); }
     };
     addEventListener('keydown', k);
     return () => removeEventListener('keydown', k);
@@ -47,14 +50,13 @@ export function App() {
         <span className="dim">// Agent intake terminal</span>
         <span className="grow">
           <button onClick={() => file.current?.click()}>[Alt+I] Import agent</button>
-          <span aria-hidden="true"> | </span>
           <button onClick={newAgent}>[Alt+N] New agent</button>
           <input ref={file} type="file" accept=".json,application/json" hidden
             onChange={async (e) => {
               const f = e.target.files?.[0];
               e.target.value = '';
               if (!f) return;
-              try { setC(await importJson(f)); } catch { alert('Not a valid Agent file.'); }
+              try { setC(await importJson(f)); setStep(0); } catch { alert('Not a valid Agent file.'); }
             }} />
         </span>
       </nav>
