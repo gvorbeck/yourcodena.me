@@ -19,6 +19,7 @@
   --warn: #a4160f;
   --ok: #2c6b2f;
   --gap: 1rem;
+  --control-padding-y: .125rem;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
