@@ -1,5 +1,6 @@
 import { derived } from '../rules';
 import { type StepProps } from '../ui';
+import { stepNo } from '.';
 
 export function DerivedStep({ c }: StepProps) {
   const d = derived(c);
@@ -18,7 +19,7 @@ export function DerivedStep({ c }: StepProps) {
           <tr><td>Maximum SAN</td><td className="num">{d.maxSan}</td><td className="dim">99 − Unnatural</td></tr>
         </tbody>
       </table>
-      {c.veteran && <p className="dim">Includes Damaged Veteran adjustments from step IV.</p>}
+      {c.veteran && <p className="dim">Includes Damaged Veteran adjustments from step {stepNo('details')}.</p>}
     </>
   );
 }

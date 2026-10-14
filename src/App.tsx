@@ -1,20 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadCharacter, importJson, newCharacter, saveCharacter, type Character } from './model/character';
-import { validate, type StepId } from './rules';
+import { validate } from './rules';
 import { Btn, Win, type Up } from './ui';
 import { StatsStep } from './steps/StatsStep';
 import { ProfessionStep } from './steps/ProfessionStep';
 import { BondsStep } from './steps/BondsStep';
 import { DetailsStep } from './steps/DetailsStep';
 import { ReviewStep } from './steps/ReviewStep';
-
-const STEPS: { id: StepId | 'review'; roman: string; title: string }[] = [
-  { id: 'stats', roman: 'I', title: 'Statistics & derived attributes' },
-  { id: 'profession', roman: 'II', title: 'Profession & skills' },
-  { id: 'bonds', roman: 'III', title: 'Bonds' },
-  { id: 'details', roman: 'IV', title: 'Final details' },
-  { id: 'review', roman: 'V', title: 'Review & output' },
-];
+import { STEPS } from './steps';
 
 export function App() {
   const [c, setC] = useState<Character>(loadCharacter);
@@ -69,7 +62,7 @@ export function App() {
               return (
                 <li key={s.id}>
                   <button aria-current={i === step ? 'step' : undefined} onClick={() => setStep(i)}>
-                    <span className="n">{s.roman}.</span><span>{s.title}</span>
+                    <span className="n">{i + 1}.</span><span>{s.title}</span>
                     <span className={`flag ${bad ? 'warn' : 'ok'}`}>{s.id === 'review' ? '' : bad ? '!' : '✓'}</span>
                   </button>
                 </li>
@@ -78,7 +71,7 @@ export function App() {
           </ol>
         </Win>
 
-        <Win title={`STEP ${cur.roman} // ${cur.title.toUpperCase()}`} right={`${step + 1}/${STEPS.length}`}>
+        <Win title={`STEP ${step + 1} // ${cur.title.toUpperCase()}`} right={`${step + 1}/${STEPS.length}`}>
           {cur.id === 'stats' && <StatsStep {...props} />}
           {cur.id === 'profession' && <ProfessionStep {...props} />}
           {cur.id === 'bonds' && <BondsStep {...props} />}

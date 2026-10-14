@@ -28,7 +28,7 @@ h2::before, h3::before { content: '[ '; } h2::after, h3::after { content: ' ]'; 
 .steps button { all: unset; box-sizing: border-box; display: flex; gap: .75rem; width: 100%; padding: .1rem .5rem; cursor: pointer; }
 .steps button:hover, .steps button[data-focus-visible] { outline: 1px dashed var(--line); }
 .steps button[aria-current='step'] { background: var(--inv-bg); color: var(--inv-fg); }
-.steps .n { width: 2.5rem; } .steps .flag { margin-left: auto; }
+.steps .n { flex: none; min-width: 2ch; } .steps .flag { margin-left: auto; }
 
 .grid { display: grid; gap: .75rem var(--gap); grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
 .field { display: flex; flex-direction: column; gap: .125rem; }

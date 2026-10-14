@@ -1,6 +1,7 @@
 import { SAMPLE_BONDS } from '../rules/data/creation';
 import { bondCount, derived, professionOf } from '../rules';
 import { Rule, Text, type StepProps } from '../ui';
+import { stepNo } from '.';
 
 export function BondsStep({ c, up }: StepProps) {
   const need = bondCount(c);
@@ -14,7 +15,7 @@ export function BondsStep({ c, up }: StepProps) {
     <>
       <p className="dim">Handbook p. 36 — real people or groups. Each Bond starts at your CHA ({score}) and can never exceed it.</p>
       <Rule />
-      {!professionOf(c) && <p className="warn">Choose a profession in step II first.</p>}
+      {!professionOf(c) && <p className="warn">Choose a profession in step {stepNo('profession')} first.</p>}
       <div className="grid">
         {Array.from({ length: need }, (_, i) => (
           <div key={i}>
