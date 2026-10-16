@@ -16,6 +16,10 @@ export function App() {
   });
   useEffect(() => { try { localStorage.setItem('dg.step', String(step)); } catch { /* storage blocked */ } }, [step]);
   useEffect(() => saveCharacter(c), [c]);
+  // Return to the top on step change. Comparing with the previous step (not a mounted flag) survives StrictMode's double effect run.
+  const prevStep = useRef(step);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { if (prevStep.current !== step) { scrollTo(0, 0); heading.current?.focus(); } prevStep.current = step; }, [step]);
   const file = useRef<HTMLInputElement>(null);
   const newAgent = () => { if (confirm('Discard the current Agent?')) { setC(newCharacter()); setStep(0); } };
   useEffect(() => {
@@ -71,7 +75,7 @@ export function App() {
           </ol>
         </Win>
 
-        <Win title={`STEP ${step + 1} // ${cur.title.toUpperCase()}`} right={`${step + 1}/${STEPS.length}`}>
+        <Win title={`STEP ${step + 1} // ${cur.title.toUpperCase()}`} right={`${step + 1}/${STEPS.length}`} headingRef={heading}>
           {cur.id === 'stats' && <StatsStep {...props} />}
           {cur.id === 'profession' && <ProfessionStep {...props} />}
           {cur.id === 'bonds' && <BondsStep {...props} />}

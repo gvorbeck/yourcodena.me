@@ -1,4 +1,5 @@
 {
+  "editor.formatOnSave": false,
   "workbench.colorCustomizations": {
     "commandCenter.border": "#e7e7e799",
     "commandCenter.foreground": "#e7e7e7",

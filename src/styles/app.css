@@ -22,6 +22,7 @@ h2::before, h3::before { content: '[ '; } h2::after, h3::after { content: ' ]'; 
 
 .win { border: 2px solid var(--line); background: var(--panel); }
 .win > header { background: var(--inv-bg); color: var(--inv-fg); padding: 0 .5rem; display: flex; justify-content: space-between; }
+.win > header h2 { margin: 0; font: inherit; }
 .win > .body { padding: var(--gap); }
 
 .steps { list-style: none; margin: 0; padding: 0; }
@@ -45,7 +46,7 @@ option { text-transform: uppercase; }
   font: inherit; text-transform: inherit; cursor: pointer; background: transparent; color: inherit;
   border: 1px solid var(--line); border-radius: 0; padding: .125rem .75rem;
 }
-.btn:hover, .btn[data-hovered], .btn[data-focus-visible] { background: var(--inv-bg); color: var(--inv-fg); outline: none; }
+button[data-rac].btn:is(:hover, [data-hovered], [data-focus-visible]):not([data-disabled]) { background: var(--inv-bg); color: var(--inv-fg); outline: none; }
 .btn[data-disabled] { opacity: .4; cursor: not-allowed; }
 .row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
 

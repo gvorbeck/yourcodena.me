@@ -1,5 +1,5 @@
 import { Button, Checkbox, Input, Label, NumberField, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import type { Character } from '../model/character';
 import { SKILL_FAMILIES, TYPED_SKILLS, TYPE_SUGGESTIONS, familyOf, makeKey, typeOf } from '../rules/data/skills';
 import { skillsOf } from '../rules';
@@ -7,9 +7,11 @@ import { skillsOf } from '../rules';
 export type Up = (fn: (draft: Character) => void) => void;
 export interface StepProps { c: Character; up: Up }
 
-export const Win = ({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) => (
+interface WinProps { title: string; right?: ReactNode; children: ReactNode; headingRef?: Ref<HTMLHeadingElement> }
+
+export const Win = ({ title, right, children, headingRef }: WinProps) => (
   <section className="win">
-    <header><span>{title}</span><span>{right}</span></header>
+    <header><h2 tabIndex={headingRef ? -1 : undefined} ref={headingRef}>{title}</h2><span>{right}</span></header>
     <div className="body">{children}</div>
   </section>
 );
