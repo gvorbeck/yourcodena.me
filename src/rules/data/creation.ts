@@ -77,3 +77,6 @@ export const VETERANS: VeteranDef[] = [
   { id: 'unnatural', name: 'Things Man Was Not Meant to Know', page: 'p. 38', san: 'POW', unnatural: 10, occult: 20,
     effects: ['+10 Unnatural', '+20 Occult', 'SAN −POW', 'Gain a new disorder', 'BP reset to new SAN − POW'] },
 ];
+
+// p. 72 — sample disorders from the Unnatural, offered after 'Things Man Was Not Meant to Know'.
+export const UNNATURAL_DISORDERS = ['Amnesia', 'Depersonalization Disorder', 'Depression', 'Dissociative Identity Disorder', 'Fugues', 'Megalomania', 'Paranoia', 'Sleep Disorder'];

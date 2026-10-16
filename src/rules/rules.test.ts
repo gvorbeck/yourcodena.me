@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
 import { bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
+import { asciiSheet } from '../model/sheet';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
 
@@ -14,6 +15,17 @@ describe('derived attributes', () => {
     const c = newCharacter();
     c.stats.POW = 12; c.veteran = 'unnatural';
     expect(derived(c)).toMatchObject({ san: 48, bp: 36, maxSan: 89 });
+  });
+  it('requires a disorder only with Things Man Was Not Meant to Know', () => {
+    const c = newCharacter();
+    c.veteran = 'unnatural';
+    expect(validate(c).some((i) => /disorder/.test(i.msg))).toBe(true);
+    c.disorder = 'Amnesia';
+    expect(validate(c).some((i) => /disorder/.test(i.msg))).toBe(false);
+    c.veteran = '';
+    expect(asciiSheet(c)).not.toContain('Amnesia');
+    c.veteran = 'unnatural';
+    expect(asciiSheet(c)).toContain('Disorder: Amnesia');
   });
 });
 

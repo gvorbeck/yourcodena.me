@@ -62,11 +62,9 @@ const ClickInput = () => {
   return <Input placeholder="type…" onClick={() => state?.open(null, 'manual')} />;
 };
 
-const SUGGESTION_ITEMS = Object.fromEntries(Object.entries(TYPE_SUGGESTIONS).map(([f, ts]) => [f, ts.map((id) => ({ id }))]));
-
 /** Free-text input with suggestions. A real ComboBox (not <datalist>) so the popup can be styled and anchors to the input. */
-export const TypeInput = ({ label, family, value, onChange, style }: { label: string; family: string; value: string; onChange: (v: string) => void; style?: CSSProperties }) => {
-  const items = SUGGESTION_ITEMS[family] ?? [];
+export const TypeInput = ({ label, suggestions, value, onChange, style }: { label: string; suggestions: string[]; value: string; onChange: (v: string) => void; style?: CSSProperties }) => {
+  const items = suggestions.map((id) => ({ id }));
   // A value that already is a suggestion would filter the list down to itself; show everything instead.
   const complete = items.some((i) => i.id.toLowerCase() === value.toLowerCase());
   return (
@@ -91,7 +89,7 @@ export function SkillPicker({ label, value, onChange }: { label: string; value: 
           <option value="">— select —</option>
           {SKILL_FAMILIES.filter((f) => f !== 'Unnatural').map((f) => <option key={f}>{f}</option>)}
         </select>
-        {typed && <TypeInput label={`${label} type`} family={family} value={type} onChange={(v) => onChange(makeKey(family, v))} />}
+        {typed && <TypeInput label={`${label} type`} suggestions={TYPE_SUGGESTIONS[family] ?? []} value={type} onChange={(v) => onChange(makeKey(family, v))} />}
       </div>
     </div>
   );

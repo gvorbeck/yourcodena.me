@@ -1,7 +1,7 @@
-import { VETERANS } from '../rules/data/creation';
+import { UNNATURAL_DISORDERS, VETERANS } from '../rules/data/creation';
 import { veteranOf, professionOf } from '../rules';
 import * as R from '../rules/data/random';
-import { Choice, Rule, RadioGroup, Label, SkillPicker, Text, type StepProps } from '../ui';
+import { Choice, Rule, RadioGroup, Label, SkillPicker, Text, TypeInput, type StepProps } from '../ui';
 
 const FIELDS: [keyof StepProps['c']['details'], string, boolean?][] = [
   ['name', 'Name'], ['codename', 'Codename (optional)'], ['age', 'Age / date of birth'], ['sex', 'Sex'], ['nationality', 'Nationality'],
@@ -45,11 +45,17 @@ export function DetailsStep({ c, up }: StepProps) {
         ))}
       </div>
       <h3>Damaged veterans (p. 38) — optional</h3>
-      <RadioGroup value={c.veteran || 'none'} onChange={(x) => up((d) => { d.veteran = x === 'none' ? '' : x; d.veteranSkills = []; })}>
+      <RadioGroup value={c.veteran || 'none'} onChange={(x) => up((d) => { d.veteran = x === 'none' ? '' : x; d.veteranSkills = []; d.disorder = ''; })}>
         <Label className="lbl">Choose one or none</Label>
         <Choice value="none">None</Choice>
-        {VETERANS.map((o) => <Choice key={o.id} value={o.id}>{o.name} <span className="dim">— {o.effects.join('; ')}</span></Choice>)}
+        {VETERANS.map((o) => <Choice key={o.id} value={o.id}><span>{o.name}<br /><span className="dim">{o.effects.join('; ')}</span></span></Choice>)}
       </RadioGroup>
+      {v?.id === 'unnatural' && (
+        <div className="field">
+          <label>New disorder (p. 72)</label>
+          <TypeInput label="New disorder (p. 72)" suggestions={UNNATURAL_DISORDERS} value={c.disorder} onChange={(x) => up((d) => { d.disorder = x; })} />
+        </div>
+      )}
       {v?.extraSkills && (
         <div className="grid" style={{ marginTop: '.5rem' }}>
           {Array.from({ length: v.extraSkills.count }, (_, i) => (

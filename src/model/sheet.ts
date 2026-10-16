@@ -1,5 +1,5 @@
 import { STATS } from '../rules/data/creation';
-import { bondCount, derived, featureOf, professionOf, skillsOf, veteranOf } from '../rules';
+import { bondCount, derived, disorderOf, featureOf, professionOf, skillsOf, veteranOf } from '../rules';
 import type { Character } from './character';
 
 export const MAX_COL = 30;
@@ -49,6 +49,7 @@ export function asciiSheet(c: Character): string {
     ...field('Sex', det.sex),
     ...field('Nationality', det.nationality),
     ...(v ? [`Veteran: ${v.name}`] : []),
+    ...field('Disorder', disorderOf(c)),
 
     ...section('STATS      SCORE   x5', ...STATS.map((s) => {
       const f = featureOf(s, c.stats[s]);

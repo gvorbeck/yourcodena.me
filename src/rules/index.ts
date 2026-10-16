@@ -16,6 +16,8 @@ export function featureOf(stat: Stat, score: number): string | null {
 }
 
 export const veteranOf = (c: Character) => VETERANS.find((v) => v.id === c.veteran);
+/** The disorder only counts while its veteran option is selected (imports can carry a stale one). */
+export const disorderOf = (c: Character) => (c.veteran === 'unnatural' ? c.disorder.trim() : '');
 export const professionOf = (c: Character) => PROFESSIONS.find((p) => p.id === c.professionId);
 
 /** Derived attributes (p. 18) with Damaged Veteran adjustments (p. 38) applied. SAN starts at the pre-veteran POW × 5. */
@@ -150,6 +152,7 @@ export function validate(c: Character): Issue[] {
 
   if (!c.details.name.trim()) add('details', 'Give the Agent a name.');
   const v = veteranOf(c);
+  if (v?.id === 'unnatural' && !disorderOf(c)) add('details', `${v.name}: choose a new disorder.`);
   if (v?.extraSkills && c.veteranSkills.filter(Boolean).length !== v.extraSkills.count) add('details', `${v.name}: pick ${v.extraSkills.count} skills for +${v.extraSkills.amount}%.`);
   if (v?.extraSkills) {
     const { cap } = v.extraSkills;

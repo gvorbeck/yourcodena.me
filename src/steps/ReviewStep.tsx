@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { STATS, STAT_NAMES } from '../rules/data/creation';
-import { bondCount, derived, featureOf, professionOf, validate } from '../rules';
+import { bondCount, derived, disorderOf, featureOf, professionOf, validate } from '../rules';
 import { asciiSheet } from '../model/sheet';
 import { exportJson } from '../model/character';
 import { Btn, SkillTable, Rule, type StepProps } from '../ui';
@@ -43,6 +43,7 @@ export function ReviewStep({ c }: StepProps) {
         <div className="cols"><SkillTable c={c} /></div>
         <h3>Bonds</h3>
         <ul>{c.bonds.slice(0, bondCount(c)).filter((b) => b.name).map((b, i) => <li key={i}>{b.name} — {d.bondScore}{b.note && ` · ${b.note}`}</li>)}</ul>
+        {disorderOf(c) && <p><span className="dim">disorder:</span> {disorderOf(c)}</p>}
         <h3>Motivations</h3>
         <ul>{c.motivations.filter(Boolean).map((m, i) => <li key={i}>{m}</li>)}</ul>
         {(['education', 'appearance', 'personality', 'admires', 'dislikes', 'trust', 'helps'] as const).map((k) => det[k] && (

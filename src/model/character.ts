@@ -20,6 +20,7 @@ export const characterSchema = z.object({
   bonds: z.array(z.object({ name: text, note: text })).default([]),
   veteran: text,
   veteranSkills: z.array(z.string()).default([]),
+  disorder: text,
   motivations: z.array(z.string()).max(5).default([]),
   details: z.object({
     name: text, codename: text, age: text, sex: text, nationality: text, employer: text, rank: text,
@@ -34,7 +35,7 @@ export const newCharacter = (): Character => ({
   version: CHARACTER_VERSION,
   stats: { STR: 10, DEX: 10, CON: 10, INT: 10, POW: 10, CHA: 10 },
   statMethod: 'roll', statSet: '', professionId: '', orPicks: {}, picks: [], types: {},
-  bonusPackage: '', bonus: Array(8).fill(''), bonds: [], veteran: '', veteranSkills: [], motivations: [],
+  bonusPackage: '', bonus: Array(8).fill(''), bonds: [], veteran: '', veteranSkills: [], disorder: '', motivations: [],
   details: { name: '', codename: '', age: '', sex: '', nationality: '', employer: '', rank: '', education: '', appearance: '', personality: '', admires: '', dislikes: '', trust: '', helps: '' },
 });
 
