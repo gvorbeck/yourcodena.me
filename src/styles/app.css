@@ -17,6 +17,9 @@ h2::before, h3::before { content: '[ '; } h2::after, h3::after { content: ' ]'; 
 .menubar button + button::before { content: "|" / ""; display: inline-block; margin: 0 .75ch; } /* inline-block keeps the hover underline off it */
 
 .shell { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--gap); padding: var(--gap); align-items: start; align-content: start; }
+@media (min-width: 801px) { .shell.live { grid-template-columns: minmax(0, 1fr) 22rem; } .shell.live > .win:first-child { position: static; } }
+.shell.live td { overflow-wrap: anywhere; }
+.counter { flex-wrap: nowrap; margin-bottom: .5rem; }
 @media (max-width: 800px) { .shell { grid-template-columns: minmax(0, 1fr); } }
 @media (min-width: 801px) { .shell > .win:first-child { position: sticky; top: var(--gap); } }
 

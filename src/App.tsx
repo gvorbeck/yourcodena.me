@@ -8,8 +8,19 @@ import { BondsStep } from './steps/BondsStep';
 import { DetailsStep } from './steps/DetailsStep';
 import { ReviewStep } from './steps/ReviewStep';
 import { STEPS } from './steps';
+import { LiveSheet } from './LiveSheet';
+import { decodeSheet } from './model/live';
 
 export function App() {
+  const [hash, setHash] = useState(location.hash);
+  useEffect(() => { const h = () => setHash(location.hash); addEventListener('hashchange', h); return () => removeEventListener('hashchange', h); }, []);
+  const shared = decodeSheet(hash);
+  // Keyed on the hash seen at navigation: replaceState edits fire no hashchange, so they never remount.
+  if (shared) return <LiveSheet key={hash} c={shared.c} init={shared.l} />;
+  return <Editor />;
+}
+
+function Editor() {
   const [c, setC] = useState<Character>(loadCharacter);
   const [step, setStep] = useState(() => {
     try { return Math.min(STEPS.length - 1, Math.max(0, Number(localStorage.getItem('dg.step')) || 0)); } catch { return 0; }
@@ -82,7 +93,7 @@ export function App() {
           {cur.id === 'details' && <DetailsStep {...props} />}
           {cur.id === 'review' && <ReviewStep {...props} />}
           <div className="row noprint" style={{ marginTop: '1.5rem' }}>
-            <Btn disabled={step === 0} onPress={() => setStep(step - 1)}>◂ Back</Btn>
+            <Btn disabled={step === 0} onPress={() => setStep(step - 1)}>&lt; Back</Btn>
             <Btn disabled={step === STEPS.length - 1} onPress={() => setStep(step + 1)}>Next ▸</Btn>
           </div>
         </Win>
