@@ -86,12 +86,20 @@ td.num, th.num { text-align: right; }
   .menubar { padding: .25rem .5rem; gap: .5rem; }
   .menubar .grow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 0 1.5rem; }
   .menubar button + button::before { content: none; } /* would dangle when the buttons wrap */
-  .steps { display: flex; flex-wrap: wrap; }
-  .steps li { flex: 1 1 50%; }
-  .steps .n { width: auto; }
-  .steps .flag { margin-left: .5rem; }
+  /* one row: number + flag per step, label only for the current one */
+  .steps { display: flex; }
+  .steps li { flex: none; }
+  .steps li:has([aria-current='step']) { flex: 1; min-width: 0; }
+  .steps button { gap: .5rem; padding: .25rem .5rem; }
+  .steps button:not([aria-current='step']) .n + span { display: none; }
+  .steps button[aria-current='step'] .n + span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .steps .n { min-width: 0; }
+  .steps .flag { margin-left: .25rem; }
   .group-list { max-height: 14rem; }
-  .grid { grid-template-columns: minmax(0, 1fr); }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .grid.wide, .grid.split, .grid.bonds { grid-template-columns: minmax(0, 1fr); }
+  .bond { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  h3 { margin-top: .75rem; }
   .btn { padding: .4rem .9rem; }
   :root { --control-padding-y: .35rem; }
   .with-roll .btn.roll { font-size: 16px; } /* em-based height must match the 16px inputs */
