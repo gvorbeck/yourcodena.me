@@ -1,5 +1,5 @@
-import { Button, Checkbox, Input, Label, NumberField, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
-import type { ReactNode, Ref } from 'react';
+import { Button, Checkbox, ComboBox, ComboBoxStateContext, Input, Label, ListBox, ListBoxItem, NumberField, Popover, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
+import { useContext, type CSSProperties, type ReactNode, type Ref } from 'react';
 import type { Character } from '../model/character';
 import { SKILL_FAMILIES, TYPED_SKILLS, TYPE_SUGGESTIONS, familyOf, makeKey, typeOf } from '../rules/data/skills';
 import { skillsOf } from '../rules';
@@ -56,11 +56,33 @@ export const Pick = ({ id, selected, onChange, children, disabled }: { id: strin
 
 export { RadioGroup, Label };
 
+/** Opens the list on click; keyboard focus alone (tabbing past) stays quiet. */
+const ClickInput = () => {
+  const state = useContext(ComboBoxStateContext);
+  return <Input placeholder="type…" onClick={() => state?.open(null, 'manual')} />;
+};
+
+const SUGGESTION_ITEMS = Object.fromEntries(Object.entries(TYPE_SUGGESTIONS).map(([f, ts]) => [f, ts.map((id) => ({ id }))]));
+
+/** Free-text input with suggestions. A real ComboBox (not <datalist>) so the popup can be styled and anchors to the input. */
+export const TypeInput = ({ label, family, value, onChange, style }: { label: string; family: string; value: string; onChange: (v: string) => void; style?: CSSProperties }) => {
+  const items = SUGGESTION_ITEMS[family] ?? [];
+  // A value that already is a suggestion would filter the list down to itself; show everything instead.
+  const complete = items.some((i) => i.id.toLowerCase() === value.toLowerCase());
+  return (
+    <ComboBox aria-label={label} allowsCustomValue inputValue={value} onInputChange={onChange} defaultItems={items} defaultFilter={complete ? () => true : undefined} style={{ flex: 1, minWidth: 0, ...style }}>
+      <ClickInput />
+      <Popover className="popover">
+        <ListBox className="listbox">{(t: { id: string }) => <ListBoxItem className="option">{t.id}</ListBoxItem>}</ListBox>
+      </Popover>
+    </ComboBox>
+  );
+};
+
 /** Family select + type input; emits "Family(Type)" keys. `""` = unset. */
 export function SkillPicker({ label, value, onChange }: { label: string; value: string; onChange: (key: string) => void }) {
   const family = familyOf(value), type = typeOf(value);
   const typed = TYPED_SKILLS.includes(family);
-  const listId = `types-${family.replace(/\W/g, '')}`;
   return (
     <div className="field">
       <label>{label}</label>
@@ -69,12 +91,7 @@ export function SkillPicker({ label, value, onChange }: { label: string; value: 
           <option value="">— select —</option>
           {SKILL_FAMILIES.filter((f) => f !== 'Unnatural').map((f) => <option key={f}>{f}</option>)}
         </select>
-        {typed && (
-          <>
-            <input aria-label={`${label} type`} placeholder="type…" list={listId} value={type} onChange={(e) => onChange(makeKey(family, e.target.value))} />
-            <datalist id={listId}>{(TYPE_SUGGESTIONS[family] ?? []).map((t) => <option key={t} value={t} />)}</datalist>
-          </>
-        )}
+        {typed && <TypeInput label={`${label} type`} family={family} value={type} onChange={(v) => onChange(makeKey(family, v))} />}
       </div>
     </div>
   );

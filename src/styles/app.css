@@ -48,6 +48,10 @@ option { text-transform: uppercase; }
 }
 button[data-rac].btn:is(:hover, [data-hovered], [data-focus-visible]):not([data-disabled]) { background: var(--inv-bg); color: var(--inv-fg); outline: none; }
 .btn[data-disabled] { opacity: .4; cursor: not-allowed; }
+.popover { min-width: var(--trigger-width); border: 2px solid var(--line); background: var(--panel); color: var(--fg); }
+.listbox { max-height: 14rem; overflow: auto; outline: none; padding: .25rem 0; }
+.option { padding: 0 .5rem; cursor: pointer; outline: none; }
+.option[data-focused], .option[data-hovered] { background: var(--inv-bg); color: var(--inv-fg); }
 .row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
 
 .choice { position: relative; display: flex; gap: .5rem; padding: 0 .25rem; cursor: pointer; }

@@ -1,8 +1,8 @@
 import { PROFESSIONS, GROUP_LABEL, POSTINGS, type Group } from '../rules/data/professions';
 import { PACKAGES } from '../rules/data/creation';
-import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPE_SUGGESTIONS } from '../rules/data/skills';
+import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL } from '../rules/data/skills';
 import { duplicatesKit, professionOf, slotsOf, type Alt, type Slot } from '../rules';
-import { Choice, Pick, RadioGroup, Label, Rule, SkillPicker, SkillTable, type StepProps } from '../ui';
+import { Choice, Pick, RadioGroup, Label, Rule, SkillPicker, SkillTable, TypeInput, type StepProps } from '../ui';
 
 const altLabel = (a: Alt) => `${a.family}${a.type ? `(${a.type})` : a.askType ? ' (type)' : ''} ${a.rating}%`;
 
@@ -12,12 +12,7 @@ export function ProfessionStep({ c, up }: StepProps) {
   const setType = (slot: string, v: string) => up((d) => { d.types[slot] = v; });
 
   const typeInput = (slot: string, alt: Alt) =>
-    alt.askType ? (
-      <>
-        <input aria-label={`${alt.family} type`} placeholder="type…" list={`dl-${alt.family}`} value={c.types[slot] ?? ''} onChange={(e) => setType(slot, e.target.value)} style={{ width: '12rem', marginLeft: '.5rem' }} />
-        <datalist id={`dl-${alt.family}`}>{(TYPE_SUGGESTIONS[alt.family] ?? []).map((t) => <option key={t} value={t} />)}</datalist>
-      </>
-    ) : null;
+    alt.askType ? <TypeInput label={`${alt.family} type`} family={alt.family} value={c.types[slot] ?? ''} onChange={(v) => setType(slot, v)} style={{ width: '12rem', marginLeft: '.5rem', display: 'inline-block' }} /> : null;
 
   const fixedSlot = (s: Slot) =>
     s.alts.length === 1 ? (
