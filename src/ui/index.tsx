@@ -95,7 +95,7 @@ export function SkillPicker({ label, value, onChange }: { label: string; value: 
   );
 }
 
-export function SkillTable({ c, onlyTouched }: { c: Character; onlyTouched?: boolean }) {
+export function SkillTable({ c, onlyTouched, onRoll }: { c: Character; onlyTouched?: boolean; onRoll?: (label: string, chance: number) => void }) {
   const rows = skillsOf(c).filter((s) => (onlyTouched ? s.professional !== null || s.bonus || s.veteran : s.total > 0));
   return (
     <table>
@@ -103,7 +103,9 @@ export function SkillTable({ c, onlyTouched }: { c: Character; onlyTouched?: boo
       <tbody>
         {rows.map((s) => (
           <tr key={s.key}>
-            <td className={s.professional !== null ? '' : 'dim'}>{s.key}{s.professional !== null ? ' ▪' : ''}</td>
+            <td className={s.professional !== null ? '' : 'dim'}>
+              {onRoll ? <button className="rollable" onClick={() => onRoll(s.key, s.total)}>{s.key}</button> : s.key}{s.professional !== null ? ' ▪' : ''}
+            </td>
             <td className="num">{s.total}%</td>
           </tr>
         ))}

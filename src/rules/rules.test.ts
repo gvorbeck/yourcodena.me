@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
-import { bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
+import { testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { asciiSheet } from '../model/sheet';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
@@ -120,5 +120,20 @@ describe('persistence', () => {
     expect(loadCharacter()).toEqual(newCharacter());
     expect(store['dg.character.bak']).toBe('{"version":1,"stats":"broken"}');
     delete (globalThis as any).localStorage;
+  });
+});
+
+describe('test outcomes (p. 44)', () => {
+  it('matches the 50% skill examples', () => {
+    for (const r of [1, 11, 22, 33, 44]) expect(testOutcome(r, 50)).toBe('critical success');
+    for (const r of [55, 66, 77, 88, 99, 100]) expect(testOutcome(r, 50)).toBe('fumble');
+    expect([50, 49, 10].map((r) => testOutcome(r, 50))).toEqual(['success', 'success', 'success']);
+    expect([51, 57, 90].map((r) => testOutcome(r, 50))).toEqual(['failure', 'failure', 'failure']);
+    expect([testOutcome(80, 80), testOutcome(81, 80)]).toEqual(['success', 'failure']);
+  });
+  it('fumbles 100 and crits 01 at any chance', () => {
+    expect(testOutcome(100, 100)).toBe('fumble');
+    expect(testOutcome(1, 1)).toBe('critical success');
+    expect(testOutcome(99, 99)).toBe('critical success');
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadCharacter, importJson, newCharacter, saveCharacter, type Character } from './model/character';
 import { validate } from './rules';
 import { Btn, Win, type Up } from './ui';
@@ -14,7 +14,7 @@ import { decodeSheet } from './model/live';
 export function App() {
   const [hash, setHash] = useState(location.hash);
   useEffect(() => { const h = () => setHash(location.hash); addEventListener('hashchange', h); return () => removeEventListener('hashchange', h); }, []);
-  const shared = decodeSheet(hash);
+  const shared = useMemo(() => decodeSheet(hash), [hash]);
   // Keyed on the hash seen at navigation: replaceState edits fire no hashchange, so they never remount.
   if (shared) return <LiveSheet key={hash} c={shared.c} init={shared.l} />;
   return <Editor />;

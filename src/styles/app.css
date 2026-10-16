@@ -17,9 +17,18 @@ h2::before, h3::before { content: '[ '; } h2::after, h3::after { content: ' ]'; 
 .menubar button + button::before { content: "|" / ""; display: inline-block; margin: 0 .75ch; } /* inline-block keeps the hover underline off it */
 
 .shell { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--gap); padding: var(--gap); align-items: start; align-content: start; }
-@media (min-width: 801px) { .shell.live { grid-template-columns: minmax(0, 1fr) 22rem; } .shell.live > .win:first-child { position: static; } }
-.shell.live td { overflow-wrap: anywhere; }
+@media (min-width: 801px) { .shell.live { grid-template-columns: minmax(0, 1fr) 24rem; } .shell.live td { white-space: nowrap; } }
 .counter { flex-wrap: nowrap; margin-bottom: .5rem; }
+.counter strong { flex: none; width: 13ch; overflow-wrap: anywhere; }
+.counter output { flex: none; width: 9ch; text-align: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+html { scroll-padding-top: 4rem; } /* keeps focused controls clear of the sticky roll bar */
+.rollbar { grid-column: 1 / -1; position: sticky; top: 0; z-index: 1; display: flex; gap: 1.5rem; overflow: hidden; white-space: nowrap; padding: .5rem var(--gap); border: 2px solid var(--line); background: var(--panel); }
+.rollbar .latest { color: var(--inv-fg); background: var(--inv-bg); padding: 0 .5ch; }
+.rollable { all: unset; cursor: pointer; }
+.rollable:hover, .rollable:focus-visible { text-decoration: underline dotted; outline: none; }
+.live-note { margin-bottom: 1.5rem; }
+.live-notes { width: 100%; }
 @media (max-width: 800px) { .shell { grid-template-columns: minmax(0, 1fr); } }
 @media (min-width: 801px) { .shell > .win:first-child { position: sticky; top: var(--gap); } }
 

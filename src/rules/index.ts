@@ -9,6 +9,17 @@ export const roll4d6dl = (rng = Math.random) => {
   return d[1] + d[2] + d[3];
 };
 
+// ---- Tests (p. 44): d% at or below the chance succeeds; 01 or matching dice on a success is critical; 00 or matching dice on a failure is a fumble.
+export type Outcome = 'critical success' | 'success' | 'failure' | 'fumble';
+export function testOutcome(roll: number, chance: number): Outcome {
+  if (roll === 100) return 'fumble'; // fails whatever the chance
+  const match = roll % 11 === 0;
+  if (roll === 1 || (roll <= chance && match)) return 'critical success';
+  if (roll <= chance) return 'success';
+  return match ? 'fumble' : 'failure';
+}
+export const rollD100 = () => 1 + Math.floor(Math.random() * 100);
+
 export function featureOf(stat: Stat, score: number): string | null {
   if (score >= 9 && score <= 12) return null;
   const [a, b, c, d] = FEATURES[stat];

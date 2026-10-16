@@ -9,3 +9,11 @@ it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   expect(decodeSheet(encodeSheet(c, l))).toEqual({ c, l });
   expect(decodeSheet('#sheet=garbage')).toBeNull();
 });
+
+it('survives large notes and rejects out-of-range values', () => {
+  const c = newCharacter();
+  const l = { ...freshLive(c), notes: 'x'.repeat(4000) };
+  expect(decodeSheet(encodeSheet(c, l))?.l.notes.length).toBe(4000);
+  expect(decodeSheet(encodeSheet(c, { ...l, hp: -5 }))).toBeNull();
+  expect(decodeSheet(encodeSheet(c, { ...l, notes: 'x'.repeat(4001) }))).toBeNull();
+});
