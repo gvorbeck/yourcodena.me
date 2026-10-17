@@ -17,14 +17,15 @@ h2::before, h3::before { content: '[ '; } h2::after, h3::after { content: ' ]'; 
 .menubar button + button::before { content: "|" / ""; display: inline-block; margin: 0 .75ch; } /* inline-block keeps the hover underline off it */
 
 .shell { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--gap); padding: var(--gap); align-items: start; align-content: start; }
-@media (min-width: 801px) { .shell.live { grid-template-columns: minmax(0, 1fr) 24rem; } .shell.live td { white-space: nowrap; } }
+@media (min-width: 801px) { .shell.live td { white-space: nowrap; } }
 .counter { flex-wrap: nowrap; margin-bottom: .5rem; }
 .counter strong { flex: none; width: 13ch; overflow-wrap: anywhere; }
 .counter output { flex: none; width: 9ch; text-align: center; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 html { scroll-padding-top: 4rem; } /* keeps focused controls clear of the sticky roll bar */
 .rollbar { grid-column: 1 / -1; position: sticky; top: 0; z-index: 1; display: flex; gap: 1.5rem; overflow: hidden; white-space: nowrap; padding: .5rem var(--gap); border: 2px solid var(--line); background: var(--panel); }
-.rollbar .latest { color: var(--inv-fg); background: var(--inv-bg); padding: 0 .5ch; }
+.rollbar .latest::before, .rolllog .latest::before { content: '> '; }
+.strong { text-decoration: underline; text-underline-offset: .2em; } /* critical successes and fumbles stand out beyond color */
 .rollable { all: unset; cursor: pointer; }
 .rollable:hover, .rollable:focus-visible { text-decoration: underline dotted; outline: none; }
 .live-note { margin-bottom: 1.5rem; }
@@ -132,3 +133,37 @@ td.num, th.num { text-align: right; }
 .with-roll .btn.roll { flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 0; line-height: 0; aspect-ratio: 1; height: calc(1.5em + 2 * var(--control-padding-y) + 2px); } /* outranks button[data-rac].btn padding */
 .btn.roll svg { flex: none; width: 1.1rem; height: 1.1rem; }
 .grid.wide { grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr)); }
+.alerts { border: 2px solid var(--warn); padding: .5rem var(--gap); margin: .5rem 0; } .alerts p { margin: .25rem 0; }
+/* Live sheet: the play-time controls need air between groups, especially on a phone. */
+.live .win .row { margin: .75rem 0; row-gap: .75rem; }
+.live .win .counter { margin-bottom: .75rem; }
+.live .win p:not(.sr-only) { margin: .75rem 0; line-height: 1.5; }
+.live .win h3 { margin: 2.25rem 0 .75rem; }
+.live .win .row select { flex: 1 1 12ch; min-width: 0; width: auto; }
+.live .win .alerts { margin: 1rem 0; padding: .75rem var(--gap); } .live .win .alerts p { margin: .5rem 0; }
+.live .win .alerts .row { margin-bottom: 0; }
+.lost { display: flex; align-items: center; gap: .5rem; white-space: nowrap; } .lost output { min-width: 2ch; text-align: center; }
+.live .win table td { padding-top: .4rem; padding-bottom: .4rem; }
+.live .win .row > :is(input, select, .btn) { align-self: stretch; } /* one height per row */
+.pips { display: flex; align-items: center; gap: .6rem; margin: .75rem 0; } .pips span { width: 14ch; color: var(--dim); }
+.pips i { width: 1.25rem; height: 1.25rem; border: 2px solid var(--line); } .pips i.on { background: var(--fg); }
+/* Same height for every control, however the row wraps (same formula as the roll button above). */
+.live .win .row > :is(input, select, .btn) { min-height: calc(1.5em + 2 * var(--control-padding-y) + 2px); }
+.row.even > .btn { flex: 1 1 16ch; }
+
+/* Live sheet layout: phone stacks Status → Rolls → Skills → Notes (DOM order); wider screens place them by area. */
+.rolllog { display: none; list-style: none; margin: 0 0 .75rem; padding: 0; } .rolllog li { padding: 0 .5ch; margin-bottom: .25rem; } 
+@media (min-width: 801px) {
+  .shell.live { grid-template-columns: minmax(0, 1fr) 24rem; grid-template-areas: "bar bar" "status skills" "rolls skills" "notes skills"; }
+  .live .rollbar { grid-area: bar; } .live-status { grid-area: status; } .live-rolls { grid-area: rolls; } .live-skills { grid-area: skills; } .live-notes-win { grid-area: notes; }
+}
+@media (min-width: 1200px) {
+  .shell.live { grid-template-columns: 17rem minmax(0, 1fr) 22rem; grid-template-areas: "rolls status skills" "rolls notes skills"; }
+  .live .rollbar { display: none; } .rolllog { display: block; }
+  .live-rolls { position: sticky; top: var(--gap); max-height: calc(100vh - 2 * var(--gap)); overflow-y: auto; }
+}
+
+.live-skills { min-width: 0; } .live-skills td:first-child { white-space: normal; } /* long skill names wrap instead of pushing Total out of the box */
+/* Below 1200px the roll log is hidden, so Sanity is the first thing in Rolls & Events: no gap above it. */
+.live .win.live-rolls h3:first-of-type { margin-top: 0; }
+@media (min-width: 1200px) { .live .win.live-rolls h3:first-of-type { margin-top: 1.5rem; } }

@@ -49,6 +49,7 @@ function Editor() {
   const up: Up = (fn) => setC((prev) => { const d = structuredClone(prev); fn(d); return d; });
   const issues = validate(c);
   const cur = STEPS[step];
+  const here = issues.filter((x) => x.step === cur.id);
   const props = { c, up };
 
   return (
@@ -92,6 +93,7 @@ function Editor() {
           {cur.id === 'bonds' && <BondsStep {...props} />}
           {cur.id === 'details' && <DetailsStep {...props} />}
           {cur.id === 'review' && <ReviewStep {...props} />}
+          {cur.id !== 'review' && here.length > 0 && <ul className="issues noprint">{here.map((x, n) => <li key={n}>{x.msg}</li>)}</ul>}
           <div className="row noprint" style={{ marginTop: '1.5rem' }}>
             <Btn disabled={step === 0} onPress={() => setStep(step - 1)}>&lt; Back</Btn>
             <Btn disabled={step === STEPS.length - 1} onPress={() => setStep(step + 1)}>Next ▸</Btn>

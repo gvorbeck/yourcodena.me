@@ -1,20 +1,99 @@
 import { z } from 'zod';
 import { parseCharacter, type Character } from './character';
-import { bondCount, derived } from '../rules';
+import { bondCount, derived, rollExpr } from '../rules';
+import { STATS, type Stat } from '../rules/data/creation';
 
 /** Play-time state. The whole sheet lives in the URL hash, so no server or database is involved. */
 export const MAX_NOTES = 4000;
 const n = z.number().int().min(0).max(999);
+const statKey = z.enum(STATS);
+const spentSchema = z.object({ heal: z.boolean(), rest: z.boolean(), sleep: z.boolean(), injury: z.boolean() });
+const noneSpent = { heal: false, rest: false, sleep: false, injury: false };
+const track = z.number().int().min(0).max(3);
 const liveSchema = z.object({
   hp: n, wp: n, san: n, bp: n,
   bonds: z.array(n).max(20), notes: z.string().max(MAX_NOTES).default(''),
+  // Added after v1 links existed, so each has a default.
+  penalty: n.max(60).default(0), // exhaustion, sickness, drugs: flat −% to every test
+  adapt: z.object({ v: track, h: track }).default({ v: 0, h: 0 }), // p. 74: boxes toward adapting to violence / helplessness
+  statMod: z.record(statKey, z.number().int().min(-18).max(0)).default({}), // permanent stat changes (injury, adaptation)
+  statLoss: z.record(statKey, z.number().int().min(0).max(18)).default({}), // temporary stat loss, restored 1 per night (p. 55)
+  spent: spentSchema.default(noneSpent), // once-per-event actions already used: first aid, daily rest, night's sleep, injury test
 });
 export type Live = z.infer<typeof liveSchema>;
 
 export const freshLive = (c: Character): Live => {
   const d = derived(c);
-  return { hp: d.hp, wp: d.wp, san: d.san, bp: d.bp, bonds: Array(bondCount(c)).fill(d.bondScore), notes: '' };
+  return { hp: d.hp, wp: d.wp, san: d.san, bp: d.bp, bonds: Array(bondCount(c)).fill(d.bondScore), notes: '', penalty: 0, adapt: { v: 0, h: 0 }, statMod: {}, statLoss: {}, spent: { ...noneSpent } };
 };
+
+/** Replace one Bond score without disturbing the others; holes (a link with fewer scores than Bonds) take `fallback`. */
+export const withBond = (bonds: number[], i: number, v: number, fallback: number) =>
+  Array.from({ length: Math.max(bonds.length, i + 1) }, (_, k) => (k === i ? Math.max(0, v) : bonds[k] ?? fallback));
+
+/** First aid and the injury test come back when HP drops again; the injury test also resets once HP is above 2 (p. 55). */
+export const refreshSpent = (l: Live, prevHp: number): Live => {
+  const spent = { ...l.spent };
+  if (l.hp < prevHp) { spent.heal = false; spent.injury = false; }
+  if (l.hp > 2) spent.injury = false;
+  return spent.heal === l.spent.heal && spent.injury === l.spent.injury ? l : { ...l, spent };
+};
+
+const mod = (l: Live, s: Stat) => l.statMod[s] ?? 0;
+/** The Agent with permanent stat changes applied; derive HP / WP caps from this. */
+export const permStats = (c: Character, l: Live): Character => ({ ...c, stats: Object.fromEntries(STATS.map((s) => [s, c.stats[s] + mod(l, s)])) as Character['stats'] });
+/** Score to test against: permanent changes and temporary loss applied. */
+export const effStat = (c: Character, l: Live, s: Stat) => Math.max(0, c.stats[s] + mod(l, s) - (l.statLoss[s] ?? 0));
+
+/** Permanent stat loss, to a minimum score of 3 (p. 55); HP / WP are pulled down to the new caps. */
+export function loseStat(c: Character, l: Live, s: Stat, amount: number): { live: Live; lost: number } {
+  const lost = Math.max(0, Math.min(amount, c.stats[s] + mod(l, s) - 3));
+  const live = { ...l, statMod: { ...l.statMod, [s]: mod(l, s) - lost } };
+  const d = derived(permStats(c, live));
+  return { live: { ...live, hp: Math.min(live.hp, d.hp), wp: Math.min(live.wp, d.wp) }, lost };
+}
+
+export type SanKind = 'violence' | 'helplessness' | 'unnatural';
+
+/** p. 74: three SAN-losing hits of one kind in a row adapt the Agent; insanity or a Breaking Point resets the count. */
+export const adapt = (count: number, reset: boolean) => {
+  if (count >= 3) return { count: 3, adapted: false };
+  if (reset) return { count: 0, adapted: false };
+  return { count: count + 1, adapted: count === 2 };
+};
+
+/** Apply a SAN loss (pp. 67–74). `notes` lists what the Handler and player now owe the table. */
+export function loseSan(c: Character, l: Live, loss: number, kind: SanKind, rng = Math.random): { live: Live; notes: string[] } {
+  const notes: string[] = [];
+  const san = Math.max(0, l.san - loss);
+  const insane = loss >= 5;
+  const breaking = loss > 0 && l.san > l.bp && san <= l.bp;
+  let live: Live = { ...l, san };
+  if (insane) notes.push('Temporary insanity (p. 69): Flee, Struggle or Submit.');
+  if (san === 0) notes.push('0 SAN: permanent insanity (p. 73). The Agent now belongs to the Handler.');
+  if (breaking) {
+    live.bp = Math.max(0, san - derived(permStats(c, l)).pow); // current POW, veteran penalty included
+    notes.push(`Breaking Point reached: gain a disorder (p. 69). New Breaking Point ${live.bp}.`);
+  }
+  if (kind !== 'unnatural' && loss >= 1) {
+    const k = kind === 'violence' ? 'v' : 'h';
+    const a = adapt(l.adapt[k], insane || breaking);
+    live.adapt = { ...l.adapt, [k]: a.count };
+    if (a.adapted) {
+      const x = rollExpr('1D6', rng)!;
+      if (kind === 'violence') {
+        const r = loseStat(c, live, 'CHA', x);
+        live = { ...r.live, bonds: r.live.bonds.map((b) => Math.max(0, b - x)) };
+        notes.push(`Adapted to violence (p. 74): permanently lost ${r.lost} CHA and ${x} from every Bond. SAN rolls for violence now always succeed.`);
+      } else {
+        const r = loseStat(c, live, 'POW', x);
+        live = r.live;
+        notes.push(`Adapted to helplessness (p. 74): permanently lost ${r.lost} POW. SAN rolls for helplessness now always succeed.`);
+      }
+    }
+  }
+  return { live, notes };
+}
 
 const PREFIX = '#sheet=';
 // shortcut: plain base64url JSON, no compression (~2 KB URLs), add deflate if links get too long to paste.

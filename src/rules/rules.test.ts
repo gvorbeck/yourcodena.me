@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
-import { testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
+import { liveOutcome, parseLoss, rollExpr, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { asciiSheet } from '../model/sheet';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
@@ -135,5 +135,21 @@ describe('test outcomes (p. 44)', () => {
     expect(testOutcome(100, 100)).toBe('fumble');
     expect(testOutcome(1, 1)).toBe('critical success');
     expect(testOutcome(99, 99)).toBe('critical success');
+  });
+});
+
+describe('play-time modifiers', () => {
+  it('applies the low-WP penalty and the 0-WP lockout (p. 47)', () => {
+    expect(liveOutcome(40, 50, 10)).toMatchObject({ chance: 50, outcome: 'success' });
+    expect(liveOutcome(40, 50, 2)).toMatchObject({ chance: 30, pen: 20, outcome: 'failure' });
+    expect(liveOutcome(1, 50, 0).outcome).toBe('failure');
+    expect(liveOutcome(55, 50, 0).outcome).toBe('fumble');
+  });
+  it('rolls dice notation and parses success/failure losses', () => {
+    expect(rollExpr('1D6+2', () => 0.99)).toBe(8);
+    expect(rollExpr('3')).toBe(3);
+    expect(rollExpr('x')).toBeNull();
+    expect(parseLoss('0/1D4')).toEqual(['0', '1D4']);
+    expect(parseLoss('1D4')).toBeNull();
   });
 });

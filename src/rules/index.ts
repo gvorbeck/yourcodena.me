@@ -20,6 +20,31 @@ export function testOutcome(roll: number, chance: number): Outcome {
 }
 export const rollD100 = () => 1 + Math.floor(Math.random() * 100);
 
+/** p. 47: 1–2 WP is −20% to everything; at 0 WP no test can succeed. `extra` is any other flat penalty. */
+export const wpPenalty = (wp: number) => (wp > 0 && wp <= 2 ? 20 : 0);
+export function liveOutcome(roll: number, chance: number, wp: number, extra = 0) {
+  const pen = wpPenalty(wp) + extra;
+  const eff = Math.max(0, chance - pen);
+  const outcome: Outcome = wp > 0 ? testOutcome(roll, eff) : roll === 100 || roll % 11 === 0 ? 'fumble' : 'failure';
+  return { chance: eff, pen, outcome };
+}
+
+const DICE = /^(\d+)(?:D(\d+))?(?:\+(\d+))?$/i;
+/** "1D6", "1D6+2" or "3" → a total; null when it isn't dice notation. */
+export function rollExpr(expr: string, rng = Math.random): number | null {
+  const m = DICE.exec(expr.trim());
+  if (!m || Number(m[1]) > 50 || Number(m[2] ?? 0) > 100) return null;
+  let t = Number(m[3] ?? 0);
+  if (m[2]) for (let i = 0; i < Number(m[1]); i++) t += 1 + Math.floor(rng() * Number(m[2]));
+  else t += Number(m[1]);
+  return t;
+}
+/** SAN loss as printed in the book, "success/failure": "0/1D4". */
+export const parseLoss = (s: string) => {
+  const p = s.split('/').map((x) => x.trim());
+  return p.length === 2 && p.every((x) => rollExpr(x) !== null) ? ([p[0], p[1]] as const) : null;
+};
+
 export function featureOf(stat: Stat, score: number): string | null {
   if (score >= 9 && score <= 12) return null;
   const [a, b, c, d] = FEATURES[stat];

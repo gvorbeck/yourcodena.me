@@ -7,10 +7,10 @@ import { skillsOf } from '../rules';
 export type Up = (fn: (draft: Character) => void) => void;
 export interface StepProps { c: Character; up: Up }
 
-interface WinProps { title: string; right?: ReactNode; children: ReactNode; headingRef?: Ref<HTMLHeadingElement> }
+interface WinProps { title: string; className?: string; right?: ReactNode; children: ReactNode; headingRef?: Ref<HTMLHeadingElement> }
 
-export const Win = ({ title, right, children, headingRef }: WinProps) => (
-  <section className="win">
+export const Win = ({ title, right, children, headingRef, className }: WinProps) => (
+  <section className={className ? `win ${className}` : 'win'}>
     <header><h2 tabIndex={headingRef ? -1 : undefined} ref={headingRef}>{title}</h2><span>{right}</span></header>
     <div className="body">{children}</div>
   </section>
@@ -85,7 +85,7 @@ export function SkillPicker({ label, value, onChange }: { label: string; value: 
     <div className="field">
       <label>{label}</label>
       <div className="row" style={{ flexWrap: 'nowrap' }}>
-        <select aria-label={label} value={family} onChange={(e) => onChange(e.target.value)}>
+        <select aria-label={label} value={family} onChange={(e) => onChange(e.target.value)} style={{ flex: 1, minWidth: 0, width: 'auto' }}>
           <option value="">— select —</option>
           {SKILL_FAMILIES.filter((f) => f !== 'Unnatural').map((f) => <option key={f}>{f}</option>)}
         </select>
