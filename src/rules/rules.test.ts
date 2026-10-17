@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
-import { liveOutcome, parseLoss, rollExpr, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
+import { filterSkills, liveOutcome, parseLoss, rollExpr, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { asciiSheet } from '../model/sheet';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
@@ -151,5 +151,15 @@ describe('play-time modifiers', () => {
     expect(rollExpr('x')).toBeNull();
     expect(parseLoss('0/1D4')).toEqual(['0', '1D4']);
     expect(parseLoss('1D4')).toBeNull();
+  });
+});
+
+describe('skill search', () => {
+  const lines = [{ key: 'Firearms' }, { key: 'First Aid' }, { key: 'Foreign Language(Mandarin)' }] as Parameters<typeof filterSkills>[0];
+  it('matches any part of the name, case-insensitively, including the type', () => {
+    expect(filterSkills(lines, 'FIR').map((s) => s.key)).toEqual(['Firearms', 'First Aid']);
+    expect(filterSkills(lines, 'mandarin')).toHaveLength(1);
+    expect(filterSkills(lines, 'zzz')).toHaveLength(0);
+    expect(filterSkills(lines, '  ')).toBe(lines);
   });
 });

@@ -2,7 +2,7 @@ import { Button, Checkbox, ComboBox, ComboBoxStateContext, Input, Label, ListBox
 import { useContext, type CSSProperties, type ReactNode, type Ref } from 'react';
 import type { Character } from '../model/character';
 import { SKILL_FAMILIES, TYPED_SKILLS, TYPE_SUGGESTIONS, familyOf, makeKey, typeOf } from '../rules/data/skills';
-import { skillsOf } from '../rules';
+import { filterSkills, skillsOf } from '../rules';
 
 export type Up = (fn: (draft: Character) => void) => void;
 export interface StepProps { c: Character; up: Up }
@@ -42,8 +42,8 @@ export const Num = ({ label, value, onChange, min = 3, max = 18 }: { label: stri
   </NumberField>
 );
 
-export const Btn = ({ children, onPress, disabled }: { children: ReactNode; onPress: () => void; disabled?: boolean }) => (
-  <Button className="btn" onPress={onPress} isDisabled={disabled}>{children}</Button>
+export const Btn = ({ children, onPress, disabled, className }: { children: ReactNode; onPress: () => void; disabled?: boolean; className?: string }) => (
+  <Button className={className ? `btn ${className}` : 'btn'} onPress={onPress} isDisabled={disabled}>{children}</Button>
 );
 
 export const Choice = ({ value, children, disabled }: { value: string; children: ReactNode; disabled?: boolean }) => (
@@ -95,8 +95,12 @@ export function SkillPicker({ label, value, onChange }: { label: string; value: 
   );
 }
 
-export function SkillTable({ c, onlyTouched, onRoll }: { c: Character; onlyTouched?: boolean; onRoll?: (label: string, chance: number) => void }) {
-  const rows = skillsOf(c).filter((s) => (onlyTouched ? s.professional !== null || s.bonus || s.veteran : s.total > 0));
+/** Typed skills break after the family ("Foreign Language" / "(Mandarin)") so a long name is two short lines, not one that wraps unpredictably. */
+const skillName = (key: string) => (typeOf(key) ? <>{familyOf(key)}<small className="skilltype">({typeOf(key)})</small></> : key);
+
+export function SkillTable({ c, onlyTouched, onRoll, filter = '' }: { c: Character; onlyTouched?: boolean; onRoll?: (label: string, chance: number) => void; filter?: string }) {
+  const q = filter.trim();
+  const rows = filterSkills(skillsOf(c).filter((s) => (onlyTouched ? s.professional !== null || s.bonus || s.veteran : s.total > 0)), q);
   return (
     <table>
       <thead><tr><th>Skill</th><th className="num">Total</th></tr></thead>
@@ -104,11 +108,15 @@ export function SkillTable({ c, onlyTouched, onRoll }: { c: Character; onlyTouch
         {rows.map((s) => (
           <tr key={s.key}>
             <td className={s.professional !== null ? '' : 'dim'}>
-              {onRoll ? <button className="rollable" onClick={() => onRoll(s.key, s.total)}>{s.key}</button> : s.key}{s.professional !== null ? ' ▪' : ''}
+              <span className="skillname">
+                {onRoll ? <button className="rollable" onClick={() => onRoll(s.key, s.total)}>{skillName(s.key)}</button> : <span>{s.key}</span>}
+                {s.professional !== null && <span className="mark" title="Professional skill">▪</span>}
+              </span>
             </td>
             <td className="num">{s.total}%</td>
           </tr>
         ))}
+        {rows.length === 0 && q && <tr><td className="dim" colSpan={2}>No skill matches “{filter}”.</td></tr>}
       </tbody>
     </table>
   );

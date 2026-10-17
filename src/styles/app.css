@@ -18,16 +18,19 @@ h2::before, h3::before { content: '[ '; } h2::after, h3::after { content: ' ]'; 
 
 .shell { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--gap); padding: var(--gap); align-items: start; align-content: start; }
 @media (min-width: 801px) { .shell.live td { white-space: nowrap; } }
-.counter { flex-wrap: nowrap; margin-bottom: .5rem; }
+.counter { flex-wrap: nowrap; margin-bottom: .5rem; } .counter.noted { flex-wrap: wrap; }
+.counter .note { flex: 1 1 14ch; min-width: 0; overflow-wrap: anywhere; } /* a Bond's relationship: beside the score when there's room, below it when not */
 .counter strong { flex: none; width: 13ch; overflow-wrap: anywhere; }
 .counter output { flex: none; width: 9ch; text-align: center; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 html { scroll-padding-top: 4rem; } /* keeps focused controls clear of the sticky roll bar */
 .rollbar { grid-column: 1 / -1; position: sticky; top: 0; z-index: 1; display: flex; gap: 1.5rem; overflow: hidden; white-space: nowrap; padding: .5rem var(--gap); border: 2px solid var(--line); background: var(--panel); }
-.rollbar .latest::before, .rolllog .latest::before { content: '> '; }
+.rollbar .latest::before { content: '> '; }
 .strong { text-decoration: underline; text-underline-offset: .2em; } /* critical successes and fumbles stand out beyond color */
-.rollable { all: unset; cursor: pointer; }
-.rollable:hover, .rollable:focus-visible { text-decoration: underline dotted; outline: none; }
+.rollable { all: unset; cursor: pointer; display: inline-block; padding: .2rem .25rem; margin: -.2rem -.25rem; border-bottom: 1px solid transparent; }
+.rollable:hover { border-bottom-style: dotted; border-bottom-color: currentColor; } /* dotted underline marks the one thing under the pointer; row rules in the live sheet are solid */
+.rollable:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; } /* keyboard focus needs a ring, not just a hairline */
+.skillname { display: flex; align-items: center; gap: .6ch; } .skillname .mark { flex: none; }
 .live-note { margin-bottom: 1.5rem; }
 .live-notes { width: 100%; }
 @media (max-width: 800px) { .shell { grid-template-columns: minmax(0, 1fr); } }
@@ -151,19 +154,18 @@ td.num, th.num { text-align: right; }
 .live .win .row > :is(input, select, .btn) { min-height: calc(1.5em + 2 * var(--control-padding-y) + 2px); }
 .row.even > .btn { flex: 1 1 16ch; }
 
-/* Live sheet layout: phone stacks Status → Rolls → Skills → Notes (DOM order); wider screens place them by area. */
-.rolllog { display: none; list-style: none; margin: 0 0 .75rem; padding: 0; } .rolllog li { padding: 0 .5ch; margin-bottom: .25rem; } 
+/* Live sheet layout: phone stacks Status → Skills → Notes (DOM order); wider screens put Skills beside Status. */
 @media (min-width: 801px) {
-  .shell.live { grid-template-columns: minmax(0, 1fr) 24rem; grid-template-areas: "bar bar" "status skills" "rolls skills" "notes skills"; }
-  .live .rollbar { grid-area: bar; } .live-status { grid-area: status; } .live-rolls { grid-area: rolls; } .live-skills { grid-area: skills; } .live-notes-win { grid-area: notes; }
+  .shell.live { grid-template-columns: minmax(0, 1fr) 24rem; grid-template-areas: "bar bar" "status skills" "notes skills"; }
+  .live .rollbar { grid-area: bar; } .live-status { grid-area: status; } .live-skills { grid-area: skills; } .live-notes-win { grid-area: notes; }
+  .live-skills { position: sticky; top: 4rem; max-height: calc(100vh - 5rem); display: flex; flex-direction: column; } /* stays in reach while Status scrolls; below the sticky roll bar */
+  .live-skills > .body { overflow-y: auto; min-height: 0; } /* only the list scrolls, so the scrollbar stops under the title bar */
 }
-@media (min-width: 1200px) {
-  .shell.live { grid-template-columns: 17rem minmax(0, 1fr) 22rem; grid-template-areas: "rolls status skills" "rolls notes skills"; }
-  .live .rollbar { display: none; } .rolllog { display: block; }
-  .live-rolls { position: sticky; top: var(--gap); max-height: calc(100vh - 2 * var(--gap)); overflow-y: auto; }
-}
-
+.skill-find { margin-bottom: .5rem; }
 .live-skills { min-width: 0; } .live-skills td:first-child { white-space: normal; } /* long skill names wrap instead of pushing Total out of the box */
-/* Below 1200px the roll log is hidden, so Sanity is the first thing in Rolls & Events: no gap above it. */
-.live .win.live-rolls h3:first-of-type { margin-top: 0; }
-@media (min-width: 1200px) { .live .win.live-rolls h3:first-of-type { margin-top: 1.5rem; } }
+
+.live .win table :is(td, th) { border-bottom: 1px solid color-mix(in srgb, var(--dim) 60%, transparent); }
+.skilltype { display: block; font-size: inherit; color: var(--dim); } /* qualifier on its own line; the button shrinks to the wider line so the marker stays beside the text */
+
+.btn.phone-only { display: none; }
+@media (max-width: 800px) { .btn.phone-only { display: inline-block; } .live-skills .btn.phone-only { margin-bottom: .5rem; } }

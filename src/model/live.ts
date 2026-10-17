@@ -7,8 +7,9 @@ import { STATS, type Stat } from '../rules/data/creation';
 export const MAX_NOTES = 4000;
 const n = z.number().int().min(0).max(999);
 const statKey = z.enum(STATS);
-const spentSchema = z.object({ heal: z.boolean(), rest: z.boolean(), sleep: z.boolean(), injury: z.boolean() });
-const noneSpent = { heal: false, rest: false, sleep: false, injury: false };
+const hpMark = z.number().int().min(0).max(999).nullable();
+const spentSchema = z.object({ healHp: hpMark, injuryHp: hpMark, rest: z.boolean(), sleep: z.boolean() });
+const noneSpent = { healHp: null, injuryHp: null, rest: false, sleep: false };
 const track = z.number().int().min(0).max(3);
 const liveSchema = z.object({
   hp: n, wp: n, san: n, bp: n,
@@ -18,7 +19,7 @@ const liveSchema = z.object({
   adapt: z.object({ v: track, h: track }).default({ v: 0, h: 0 }), // p. 74: boxes toward adapting to violence / helplessness
   statMod: z.record(statKey, z.number().int().min(-18).max(0)).default({}), // permanent stat changes (injury, adaptation)
   statLoss: z.record(statKey, z.number().int().min(0).max(18)).default({}), // temporary stat loss, restored 1 per night (p. 55)
-  spent: spentSchema.default(noneSpent), // once-per-event actions already used: first aid, daily rest, night's sleep, injury test
+  spent: spentSchema.default(noneSpent), // once-per-event actions: HP after the last first aid / at the last injury test (null = unused), and today's rest and sleep
 });
 export type Live = z.infer<typeof liveSchema>;
 
@@ -31,13 +32,56 @@ export const freshLive = (c: Character): Live => {
 export const withBond = (bonds: number[], i: number, v: number, fallback: number) =>
   Array.from({ length: Math.max(bonds.length, i + 1) }, (_, k) => (k === i ? Math.max(0, v) : bonds[k] ?? fallback));
 
-/** First aid and the injury test come back when HP drops again; the injury test also resets once HP is above 2 (p. 55). */
-export const refreshSpent = (l: Live, prevHp: number): Live => {
-  const spent = { ...l.spent };
-  if (l.hp < prevHp) { spent.heal = false; spent.injury = false; }
-  if (l.hp > 2) spent.injury = false;
-  return spent.heal === l.spent.heal && spent.injury === l.spent.injury ? l : { ...l, spent };
-};
+/** First aid is once per injury (p. 55): usable again once HP is below where the last aid left it. Always usable at 0 HP (resuscitation). */
+export const canHeal = (l: Live) => l.hp === 0 || l.spent.healHp === null || l.hp < l.spent.healHp;
+/** One injury test each time the Agent is reduced to 2 HP or fewer: usable again after further damage. */
+export const canInjuryTest = (l: Live) => l.spent.injuryHp === null || l.hp < l.spent.injuryHp;
+/** Once HP is back above 2 the next drop to 2 is a new event, so the injury test is available again. */
+export const refreshSpent = (l: Live): Live => (l.hp > 2 && l.spent.injuryHp !== null ? { ...l, spent: { ...l.spent, injuryHp: null } } : l);
+
+const sameRec = (a: Partial<Record<string, number>>, b: Partial<Record<string, number>>) =>
+  [...new Set([...Object.keys(a), ...Object.keys(b)])].every((k) => (a[k] ?? 0) === (b[k] ?? 0)); // a missing key means 0
+/** Same for undo purposes: only the sheet's numbers count. Notes are free text and `spent` follows HP. */
+export const sameState = (a: Live, b: Live) =>
+  a.hp === b.hp && a.wp === b.wp && a.san === b.san && a.bp === b.bp && a.penalty === b.penalty
+  && a.adapt.v === b.adapt.v && a.adapt.h === b.adapt.h
+  && a.bonds.length === b.bonds.length && a.bonds.every((x, i) => x === b.bonds[i])
+  && sameRec(a.statMod, b.statMod) && sameRec(a.statLoss, b.statLoss);
+
+/** Short description of what changed between two states, for the Undo button: "HP 8→7", "SAN 37→33, WP 8→6 +1". */
+export function describeChange(a: Live, b: Live, bondNames: string[] = []): string {
+  const parts: string[] = [];
+  const num = (name: string, x: number, y: number) => { if (x !== y) parts.push(`${name} ${x}→${y}`); };
+  num('HP', a.hp, b.hp); num('WP', a.wp, b.wp); num('SAN', a.san, b.san); num('BP', a.bp, b.bp); num('Penalty', a.penalty, b.penalty);
+  b.bonds.forEach((y, i) => num(bondNames[i]?.trim() || `Bond ${i + 1}`, a.bonds[i] ?? y, y));
+  if (a.adapt.v !== b.adapt.v) parts.push('violence adaptation');
+  if (a.adapt.h !== b.adapt.h) parts.push('helplessness adaptation');
+  for (const st of STATS) {
+    num(`${st} (permanent)`, a.statMod[st] ?? 0, b.statMod[st] ?? 0);
+    num(`${st} lost`, a.statLoss[st] ?? 0, b.statLoss[st] ?? 0);
+  }
+  if (!parts.length) return 'last change';
+  return parts.length > 2 ? `${parts.slice(0, 2).join(', ')} +${parts.length - 2}` : parts.join(', ');
+}
+
+/** Undo history. Snapshots leave out Notes: undoing restores the numbers but keeps whatever is typed. */
+export class UndoStack {
+  private snaps: { snap: Omit<Live, 'notes'>; label: string }[] = [];
+  get size() { return this.snaps.length; }
+  /** What the next undo would revert, or null when there is nothing to undo. */
+  get label() { return this.snaps.length ? this.snaps[this.snaps.length - 1].label : null; }
+  /** Remember `before` unless the change touched only notes or once-per-event flags. */
+  record(before: Live, after: Live, bondNames?: string[]) {
+    if (sameState(before, after)) return false;
+    const { notes: _notes, ...snap } = before;
+    this.snaps = [...this.snaps, { snap, label: describeChange(before, after, bondNames) }].slice(-30);
+    return true;
+  }
+  undo(current: Live): Live | null {
+    const top = this.snaps.pop();
+    return top ? { ...top.snap, notes: current.notes } : null;
+  }
+}
 
 const mod = (l: Live, s: Stat) => l.statMod[s] ?? 0;
 /** The Agent with permanent stat changes applied; derive HP / WP caps from this. */

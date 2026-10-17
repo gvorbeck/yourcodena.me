@@ -145,6 +145,12 @@ export function skillsOf(c: Character): SkillLine[] {
   });
 }
 
+/** Skill search: case-insensitive substring of the skill's full name, type included. */
+export const filterSkills = (lines: SkillLine[], query: string) => {
+  const q = query.trim().toLowerCase();
+  return q ? lines.filter((s) => s.key.toLowerCase().includes(q)) : lines;
+};
+
 // ---- Validation
 export type StepId = 'stats' | 'profession' | 'bonds' | 'details';
 export interface Issue { step: StepId; msg: string }

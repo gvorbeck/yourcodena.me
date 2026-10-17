@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from './character';
-import { decodeSheet, encodeSheet, freshLive, loseSan, loseStat, refreshSpent, withBond } from './live';
+import { decodeSheet, encodeSheet, freshLive, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond } from './live';
 
 it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   const c = newCharacter();
@@ -72,14 +72,76 @@ describe('review fixes', () => {
     expect(withBond([7], 2, 4, 9)).toEqual([7, 9, 4]);
     expect(withBond([7], 0, -3, 9)).toEqual([0]);
   });
-  it('gives first aid and the injury test back when HP drops, and the test back above 2 HP', () => {
-    const c = newCharacter();
-    const spent = { heal: true, rest: true, sleep: true, injury: true };
-    const l = { ...freshLive(c), spent };
-    const same = { ...l, hp: 2 };
-    expect(refreshSpent(same, 2)).toBe(same); // unchanged HP: nothing resets, same object returned
-    expect(refreshSpent({ ...l, hp: 2 }, 2).spent).toEqual(spent);
-    expect(refreshSpent({ ...l, hp: 1 }, 2).spent).toEqual({ ...spent, heal: false, injury: false });
-    expect(refreshSpent({ ...l, hp: 6 }, 2).spent).toEqual({ ...spent, injury: false }); // healed: heal stays spent
+  it('allows first aid again only below where the last aid left HP, and always at 0 HP', () => {
+    const l = { ...freshLive(newCharacter()), hp: 5, spent: { healHp: 5, injuryHp: null, rest: false, sleep: false } };
+    expect(canHeal(l)).toBe(false);
+    expect(canHeal({ ...l, hp: 6 })).toBe(false); // resting up does not re-arm it
+    expect(canHeal({ ...l, hp: 4 })).toBe(true);
+    expect(canHeal({ ...l, hp: 0 })).toBe(true);
+    expect(canHeal({ ...l, spent: { ...l.spent, healHp: null } })).toBe(true);
+  });
+  it('gives the injury test back after further damage, or once HP has been above 2', () => {
+    const l = { ...freshLive(newCharacter()), hp: 2, spent: { healHp: null, injuryHp: 2, rest: false, sleep: false } };
+    expect(canInjuryTest(l)).toBe(false);
+    expect(canInjuryTest({ ...l, hp: 1 })).toBe(true);
+    expect(refreshSpent(l)).toBe(l); // still at 2: stays spent
+    const healed = refreshSpent({ ...l, hp: 6 });
+    expect(healed.spent.injuryHp).toBeNull();
+    expect(canInjuryTest({ ...healed, hp: 2 })).toBe(true); // a new drop to 2 is a new test
+  });
+  it('does not count notes or spent flags as an undoable change', () => {
+    const l = freshLive(newCharacter());
+    expect(sameState(l, { ...l, notes: 'typing…', spent: { ...l.spent, rest: true, healHp: 3 } })).toBe(true);
+    expect(sameState(l, { ...l, hp: l.hp - 1 })).toBe(false);
+    expect(sameState(l, { ...l, bonds: [...l.bonds].map((b) => b - 1) })).toBe(false);
+  });
+  it('undoes changes in order, keeps typed notes, and skips notes-only edits', () => {
+    const stack = new UndoStack();
+    const a = { ...freshLive(newCharacter()), notes: 'a' };
+    const b = { ...a, hp: a.hp - 1, notes: 'b' };
+    const c2 = { ...b, san: b.san - 3, notes: 'c' };
+    expect(stack.record(a, { ...a, notes: 'typing' })).toBe(false);
+    expect(stack.record(a, b)).toBe(true);
+    expect(stack.record(b, c2)).toBe(true);
+    expect(stack.size).toBe(2);
+    expect(stack.undo({ ...c2, notes: 'latest notes' })).toMatchObject({ hp: b.hp, san: b.san, notes: 'latest notes' });
+    expect(stack.undo(b)).toMatchObject({ hp: a.hp, san: a.san });
+    expect(stack.undo(a)).toBeNull();
+  });
+  it('keeps at most 30 undo steps', () => {
+    const stack = new UndoStack();
+    let l = freshLive(newCharacter());
+    for (let i = 0; i < 40; i++) { const next = { ...l, hp: l.hp + 1 }; stack.record(l, next); l = next; }
+    expect(stack.size).toBe(30);
+  });
+  it('describes a change for the Undo button', () => {
+    const a = freshLive(newCharacter());
+    expect(describeChange(a, { ...a, hp: a.hp - 1 })).toBe(`HP ${a.hp}→${a.hp - 1}`);
+    expect(describeChange(a, { ...a, san: a.san - 4, wp: a.wp - 2 })).toBe(`WP ${a.wp}→${a.wp - 2}, SAN ${a.san}→${a.san - 4}`);
+    expect(describeChange(a, { ...a, hp: 1, wp: 1, san: 1 })).toMatch(/\+1$/);
+    expect(describeChange(a, { ...a, statMod: { CHA: -3 } })).toBe('CHA (permanent) 0→-3');
+  });
+  it('labels each undo step with what it would revert', () => {
+    const stack = new UndoStack();
+    const a = freshLive(newCharacter());
+    expect(stack.label).toBeNull();
+    const b = { ...a, hp: a.hp - 1 };
+    stack.record(a, b);
+    expect(stack.label).toBe(`HP ${a.hp}→${b.hp}`);
+    stack.record(b, { ...b, san: b.san - 2 });
+    expect(stack.label).toBe(`SAN ${b.san}→${b.san - 2}`);
+    stack.undo(b);
+    expect(stack.label).toBe(`HP ${a.hp}→${b.hp}`);
+  });
+  it('names Bonds in the Undo label and falls back to a generic one', () => {
+    const a = { ...freshLive(newCharacter()), bonds: [8, 8] };
+    expect(describeChange(a, { ...a, bonds: [8, 5] }, ['Sam', 'Kay'])).toBe('Kay 8→5');
+    expect(describeChange(a, { ...a, bonds: [8, 5] }, ['', ''])).toBe('Bond 2 8→5');
+    expect(describeChange(a, { ...a, bonds: [8, 8, 8] })).toBe('last change'); // a longer array with no changed score
+  });
+  it('treats a missing stat key as 0 when comparing states', () => {
+    const a = freshLive(newCharacter());
+    expect(sameState(a, { ...a, statMod: { CHA: 0 }, statLoss: { STR: 0 } })).toBe(true);
+    expect(sameState(a, { ...a, statLoss: { STR: 1 } })).toBe(false);
   });
 });
