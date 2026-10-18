@@ -42,7 +42,7 @@ Checked against the Handbook and matching: derived attributes (p. 18); crit/fumb
   - **Open question (Captivity):** POW also drops by 3, so BP could be `60 − 12` (48) or `60 − 9` (51). The book doesn't say. Pick one, and note the ruling in a comment.
   - **Tests to change:** [live.test.ts](src/model/live.test.ts) "review fixes" asserts captivity BP 46 and `freshLive(...).bp`; [rules.test.ts:91-94](src/rules/rules.test.ts) only checks `san` for violence. Update and add BP assertions.
 
-- [ ] **R3. Extra-victim SAN loss is not capped at the die maximum**
+- [x] **R3. Extra-victim SAN loss is not capped at the die maximum**
   - **Where:** UI hint at [LiveSheet.tsx:280-283](src/LiveSheet.tsx) tells players to write `1D6+2`; `rollExpr` in [index.ts:34-41](src/rules/index.ts) adds the flat bonus uncapped.
   - **Rule:** Footnote on p. 67: on a failed roll add 1 per victim beyond the first, "up to the maximum possible roll" (4 for 1D4, 6 for 1D6, …).
   - **Observed:** `1D6+5` can roll 11.

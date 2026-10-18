@@ -39,6 +39,11 @@ export function rollExpr(expr: string, rng = Math.random): number | null {
   else t += Number(m[1]);
   return t;
 }
+/** A SAN loss roll: extra victims ("1D6+2") add to the die but never past its maximum (p. 67 footnote). */
+export function rollLoss(expr: string, rng = Math.random): number | null {
+  const v = rollExpr(expr, rng), m = DICE.exec(expr.trim());
+  return v !== null && m && m[2] && m[3] ? Math.min(v, Number(m[1]) * Number(m[2])) : v;
+}
 /** SAN loss as printed in the book, "success/failure": "0/1D4". */
 export const parseLoss = (s: string) => {
   const p = s.split('/').map((x) => x.trim());

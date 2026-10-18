@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
-import { filterSkills, liveOutcome, parseLoss, rollExpr, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
+import { filterSkills, liveOutcome, parseLoss, rollExpr, rollLoss, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { asciiSheet } from '../model/sheet';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
@@ -151,6 +151,16 @@ describe('play-time modifiers', () => {
     expect(rollExpr('x')).toBeNull();
     expect(parseLoss('0/1D4')).toEqual(['0', '1D4']);
     expect(parseLoss('1D4')).toBeNull();
+  });
+});
+
+describe('SAN loss with extra victims (p. 67)', () => {
+  it('caps the failure die plus victims at the die maximum', () => {
+    expect(rollLoss('1D6+5', () => 0.99)).toBe(6);
+    expect(rollLoss('1D6+2', () => 0)).toBe(3);
+    expect(rollLoss('1D4+9', () => 0.5)).toBe(4);
+    expect(rollLoss('1')).toBe(1);
+    expect(rollLoss('x')).toBeNull();
   });
 });
 

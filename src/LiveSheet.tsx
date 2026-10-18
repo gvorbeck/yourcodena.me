@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
-import { bondCount, derived, liveOutcome, parseLoss, professionOf, rollD100, rollExpr, type Outcome } from './rules';
+import { bondCount, derived, liveOutcome, parseLoss, professionOf, rollD100, rollExpr, rollLoss, type Outcome } from './rules';
 import { MAX_NOTES, UndoStack, canHeal, canInjuryTest, effStat, encodeSheet, loseSan, loseStat, permStats, refreshSpent, withBond, type Live, type SanKind } from './model/live';
 import type { Character } from './model/character';
 import { Btn, SkillTable, Win } from './ui';
@@ -155,7 +155,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
     const t = auto ? null : test('SAN (loss)', l.san);
     const ok = auto || !!t?.ok;
     const result = auto ? `Adapted to ${san.kind}: the SAN test automatically succeeds (p. 74).` : `${ok ? 'Passed' : 'Failed'} the SAN test (rolled ${t!.roll} against ${t!.chance}%).`;
-    setPending({ kind: san.kind, amount: rollExpr(ok ? loss[0] : loss[1]) ?? 0, result });
+    setPending({ kind: san.kind, amount: rollLoss(ok ? loss[0] : loss[1]) ?? 0, result });
   };
   const applySan = () => {
     if (!pending) return;
@@ -277,10 +277,10 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
           <select aria-label="Trauma type" value={san.kind} onChange={(e) => setSan({ ...san, kind: e.target.value as SanKind })}>
             <option value="violence">Violence</option><option value="helplessness">Helplessness</option><option value="unnatural">The Unnatural</option>
           </select>
-          <input aria-label="SAN loss as success/failure, like 0/1D4" title="Success/failure loss as printed in the book (pp. 67–68). Add extra victims to the failure die, like 1D6+2." value={san.loss} onChange={(e) => setSan({ ...san, loss: e.target.value })} style={{ width: '10ch' }} />
+          <input aria-label="SAN loss as success/failure, like 0/1D4" title="Success/failure loss as printed in the book (pp. 67–68). Add extra victims to the failure die, like 1D6+2 (the total never exceeds the die's maximum)." value={san.loss} onChange={(e) => setSan({ ...san, loss: e.target.value })} style={{ width: '10ch' }} />
           <Btn onPress={sanRoll}>Roll SAN loss</Btn>
         </div>
-        <p className="noprint dim"><small>Loss is success/failure, like 0/1D4. Extra victims go on the failure die: 1D6+2. Tap “SAN” above for a plain SAN test.</small></p>
+        <p className="noprint dim"><small>Loss is success/failure, like 0/1D4. Extra victims go on the failure die: 1D6+2, capped at 6. Tap “SAN” above for a plain SAN test.</small></p>
         {pending && (
           <div className="alerts noprint">
             <p>{pending.result} {pending.amount} SAN to lose ({pending.kind}).</p>
