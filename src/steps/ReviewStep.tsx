@@ -3,10 +3,9 @@ import { STATS, STAT_NAMES } from '../rules/data/creation';
 import { bondCount, derived, disorderOf, featureOf, professionOf, validate } from '../rules';
 import { asciiSheet } from '../model/sheet';
 import { exportJson } from '../model/character';
-import { encodeSheet, freshLive } from '../model/live';
 import { Btn, SkillTable, Rule, type StepProps } from '../ui';
 
-export function ReviewStep({ c }: StepProps) {
+export function ReviewStep({ c, onLive }: StepProps & { onLive: () => void }) {
   const [copied, setCopied] = useState(false);
   const issues = validate(c);
   const d = derived(c);
@@ -18,7 +17,7 @@ export function ReviewStep({ c }: StepProps) {
         <Btn onPress={() => window.print()}>Print / PDF</Btn>
         <Btn onPress={() => exportJson(c)}>Export JSON</Btn>
         <Btn onPress={() => { navigator.clipboard.writeText(asciiSheet(c)).then(() => setCopied(true), () => alert('Clipboard unavailable.')); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied ✓' : 'Copy Text'}</Btn>
-        <Btn disabled={issues.length > 0} onPress={() => { location.hash = encodeSheet(c, freshLive(c)); }}>Live Sheet</Btn>
+        <Btn disabled={issues.length > 0} onPress={onLive}>Live Sheet</Btn>
       </div>
       {issues.length > 0 && (
         <ul className="issues noprint">{issues.map((i, n) => <li key={n}>[{i.step}] {i.msg}</li>)}</ul>

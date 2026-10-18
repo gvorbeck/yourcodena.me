@@ -48,7 +48,7 @@ export function parseCharacter(raw: unknown): Character {
   return characterSchema.parse(c);
 }
 
-const KEY = 'dg.character';
+import { SAVED_AGENT_KEY as KEY } from '../lib/storageKeys';
 export const loadCharacter = (): Character => {
   let s: string | null = null;
   try {
@@ -59,9 +59,6 @@ export const loadCharacter = (): Character => {
     try { if (s) localStorage.setItem(`${KEY}.bak`, s); } catch { /* storage blocked */ }
   }
   return newCharacter();
-};
-export const saveCharacter = (c: Character) => {
-  try { localStorage.setItem(KEY, JSON.stringify(c)); } catch { /* storage full/blocked */ }
 };
 
 export const exportJson = (c: Character) => {

@@ -1,113 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { loadCharacter, importJson, newCharacter, saveCharacter, type Character } from './model/character';
-import { validate } from './rules';
-import { Btn, Win, type Up } from './ui';
-import { StatsStep } from './steps/StatsStep';
-import { ProfessionStep } from './steps/ProfessionStep';
-import { BondsStep } from './steps/BondsStep';
-import { DetailsStep } from './steps/DetailsStep';
-import { ReviewStep } from './steps/ReviewStep';
-import { STEPS } from './steps';
-import { LiveSheet } from './LiveSheet';
-import { decodeSheet } from './model/live';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
-export function App() {
+// Each page is its own chunk, so the landing page doesn't download the sheet editor (and react-aria) it never shows.
+const Home = lazy(() => import('./pages/Home'));
+const Game = lazy(() => import('./pages/Game'));
+const Agent = lazy(() => import('./pages/Agent'));
+const Shared = lazy(() => import('./pages/Shared'));
+
+const useHash = () => {
   const [hash, setHash] = useState(location.hash);
+  // Only hashchange updates it: replaceState edits fire none, so a live sheet saving to its URL never remounts.
   useEffect(() => { const h = () => setHash(location.hash); addEventListener('hashchange', h); return () => removeEventListener('hashchange', h); }, []);
-  const shared = useMemo(() => decodeSheet(hash), [hash]);
-  // Keyed on the hash seen at navigation: replaceState edits fire no hashchange, so they never remount.
-  if (shared) return <LiveSheet key={hash} c={shared.c} init={shared.l} />;
-  return <Editor />;
-}
+  return hash;
+};
 
-function Editor() {
-  const [c, setC] = useState<Character>(loadCharacter);
-  const [step, setStep] = useState(() => {
-    try { return Math.min(STEPS.length - 1, Math.max(0, Number(localStorage.getItem('dg.step')) || 0)); } catch { return 0; }
-  });
-  useEffect(() => { try { localStorage.setItem('dg.step', String(step)); } catch { /* storage blocked */ } }, [step]);
-  useEffect(() => saveCharacter(c), [c]);
-  // Return to the top on step change. Comparing with the previous step (not a mounted flag) survives StrictMode's double effect run.
-  const prevStep = useRef(step);
-  const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { if (prevStep.current !== step) { scrollTo(0, 0); heading.current?.focus(); } prevStep.current = step; }, [step]);
-  const file = useRef<HTMLInputElement>(null);
-  const newAgent = () => { if (confirm('Discard the current Agent?')) { setC(newCharacter()); setStep(0); } };
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => {
-      // Alt+key, never a bare letter, so typing and speech input can't trigger it (WCAG 2.1.4).
-      if (!e.altKey || e.ctrlKey || e.metaKey) return;
-      // Option+N/I are dead keys on macOS (ñ, î), so leave text fields alone.
-      if (e.target instanceof Element && e.target.matches('input, textarea, select, [contenteditable]')) return;
-      if (e.code === 'KeyN') { e.preventDefault(); newAgent(); }
-      else if (e.code === 'KeyI') { e.preventDefault(); file.current?.click(); }
-    };
-    addEventListener('keydown', k);
-    return () => removeEventListener('keydown', k);
-  }, []);
+const Root = () => {
+  const hash = useHash();
+  return hash.startsWith('#sheet=') ? <Shared hash={hash} /> : <Home />;
+};
 
-  const up: Up = (fn) => setC((prev) => { const d = structuredClone(prev); fn(d); return d; });
-  const issues = validate(c);
-  const cur = STEPS[step];
-  const here = issues.filter((x) => x.step === cur.id);
-  const props = { c, up };
-
-  return (
-    <>
-      <nav className="menubar" aria-label="Application">
-        <span>YOURCODENA.ME</span>
-        <span className="dim">// Agent intake terminal</span>
-        <span className="grow">
-          <button onClick={() => file.current?.click()}>[Alt+I] Import agent</button>
-          <button onClick={newAgent}>[Alt+N] New agent</button>
-          <input ref={file} type="file" accept=".json,application/json" hidden
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              e.target.value = '';
-              if (!f) return;
-              try { setC(await importJson(f)); setStep(0); } catch { alert('Not a valid Agent file.'); }
-            }} />
-        </span>
-      </nav>
-
-      <div className="shell">
-        <Win title="CREATION STEPS">
-          <ol className="steps" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {STEPS.map((s, i) => {
-              const bad = s.id !== 'review' && issues.some((x) => x.step === s.id);
-              return (
-                <li key={s.id}>
-                  <button aria-current={i === step ? 'step' : undefined} onClick={() => setStep(i)}>
-                    <span className="n">{i + 1}.</span><span>{s.title}</span>
-                    <span className={`flag ${bad ? 'warn' : 'ok'}`}>{s.id === 'review' ? '' : bad ? '!' : '✓'}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </Win>
-
-        <Win title={`STEP ${step + 1} // ${cur.title.toUpperCase()}`} right={`${step + 1}/${STEPS.length}`} headingRef={heading}>
-          {cur.id === 'stats' && <StatsStep {...props} />}
-          {cur.id === 'profession' && <ProfessionStep {...props} />}
-          {cur.id === 'bonds' && <BondsStep {...props} />}
-          {cur.id === 'details' && <DetailsStep {...props} />}
-          {cur.id === 'review' && <ReviewStep {...props} />}
-          {cur.id !== 'review' && here.length > 0 && <ul className="issues noprint">{here.map((x, n) => <li key={n}>{x.msg}</li>)}</ul>}
-          <div className="row noprint" style={{ marginTop: '1.5rem' }}>
-            <Btn disabled={step === 0} onPress={() => setStep(step - 1)}>&lt; Back</Btn>
-            <Btn disabled={step === STEPS.length - 1} onPress={() => setStep(step + 1)}>Next ▸</Btn>
-          </div>
-        </Win>
-      </div>
-
-      <footer className="statusbar noprint">
-        <span>Agent: {c.details.name || 'UNNAMED'}</span>
-        <span className={issues.length ? 'warn' : 'ok'}>{issues.length ? `${issues.length} open item${issues.length === 1 ? '' : 's'}` : 'All steps complete'}</span>
-        <span className="dim">Autosaved locally · Source: Agent's Handbook</span>
-        <span className="cursor" aria-hidden />
-        <small className="legal dim">Published by arrangement with the Delta Green Partnership. The intellectual property known as Delta Green is a trademark and copyright owned by the Delta Green Partnership, who has licensed its use here. The contents of this document are ©<a href="https://iamgarrett.com">J. Garrett Vorbeck</a>, excepting those elements that are components of the Delta Green intellectual property.</small>
-      </footer>
-    </>
-  );
-}
+export const App = () => (
+  <Suspense fallback={<p className="dim page" aria-busy="true">Loading…</p>}>
+    <Routes>
+      <Route path="/" element={<Root />} />
+      <Route path="/g/:gameId" element={<Game />} />
+      <Route path="/g/:gameId/a/:agentId" element={<Agent />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  </Suspense>
+);
