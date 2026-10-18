@@ -130,7 +130,8 @@ export const duplicatesKit = (c: Character, o: Slot) => {
 // ---- Skills
 export interface SkillLine { key: string; base: number; professional: number | null; bonus: number; veteran: number; total: number }
 
-export function skillsOf(c: Character): SkillLine[] {
+/** `advance` is play-time skill growth (p. 28), keyed by skill. */
+export function skillsOf(c: Character, advance: Record<string, number> = {}): SkillLine[] {
   const kit = new Map<string, number>();
   for (const k of kitOf(c)) if (!k.missingType) kit.set(k.key, Math.max(kit.get(k.key) ?? 0, k.rating));
   const bonus = new Map<string, number>();
@@ -141,12 +142,12 @@ export function skillsOf(c: Character): SkillLine[] {
   if (v?.unnatural) vet.set('Unnatural', v.unnatural);
   if (v?.extraSkills) for (const k of c.veteranSkills.slice(0, v.extraSkills.count)) if (k) vet.set(k, (vet.get(k) ?? 0) + v.extraSkills.amount);
 
-  const keys = new Set([...Object.keys(BASE_RATINGS).filter((k) => !TYPED_SKILLS.includes(k)), ...kit.keys(), ...bonus.keys(), ...vet.keys()]);
+  const keys = new Set([...Object.keys(BASE_RATINGS).filter((k) => !TYPED_SKILLS.includes(k)), ...kit.keys(), ...bonus.keys(), ...vet.keys(), ...Object.keys(advance)]);
   return [...keys].sort().map((key) => {
     const professional = kit.get(key) ?? null;
     const base = baseRating(key);
     const b = bonus.get(key) ?? 0, vv = vet.get(key) ?? 0;
-    return { key, base, professional, bonus: b, veteran: vv, total: Math.min(99, (professional ?? base) + b + vv) };
+    return { key, base, professional, bonus: b, veteran: vv, total: Math.min(99, (professional ?? base) + b + vv + (advance[key] ?? 0)) };
   });
 }
 

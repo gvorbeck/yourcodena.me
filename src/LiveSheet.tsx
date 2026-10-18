@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
 import { bondCount, derived, liveOutcome, parseLoss, professionOf, rollD100, rollExpr, rollLoss, type Outcome } from './rules';
-import { MAX_NOTES, UndoStack, canHeal, canInjuryTest, effStat, encodeSheet, loseSan, loseStat, permStats, refreshSpent, withBond, type Live, type SanKind } from './model/live';
+import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, effStat, encodeSheet, loseSan, loseStat, maxSanOf, permStats, refreshSpent, setUnnatural, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
 import type { Character } from './model/character';
 import { Btn, SkillTable, Win } from './ui';
 
@@ -89,6 +89,26 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
     return { outcome, roll: r, chance, ok: outcome === 'success' || outcome === 'critical success' };
   };
   const roll = (label: string, chance: number) => { test(label, chance); };
+  /** A failed skill roll earns a check toward end-of-session advancement (p. 28). */
+  const rollSkill = (key: string, chance: number) => {
+    if (!test(key, chance).ok) setL((p) => (p.checked.includes(key) ? p : { ...p, checked: [...p.checked, key] }));
+  };
+  const endSession = () => {
+    const r = advanceSkills(c, l);
+    setL(r.live);
+    say(r.gains.length ? `Skills advanced (p. 28): ${r.gains.map(([k, n]) => `${k} +${n}`).join(', ')}.` : 'No checked skills could advance.');
+  };
+  const maxSan = maxSanOf(c, l);
+  const [disorder, setDisorder] = useState('');
+  const [drop, setDrop] = useState('');
+  const motivations = c.motivations.map((m) => m.trim()).filter((m) => m && !l.dropped.includes(m));
+  const addDisorder = () => {
+    const name = disorder.trim(), lost = motivations.includes(drop) ? drop : '';
+    if (!name) return;
+    setL((p) => ({ ...p, disorders: [...p.disorders, name], dropped: lost ? [...p.dropped, lost] : p.dropped }));
+    setDisorder(''); setDrop('');
+    say(`Gained ${name}${lost ? `; lost the motivation “${lost}”` : ''} (pp. 38, 69).`);
+  };
   const link = game ? '' : encodeSheet(c, l);
   // The URL is the save file. Debounced and guarded: Safari throws past 100 replaceState calls per 30 s.
   useEffect(() => {
@@ -271,8 +291,9 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         <p className="noprint dim"><small>Tap a stat or Luck to roll d%. “Lost” is temporary stat loss.</small></p>
 
         <h3>Sanity</h3>
-        <Counter label="SAN" value={l.san} max={d.maxSan} onChange={(v) => set('san', v)} onRoll={() => roll('SAN test', l.san)} />
+        <Counter label="SAN" value={l.san} max={maxSan} onChange={(v) => set('san', v)} onRoll={() => roll('SAN test', l.san)} />
         <Counter label="Breaking pt" value={l.bp} onChange={(v) => set('bp', v)} />
+        <Counter label="Unnatural" note="Raises with exposure; maximum SAN is 99 minus it (p. 15)." value={unnaturalOf(c, l)} max={99} onChange={(v) => setL((p) => setUnnatural(c, p, v))} />
         {l.san <= l.bp && <p className="warn">SAN at or below breaking point.</p>}
         <div className="row noprint">
           <select aria-label="Trauma type" value={san.kind} onChange={(e) => setSan({ ...san, kind: e.target.value as SanKind })}>
@@ -302,6 +323,19 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         <Pips label="Violence" n={l.adapt.v} />
         <Pips label="Helplessness" n={l.adapt.h} />
 
+        <h3>Mind</h3>
+        <p className="noprint dim"><small>Each time the Breaking Point is reached, a disorder replaces one motivation (pp. 38, 69).</small></p>
+        <p>Motivations: {motivations.length ? motivations.join(' · ') : <span className="dim">none left</span>}</p>
+        <p>Disorders: {l.disorders.length ? l.disorders.join(' · ') : <span className="dim">none</span>}</p>
+        <div className="row noprint">
+          <input aria-label="New disorder" placeholder="new disorder" value={disorder} maxLength={100} onChange={(e) => setDisorder(e.target.value)} />
+          <select aria-label="Motivation it replaces" value={drop} onChange={(e) => setDrop(e.target.value)}>
+            <option value="">— no motivation lost —</option>
+            {motivations.map((m) => <option key={m}>{m}</option>)}
+          </select>
+          <Btn onPress={addDisorder} disabled={!disorder.trim()}>Add disorder</Btn>
+        </div>
+
         <h3>Bonds</h3>
         {bonds.map((b) => (
           <Counter key={b.i} label={b.name} note={b.note} value={l.bonds[b.i] ?? d.bondScore} max={d.bondScore} onChange={(v) => set('bonds', withBond(l.bonds, b.i, v, d.bondScore))} />
@@ -311,7 +345,10 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
       <Win className="live-skills" title="SKILLS">
         <Btn className="phone-only noprint" onPress={() => jump('.live-status', '.live-status .btn')}>↑ Status</Btn>
         <input className="noprint skill-find" type="search" aria-label="Search skills" placeholder="search skills · tap to roll" value={find} onChange={(e) => setFind(e.target.value)} />
-        <SkillTable c={c} onRoll={roll} filter={find} />
+        <div className="row noprint">
+          <Btn onPress={endSession} disabled={l.checked.length === 0}>End session: advance {l.checked.length} checked</Btn>
+        </div>
+        <SkillTable c={c} onRoll={rollSkill} filter={find} advance={l.advance} checked={l.checked} />
       </Win>
       <Win className="live-notes-win" title="NOTES">
         <textarea aria-label="Notes" rows={6} maxLength={MAX_NOTES} className="live-notes" value={l.notes} onChange={(e) => set('notes', e.target.value)} />

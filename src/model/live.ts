@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { parseCharacter, type Character } from './character';
-import { bondCount, derived, rollExpr, veteranOf } from '../rules';
+import { bondCount, derived, disorderOf, rollExpr, skillsOf, veteranOf } from '../rules';
 import { STATS, type Stat } from '../rules/data/creation';
 
 /** Play-time state. The whole sheet lives in the URL hash, so no server or database is involved. */
@@ -20,6 +20,10 @@ const liveSchema = z.object({
   adapt: z.object({ v: track, h: track }).default({ v: 0, h: 0 }), // p. 74: boxes toward adapting to violence / helplessness
   statMod: z.record(statKey, z.number().int().min(-18).max(0)).default({}), // permanent stat changes (injury, adaptation)
   statLoss: z.record(statKey, z.number().int().min(0).max(18)).default({}), // temporary stat loss, restored 1 per night (p. 55)
+  checked: z.array(z.string().max(100)).max(100).default([]), // skills failed this session; each gains 1D4 afterwards (p. 28)
+  advance: z.record(z.string().max(100), n).default({}), // skill growth from play, added to the creation totals
+  disorders: z.array(z.string().max(100)).max(20).default([]), // pp. 38, 69
+  dropped: z.array(z.string().max(200)).max(5).default([]), // motivations lost to disorders
   spent: spentSchema.default(noneSpent), // once-per-event actions: HP after the last first aid / at the last injury test (null = unused), and today's rest and sleep
 });
 export type Live = z.infer<typeof liveSchema>;
@@ -27,11 +31,38 @@ export const parseLive = (raw: unknown): Live => liveSchema.parse(raw);
 
 export const freshLive = (c: Character): Live => {
   const d = derived(c);
-  return { hp: d.hp, wp: d.wp, san: d.san, bp: d.bp, bonds: Array(bondCount(c)).fill(d.bondScore), notes: '', penalty: 0, exhausted: false, adapt: { v: 0, h: 0, [veteranOf(c)?.adapts ?? 'v']: veteranOf(c)?.adapts ? 3 : 0 }, statMod: {}, statLoss: {}, spent: { ...noneSpent } };
+  return { hp: d.hp, wp: d.wp, san: d.san, bp: d.bp, bonds: Array(bondCount(c)).fill(d.bondScore), notes: '', penalty: 0, exhausted: false, adapt: { v: 0, h: 0, [veteranOf(c)?.adapts ?? 'v']: veteranOf(c)?.adapts ? 3 : 0 }, statMod: {}, statLoss: {}, checked: [], advance: {}, disorders: disorderOf(c) ? [disorderOf(c)] : [], dropped: [], spent: { ...noneSpent } };
 };
 
 /** True until anything has been played or noted: the sheet still equals what `c` derives, so it can be rebuilt if `c` changes. */
-export const untouched = (l: Live, c: Character) => !l.notes && sameState(l, freshLive(c));
+export const untouched = (l: Live, c: Character) => {
+  const fresh = freshLive(c), extras = (x: Live) => JSON.stringify([x.checked, x.advance, x.disorders, x.dropped]);
+  return !l.notes && sameState(l, fresh) && extras(l) === extras(fresh);
+};
+
+/** Unnatural skill as played (veteran gain plus growth); it caps SAN at 99 minus itself (pp. 15, 68). */
+export const unnaturalOf = (c: Character, l: Live) => skillsOf(c, l.advance).find((s) => s.key === 'Unnatural')?.total ?? 0;
+export const maxSanOf = (c: Character, l: Live) => 99 - unnaturalOf(c, l);
+
+/** Set the Unnatural skill (never below the veteran's starting gain); SAN is pulled down to the new maximum. */
+export function setUnnatural(c: Character, l: Live, value: number): Live {
+  const adv = Math.max(0, Math.min(99, value) - (veteranOf(c)?.unnatural ?? 0));
+  const live = { ...l, advance: { ...l.advance, Unnatural: adv } };
+  return { ...live, san: Math.min(live.san, maxSanOf(c, live)) };
+}
+
+/** End of session (p. 28): each checked skill gains 1D4, to a maximum of 99, and the checks are erased. */
+export function advanceSkills(c: Character, l: Live, rng = Math.random): { live: Live; gains: [string, number][] } {
+  const totals = skillsOf(c, l.advance);
+  const gains = l.checked.flatMap((key): [string, number][] => {
+    const n = Math.min(rollExpr('1D4', rng)!, 99 - (totals.find((s) => s.key === key)?.total ?? 0));
+    return n > 0 ? [[key, n]] : [];
+  });
+  const advance = { ...l.advance };
+  for (const [key, n] of gains) advance[key] = (advance[key] ?? 0) + n;
+  const live = { ...l, checked: [], advance };
+  return { live: { ...live, san: Math.min(live.san, maxSanOf(c, live)) }, gains };
+}
 
 /** Replace one Bond score without disturbing the others; holes (a link with fewer scores than Bonds) take `fallback`. */
 export const withBond = (bonds: number[], i: number, v: number, fallback: number) =>
@@ -123,7 +154,7 @@ export function loseSan(c: Character, l: Live, loss: number, kind: SanKind, rng 
   if (san === 0) notes.push('0 SAN: permanent insanity (p. 73). The Agent now belongs to the Handler.');
   if (breaking) {
     live.bp = Math.max(0, san - derived(permStats(c, l)).pow); // current POW, veteran penalty included
-    notes.push(`Breaking Point reached: gain a disorder (p. 69). New Breaking Point ${live.bp}.`);
+    notes.push(`Breaking Point reached: gain a disorder, which replaces a motivation (pp. 38, 69). New Breaking Point ${live.bp}.`);
   }
   if (kind !== 'unnatural' && loss >= 1) {
     const k = kind === 'violence' ? 'v' : 'h';

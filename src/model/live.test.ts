@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from './character';
-import { decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond } from './live';
+import { advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond } from './live';
 
 it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   const c = newCharacter();
@@ -20,7 +20,7 @@ it('survives large notes and rejects out-of-range values', () => {
 
 it('loads links saved before the play-time fields existed', () => {
   const c = newCharacter();
-  const { penalty, exhausted, adapt, statMod, statLoss, ...old } = freshLive(c);
+  const { penalty, exhausted, checked, advance, disorders, dropped, adapt, statMod, statLoss, ...old } = freshLive(c);
   const hash = encodeSheet(c, old as ReturnType<typeof freshLive>);
   expect(decodeSheet(hash)?.l).toMatchObject({ penalty: 0, exhausted: false, adapt: { v: 0, h: 0 }, statMod: {}, statLoss: {} });
 });
@@ -176,5 +176,38 @@ describe('Breaking Point with veterans (p. 38 example: SAN 60→55, BP stays 48)
     c.stats.POW = 12;
     const bp = (v: string) => { c.veteran = v; return freshLive(c).bp; };
     expect([bp(''), bp('violence'), bp('hard'), bp('unnatural')]).toEqual([48, 48, 48, 36]);
+  });
+});
+
+describe('skill advancement and Unnatural (pp. 15, 28)', () => {
+  const c = () => { const x = newCharacter(); x.professionId = 'police-officer'; return x; };
+  it('adds 1D4 to each checked skill, caps at 99, and clears the checks', () => {
+    const x = c();
+    const l = { ...freshLive(x), checked: ['Alertness', 'Law'] };
+    const r = advanceSkills(x, l, () => 0.99); // 1D4 = 4
+    expect(r.gains).toEqual([['Alertness', 4], ['Law', 4]]);
+    expect(r.live).toMatchObject({ checked: [], advance: { Alertness: 4, Law: 4 } });
+    const top = advanceSkills(x, { ...l, checked: ['Alertness'], advance: { Alertness: 38 } }, () => 0.99); // 60 + 38 = 98
+    expect(top.gains).toEqual([['Alertness', 1]]);
+  });
+  it('Unnatural lowers maximum SAN and pulls SAN down with it', () => {
+    const x = c();
+    const l = freshLive(x);
+    expect(maxSanOf(x, l)).toBe(99);
+    const r = setUnnatural(x, { ...l, san: 95 }, 10);
+    expect(maxSanOf(x, r)).toBe(89);
+    expect(r.san).toBe(89);
+    x.veteran = 'unnatural'; // starts at 10, so it can't be set lower
+    expect(maxSanOf(x, setUnnatural(x, freshLive(x), 0))).toBe(89);
+  });
+  it('counts checks and disorders as play, so a rebuild does not wipe them', () => {
+    const x = c();
+    expect(untouched(freshLive(x), x)).toBe(true);
+    expect(untouched({ ...freshLive(x), checked: ['Law'] }, x)).toBe(false);
+    expect(untouched({ ...freshLive(x), disorders: ['Paranoia'] }, x)).toBe(false);
+  });
+  it('starts with the Unnatural veteran disorder', () => {
+    const x = c(); x.veteran = 'unnatural'; x.disorder = 'Amnesia';
+    expect(freshLive(x).disorders).toEqual(['Amnesia']);
   });
 });

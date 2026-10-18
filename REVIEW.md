@@ -74,9 +74,9 @@ Checked against the Handbook and matching: derived attributes (p. 18); crit/fumb
 
 ### Missing features (rules gaps)
 
-- [ ] **R8. Failed-skill checks and advancement** (p. 28: check a box on a failure; after the session add 1D4 to each checked skill). The ASCII sheet prints the instruction ([sheet.ts:76](src/model/sheet.ts)) but the live sheet cannot record checks. Proposal: `Live.checked: string[]`, a checkbox per skill row, an "End session" button that rolls 1D4 per checked skill and stores the bonus (needs a place to store advancement; skill totals currently derive only from `Character`).
-- [ ] **R9. Unnatural skill gains should lower max SAN** (99 − Unnatural, p. 15). `maxSan` comes only from creation ([index.ts:74](src/rules/index.ts)). Needs the same advancement storage as R8.
-- [ ] **R10. Breaking Point should prompt a motivation swap** (pp. 38, 69: a new disorder replaces a motivation). The note in [live.ts:124](src/model/live.ts) only says "gain a disorder". Proposal: track `disorders` and `motivations` in `Live`, or at least mention the swap in the note.
+- [x] **R8. Failed-skill checks and advancement** (p. 28: check a box on a failure; after the session add 1D4 to each checked skill). The ASCII sheet prints the instruction ([sheet.ts:76](src/model/sheet.ts)) but the live sheet cannot record checks. Proposal: `Live.checked: string[]`, a checkbox per skill row, an "End session" button that rolls 1D4 per checked skill and stores the bonus (needs a place to store advancement; skill totals currently derive only from `Character`).
+- [x] **R9. Unnatural skill gains should lower max SAN** (99 − Unnatural, p. 15). `maxSan` comes only from creation ([index.ts:74](src/rules/index.ts)). Needs the same advancement storage as R8.
+- [x] **R10. Breaking Point should prompt a motivation swap** (pp. 38, 69: a new disorder replaces a motivation). The note in [live.ts:124](src/model/live.ts) only says "gain a disorder". Proposal: track `disorders` and `motivations` in `Live`, or at least mention the swap in the note.
 
 ---
 

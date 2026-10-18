@@ -90,9 +90,9 @@ export function SkillPicker({ label, value, onChange }: { label: string; value: 
 /** Typed skills break after the family ("Foreign Language" / "(Mandarin)") so a long name is two short lines, not one that wraps unpredictably. */
 const skillName = (key: string) => (typeOf(key) ? <>{familyOf(key)}<small className="skilltype">({typeOf(key)})</small></> : key);
 
-export function SkillTable({ c, onlyTouched, onRoll, filter = '' }: { c: Character; onlyTouched?: boolean; onRoll?: (label: string, chance: number) => void; filter?: string }) {
+export function SkillTable({ c, onlyTouched, onRoll, filter = '', advance, checked = [] }: { c: Character; onlyTouched?: boolean; onRoll?: (label: string, chance: number) => void; filter?: string; advance?: Record<string, number>; checked?: string[] }) {
   const q = filter.trim();
-  const rows = filterSkills(skillsOf(c).filter((s) => (onlyTouched ? s.professional !== null || s.bonus || s.veteran : s.total > 0)), q);
+  const rows = filterSkills(skillsOf(c, advance).filter((s) => (onlyTouched ? s.professional !== null || s.bonus || s.veteran : s.total > 0)), q);
   return (
     <table>
       <thead><tr><th>Skill</th><th className="num">Total</th></tr></thead>
@@ -103,6 +103,7 @@ export function SkillTable({ c, onlyTouched, onRoll, filter = '' }: { c: Charact
               <span className="skillname">
                 {onRoll ? <button className="rollable" onClick={() => onRoll(s.key, s.total)}>{skillName(s.key)}</button> : <span>{s.key}</span>}
                 {s.professional !== null && <span className="mark" title="Professional skill">▪</span>}
+                {checked.includes(s.key) && <span className="mark" title="Failed this session">✓<span className="sr-only"> failed this session, will advance</span></span>}
               </span>
             </td>
             <td className="num">{s.total}%</td>
