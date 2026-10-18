@@ -13,8 +13,9 @@ h2::before, h3::before { content: '[ '; } h2::after, h3::after { content: ' ]'; 
 
 .menubar { display: flex; gap: 1.5rem; padding: .25rem 1rem; background: var(--inv-bg); color: var(--inv-fg); flex-wrap: wrap; }
 .menubar .grow { flex: 1; text-align: right; }
-.menubar button { all: unset; cursor: pointer; } .menubar button:hover, .menubar button[data-focus-visible] { text-decoration: underline; }
-.menubar button + button::before { content: "|" / ""; display: inline-block; margin: 0 .75ch; } /* inline-block keeps the hover underline off it */
+.menubar button { all: unset; cursor: pointer; } .menubar button:hover, .menubar button[data-focus-visible], .menubar a:hover, .menubar a:focus-visible { text-decoration: underline; }
+.menubar a { color: inherit; text-decoration: none; }
+.menubar :is(button, a) + button::before { content: "|" / ""; display: inline-block; margin: 0 .75ch; } /* inline-block keeps the hover underline off it */
 
 .shell { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--gap); padding: var(--gap); align-items: start; align-content: start; }
 @media (min-width: 801px) { .shell.live td { white-space: nowrap; } }
@@ -46,6 +47,7 @@ html { scroll-padding-top: 4rem; } /* keeps focused controls clear of the sticky
 .steps button:hover, .steps button[data-focus-visible] { outline: 1px dashed var(--line); }
 .steps button[aria-current='step'] { background: var(--inv-bg); color: var(--inv-fg); }
 .steps .n { flex: none; min-width: 2ch; } .steps .flag { margin-left: auto; }
+.steps button[aria-current='step'] .flag:not(:empty) { background: var(--panel); padding: 0 .5ch; } /* the green/red marks are unreadable straight on the inverted bar */
 
 .grid { display: grid; gap: .75rem var(--gap); grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
 .field { display: flex; flex-direction: column; gap: .125rem; }
@@ -101,7 +103,7 @@ td.num, th.num { text-align: right; }
   .win > .body { padding: .5rem; }
   .menubar { padding: .25rem .5rem; gap: .5rem; }
   .menubar .grow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 0 1.5rem; }
-  .menubar button + button::before { content: none; } /* would dangle when the buttons wrap */
+  .menubar :is(button, a) + button::before { content: none; } /* would dangle when the buttons wrap */
   /* one row: number + flag per step, label only for the current one */
   .steps { display: flex; }
   .steps li { flex: none; }
@@ -169,3 +171,14 @@ td.num, th.num { text-align: right; }
 
 .btn.phone-only { display: none; }
 @media (max-width: 800px) { .btn.phone-only { display: inline-block; } .live-skills .btn.phone-only { margin-bottom: .5rem; } }
+
+/* Landing, game and notice pages */
+.page { display: grid; gap: var(--gap); padding: var(--gap); align-content: start; width: 100%; max-width: 64rem; margin: 0 auto; }
+.page a { color: inherit; }
+a.btn { display: inline-block; text-decoration: none; color: inherit; } a.btn:is(:hover, :focus-visible) { background: var(--inv-bg); color: var(--inv-fg); outline: none; }
+.idform { display: flex; gap: .75rem; flex-wrap: wrap; } .idform input { flex: 1 1 16ch; width: auto; }
+.page .row { margin: .75rem 0; }
+.agents { list-style: none; margin: 0; padding: 0; }
+.agents li { display: flex; gap: .25rem 1.5rem; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px dotted var(--dim); }
+.agents li > :first-child { flex: 1 1 16ch; }
+.log { max-height: 24rem; overflow-y: auto; }

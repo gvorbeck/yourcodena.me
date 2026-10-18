@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from './character';
-import { decodeSheet, encodeSheet, freshLive, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond } from './live';
+import { decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond } from './live';
 
 it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   const c = newCharacter();
@@ -144,4 +144,15 @@ describe('review fixes', () => {
     expect(sameState(a, { ...a, statMod: { CHA: 0 }, statLoss: { STR: 0 } })).toBe(true);
     expect(sameState(a, { ...a, statLoss: { STR: 1 } })).toBe(false);
   });
+});
+
+it('a sheet is untouched until something is played or noted, so it can follow the character', () => {
+  const c = newCharacter();
+  const l = freshLive(c);
+  expect(untouched(l, c)).toBe(true);
+  expect(untouched({ ...l, hp: l.hp - 1 }, c)).toBe(false);
+  expect(untouched({ ...l, notes: 'x' }, c)).toBe(false);
+  const stronger = { ...c, stats: { ...c.stats, POW: 14 } };
+  expect(untouched(l, stronger)).toBe(false); // the sheet no longer matches a different character
+  expect(freshLive(stronger).san).toBeGreaterThan(l.san);
 });
