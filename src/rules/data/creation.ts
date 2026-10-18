@@ -65,12 +65,12 @@ export const PACKAGES: PackageDef[] = [
 export interface VeteranDef {
   id: string; name: string; page: string; effects: string[];
   san: number | 'POW'; pow?: number; cha?: number; bonds?: number; removeBond?: boolean;
-  unnatural?: number; occult?: number; extraSkills?: { count: number; amount: number; cap: number };
+  unnatural?: number; occult?: number; adapts?: 'v' | 'h'; extraSkills?: { count: number; amount: number; cap: number };
 }
 export const VETERANS: VeteranDef[] = [
-  { id: 'violence', name: 'Extreme Violence', page: 'p. 38', san: 5, cha: 3, bonds: 3, occult: 10,
+  { id: 'violence', name: 'Extreme Violence', page: 'p. 38', san: 5, cha: 3, bonds: 3, occult: 10, adapts: 'v',
     effects: ['+10 Occult', 'SAN −5', 'CHA −3 and each Bond −3', 'Adapted to violence'] },
-  { id: 'captivity', name: 'Captivity or Imprisonment', page: 'p. 38', san: 5, pow: 3, occult: 10,
+  { id: 'captivity', name: 'Captivity or Imprisonment', page: 'p. 38', san: 5, pow: 3, occult: 10, adapts: 'h',
     effects: ['+10 Occult', 'SAN −5', 'POW −3', 'Adapted to helplessness'] },
   { id: 'hard', name: 'Hard Experience', page: 'p. 38', san: 5, removeBond: true, occult: 10, extraSkills: { count: 5, amount: 10, cap: 90 },
     effects: ['+10 Occult', '+10 on five other skills (max 90%)', 'SAN −5', 'Remove one Bond'] },

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { STATS, STAT_NAMES } from '../rules/data/creation';
-import { bondCount, derived, disorderOf, featureOf, professionOf, validate } from '../rules';
+import { bondCount, derived, disorderOf, featureOf, professionOf, validate, veteranOf } from '../rules';
 import { asciiSheet } from '../model/sheet';
 import { exportJson } from '../model/character';
 import { Btn, SkillTable, Rule, type StepProps } from '../ui';
@@ -51,8 +51,8 @@ export function ReviewStep({ c, onLive }: StepProps & { onLive: () => void }) {
           <p key={k}><span className="dim">{k}:</span> {det[k]}</p>
         ))}
         <h3>Incidents of SAN loss without going insane</h3>
-        {([['Violence', 'violence'], ['Helplessness', 'captivity']] as const).map(([label, vet]) => (
-          <p key={label} className="boxes">{label} ☐ ☐ ☐ · adapted {c.veteran === vet ? '☒' : '☐'}</p>
+        {([['Violence', 'v'], ['Helplessness', 'h']] as const).map(([label, kind]) => (
+          <p key={label} className="boxes">{label} ☐ ☐ ☐ · adapted {veteranOf(c)?.adapts === kind ? '☒' : '☐'}</p>
         ))}
       </div>
     </>

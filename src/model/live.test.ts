@@ -156,3 +156,16 @@ it('a sheet is untouched until something is played or noted, so it can follow th
   expect(untouched(l, stronger)).toBe(false); // the sheet no longer matches a different character
   expect(freshLive(stronger).san).toBeGreaterThan(l.san);
 });
+
+describe('damaged veterans start adapted (p. 38)', () => {
+  it('Extreme Violence adapts to violence only; Captivity to helplessness only', () => {
+    const c = newCharacter();
+    expect(freshLive(c).adapt).toEqual({ v: 0, h: 0 });
+    c.veteran = 'violence';
+    expect(freshLive(c).adapt).toEqual({ v: 3, h: 0 });
+    c.veteran = 'captivity';
+    expect(freshLive(c).adapt).toEqual({ v: 0, h: 3 });
+    c.veteran = 'hard';
+    expect(freshLive(c).adapt).toEqual({ v: 0, h: 0 });
+  });
+});

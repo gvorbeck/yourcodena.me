@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { parseCharacter, type Character } from './character';
-import { bondCount, derived, rollExpr } from '../rules';
+import { bondCount, derived, rollExpr, veteranOf } from '../rules';
 import { STATS, type Stat } from '../rules/data/creation';
 
 /** Play-time state. The whole sheet lives in the URL hash, so no server or database is involved. */
@@ -26,7 +26,7 @@ export const parseLive = (raw: unknown): Live => liveSchema.parse(raw);
 
 export const freshLive = (c: Character): Live => {
   const d = derived(c);
-  return { hp: d.hp, wp: d.wp, san: d.san, bp: d.bp, bonds: Array(bondCount(c)).fill(d.bondScore), notes: '', penalty: 0, adapt: { v: 0, h: 0 }, statMod: {}, statLoss: {}, spent: { ...noneSpent } };
+  return { hp: d.hp, wp: d.wp, san: d.san, bp: d.bp, bonds: Array(bondCount(c)).fill(d.bondScore), notes: '', penalty: 0, adapt: { v: 0, h: 0, [veteranOf(c)?.adapts ?? 'v']: veteranOf(c)?.adapts ? 3 : 0 }, statMod: {}, statLoss: {}, spent: { ...noneSpent } };
 };
 
 /** True until anything has been played or noted: the sheet still equals what `c` derives, so it can be rebuilt if `c` changes. */

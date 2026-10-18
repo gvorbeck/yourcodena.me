@@ -77,8 +77,8 @@ export function asciiSheet(c: Character): string {
       ...skillsOf(c).filter((s) => s.total > 0).map((s) => `${short(s.key).padEnd(20)}${String(s.total).padStart(2)}`)),
 
     ...section('INCIDENTS OF SAN LOSS',
-      `Violence:  [ ] [ ] [ ] Adapted${v?.id === 'violence' ? ' [x]' : ' [ ]'}`.replace(' Adapted [', '\n           Adapted ['),
-      `Helpless:  [ ] [ ] [ ] Adapted${v?.id === 'captivity' ? ' [x]' : ' [ ]'}`.replace(' Adapted [', '\n           Adapted [')),
+      `Violence:  [ ] [ ] [ ] Adapted${v?.adapts === 'v' ? ' [x]' : ' [ ]'}`.replace(' Adapted [', '\n           Adapted ['),
+      `Helpless:  [ ] [ ] [ ] Adapted${v?.adapts === 'h' ? ' [x]' : ' [ ]'}`.replace(' Adapted [', '\n           Adapted [')),
   ];
   return lines.flatMap((l) => l.split('\n').flatMap(wrap)).join('\n') + '\n';
 }

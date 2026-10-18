@@ -25,7 +25,7 @@ Checked against the Handbook and matching: derived attributes (p. 18); crit/fumb
 
 ### Bugs
 
-- [ ] **R1. Damaged-veteran adaptation never reaches the live sheet**
+- [x] **R1. Damaged-veteran adaptation never reaches the live sheet**
   - **Where:** [src/model/live.ts:29](src/model/live.ts) (`freshLive`), `adapt: { v: 0, h: 0 }`.
   - **Rule:** Extreme Violence and Captivity or Imprisonment say the Agent is "adapted to violence" / "adapted to helplessness" (p. 38). Adapted Agents always succeed at SAN rolls of that type (p. 73).
   - **Problem:** The ASCII sheet and Review step tick the "adapted" box from `c.veteran`, but the live sheet starts the counters at 0. `adapted()` in [LiveSheet.tsx:150](src/LiveSheet.tsx) therefore returns false and SAN tests are still rolled.
