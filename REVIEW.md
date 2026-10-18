@@ -51,25 +51,26 @@ Checked against the Handbook and matching: derived attributes (p. 18); crit/fumb
 
 ### Smaller rules issues
 
-- [ ] **R4. Hard Experience allows duplicate skill picks**
+- [x] **R4. Hard Experience allows duplicate skill picks**
   - **Where:** [index.ts:137](src/rules/index.ts) (`skillsOf` adds `amount` per entry) and [index.ts:199-203](src/rules/index.ts) (`validate`).
   - **Rule:** "+10% to any five skills" (p. 38). Duplicates would stack +20.
   - **Fix:** In `validate`, flag duplicate non-empty entries in `veteranSkills`. Optionally also include Occult's +10 when checking the 90% cap.
 
-- [ ] **R5. The 80% creation cap is a hard blocker**
+- [x] **R5. The 80% creation cap is a hard blocker**
   - **Where:** [index.ts:190](src/rules/index.ts); the Live Sheet button is disabled while any issue exists ([ReviewStep.tsx:20](src/steps/ReviewStep.tsx)).
   - **Rule:** "Unless the Handler says otherwise, you can't raise a skill higher than 80%" (p. 20).
   - **Fix:** Add a `severity: 'error' | 'warning'` to `Issue`; make this one a warning that does not disable Live Sheet. Show warnings differently in [Editor.tsx:87](src/Editor.tsx) and ReviewStep.
 
-- [ ] **R6. Sleep wipes the whole manual Penalty**
+- [x] **R6. Sleep wipes the whole manual Penalty**
   - **Where:** [LiveSheet.tsx:144](src/LiveSheet.tsx), `penalty: 0`.
   - **Rule:** A full night's sleep cures exhaustion (p. 47). It does not cure other penalties (sickness, drugs, injuries) the user may have entered.
   - **Fix:** Track exhaustion separately from the manual penalty (e.g. `Live.exhausted: boolean` worth −20), or only subtract 20 on sleep. Needs a schema field with a default (see the "added after v1" note in [live.ts:17](src/model/live.ts)).
 
-- [ ] **R7. Wrong page citations on agency kits**
+- [x] **R7. Wrong page citations on agency kits**
   - **Where:** `page` strings in [professions.ts:80-131](src/rules/data/professions.ts); shown to users in ProfessionStep.
   - **Known wrong:** FBI HRT says p. 109 (kit is p. 113); Raiders and DEVGRU/SEALs say p. 140 (p. 145); Combat Camera and MSPF say p. 136 (p. 138). The code appears to cite the agency intro page, not the kit.
-  - **Fix:** Re-check every `agency` entry (~29) against the book and correct the page. Also verify the kit contents and bond counts for the ~25 agency kits not read in this review, the five core/additional professions not read (intelligence analyst, case officer, lawyer, media specialist, soldier, all p. 23–26), and `POSTINGS` ([professions.ts:143-155](src/rules/data/professions.ts)).
+  - **Done:** All 31 agency kits' skills and bond counts were checked against the book and match; 19 page numbers were corrected. Also confirmed the five core/additional professions not read before and the postings, except CDC "Public Health Preparedness / EOC" (not found in search; still unverified). FORECON (p. 138) and MIST (pp. 143–144) pages are inferred from page-break positions.
+  - **Original fix note:** Re-check every `agency` entry (~29) against the book and correct the page. Also verify the kit contents and bond counts for the ~25 agency kits not read in this review, the five core/additional professions not read (intelligence analyst, case officer, lawyer, media specialist, soldier, all p. 23–26), and `POSTINGS` ([professions.ts:143-155](src/rules/data/professions.ts)).
 
 ### Missing features (rules gaps)
 

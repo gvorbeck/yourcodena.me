@@ -82,7 +82,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const dice = (e: string) => rollExpr(e) ?? 0;
   const test = (label: string, base: number, wp = l.wp) => {
     const r = rollD100();
-    const { chance, pen, outcome } = liveOutcome(r, base, wp, l.penalty + once);
+    const { chance, pen, outcome } = liveOutcome(r, base, wp, l.penalty + (l.exhausted ? 20 : 0) + once);
     setOnce(0);
     setRolls((p) => [{ id: nextId.current++, label, chance, pen, roll: r, outcome }, ...p].slice(0, 10));
     game?.onRoll({ label, chance, pen, roll: r, outcome });
@@ -113,7 +113,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const fumbled = (fn: () => void) => () => { fn(); if (fumble) setDismissed(fumble.id); };
   const strain = fumbled(() => { const n = dice('1D6'); set('hp', Math.max(0, l.hp - n)); say(`Physical strain: lost ${n} HP.`); });
   const burnout = fumbled(() => { const n = dice('1D6'); set('wp', Math.max(0, l.wp - n)); say(`Emotional burnout: lost ${n} WP.`); });
-  const exhaust = fumbled(() => { const n = dice('1D6'); setL((p) => ({ ...p, wp: Math.max(0, p.wp - n), penalty: Math.min(60, p.penalty + 20) })); say(`Exhausted: lost ${n} WP, −20% to all tests until a full night's sleep (p. 47).`); });
+  const exhaust = fumbled(() => { const n = dice('1D6'); setL((p) => ({ ...p, wp: Math.max(0, p.wp - n), exhausted: true })); say(`Exhausted: lost ${n} WP, −20% to all tests until a full night's sleep (p. 47).`); });
   const distract = fumbled(() => setOnce(20));
 
   // ---- Damage and healing (pp. 54–55)
@@ -141,7 +141,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   };
   const sleep = () => {
     const n = dice('1D6');
-    setL((p) => ({ ...p, wp: Math.min(d.wp, p.wp + n), penalty: 0, spent: { ...p.spent, sleep: true }, statLoss: Object.fromEntries(Object.entries(p.statLoss).map(([k, v]) => [k, Math.max(0, v - 1)])) }));
+    setL((p) => ({ ...p, wp: Math.min(d.wp, p.wp + n), exhausted: false, spent: { ...p.spent, sleep: true }, statLoss: Object.fromEntries(Object.entries(p.statLoss).map(([k, v]) => [k, Math.max(0, v - 1)])) }));
     say(`Full night's sleep: +${n} WP (once per 24 h), exhaustion cured, 1 point of each lost stat restored. After insanity or a new disorder, make a SAN test first (p. 47).`);
   };
   const lose = (s: Stat, by: number) => set('statLoss', { ...l.statLoss, [s]: Math.max(0, Math.min(18, (l.statLoss[s] ?? 0) + by)) });
@@ -230,6 +230,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         {l.wp === 0 && <p className="warn">0 WP: the Handler controls the Agent and no test can succeed (p. 47).</p>}
         {l.wp > 0 && l.wp <= 2 && <p className="warn">1–2 WP: emotional breakdown, −20% to everything (p. 47).</p>}
         <Counter label="Penalty %" value={l.penalty} step={10} max={60} onChange={(v) => set('penalty', v)} />
+        {l.exhausted && <p className="warn">Exhausted: −20% to every test until a full night's sleep (p. 47).</p>}
         {once > 0 && <p className="warn">Distracted: your next test is at −{once}%.</p>}
         <div className="row even noprint">
           {l.hp > 0 && l.hp <= 2 && <Btn onPress={injuryTest} disabled={!canInjuryTest(l)}>CON×5 injury test</Btn>}

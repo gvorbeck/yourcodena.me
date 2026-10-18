@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { STATS, STAT_NAMES } from '../rules/data/creation';
-import { bondCount, derived, disorderOf, featureOf, professionOf, validate, veteranOf } from '../rules';
+import { bondCount, derived, disorderOf, featureOf, professionOf, validate, veteranOf, blocking } from '../rules';
 import { asciiSheet } from '../model/sheet';
 import { exportJson } from '../model/character';
 import { Btn, SkillTable, Rule, type StepProps } from '../ui';
@@ -17,14 +17,14 @@ export function ReviewStep({ c, onLive }: StepProps & { onLive: () => void }) {
         <Btn onPress={() => window.print()}>Print / PDF</Btn>
         <Btn onPress={() => exportJson(c)}>Export JSON</Btn>
         <Btn onPress={() => { navigator.clipboard.writeText(asciiSheet(c)).then(() => setCopied(true), () => alert('Clipboard unavailable.')); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied ✓' : 'Copy Text'}</Btn>
-        <Btn disabled={issues.length > 0} onPress={onLive}>Live Sheet</Btn>
+        <Btn disabled={blocking(issues).length > 0} onPress={onLive}>Live Sheet</Btn>
       </div>
       {issues.length > 0 && (
         <ul className="issues noprint">{issues.map((i, n) => <li key={n}>[{i.step}] {i.msg}</li>)}</ul>
       )}
       <div className="dossier">
         <Rule />
-        <h2>Personnel file {issues.length ? <span className="stamp">Incomplete</span> : <span className="ok">Cleared</span>}</h2>
+        <h2>Personnel file {blocking(issues).length ? <span className="stamp">Incomplete</span> : <span className="ok">Cleared</span>}</h2>
         <div className="cols">
           <p>Name: {det.name || '—'}{det.codename && ` (codename ${det.codename})`}</p>
           <p>Profession: {p?.name ?? '—'}</p>

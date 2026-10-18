@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Link } from 'react-router-dom';
 import { importJson, type Character } from './model/character';
-import type { validate } from './rules';
+import { blocking, type validate } from './rules';
 import { Btn, Win, type Up } from './ui';
 import { Legal } from './ui/Legal';
 import { StatsStep } from './steps/StatsStep';
@@ -40,6 +40,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
 
   const up: Up = (fn) => setC((prev) => { const d = structuredClone(prev); fn(d); return d; });
   const cur = STEPS[step];
+  const open = blocking(issues).length;
   const here = issues.filter((x) => x.step === cur.id);
   const props = { c, up };
 
@@ -65,7 +66,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
         <Win title="CREATION STEPS">
           <ol className="steps" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {STEPS.map((s, i) => {
-              const bad = s.id !== 'review' && issues.some((x) => x.step === s.id);
+              const bad = s.id !== 'review' && blocking(issues).some((x) => x.step === s.id);
               return (
                 <li key={s.id}>
                   <button aria-current={i === step ? 'step' : undefined} onClick={() => setStep(i)}>
@@ -94,7 +95,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
 
       <footer className="statusbar noprint">
         <span>Agent: {c.details.name || 'UNNAMED'}</span>
-        <span className={issues.length ? 'warn' : 'ok'}>{issues.length ? `${issues.length} open item${issues.length === 1 ? '' : 's'}` : 'All steps complete'}</span>
+        <span className={open ? 'warn' : 'ok'}>{open ? `${open} open item${open === 1 ? '' : 's'}` : 'All steps complete'}</span>
         {failed ? <span className="warn">Not saved: check your connection and reload</span> : <span className="dim">Autosaved to game {gameId} · Source: Agent's Handbook</span>}
         <span className="cursor" aria-hidden />
         <Legal />

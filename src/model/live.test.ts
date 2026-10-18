@@ -20,9 +20,9 @@ it('survives large notes and rejects out-of-range values', () => {
 
 it('loads links saved before the play-time fields existed', () => {
   const c = newCharacter();
-  const { penalty, adapt, statMod, statLoss, ...old } = freshLive(c);
+  const { penalty, exhausted, adapt, statMod, statLoss, ...old } = freshLive(c);
   const hash = encodeSheet(c, old as ReturnType<typeof freshLive>);
-  expect(decodeSheet(hash)?.l).toMatchObject({ penalty: 0, adapt: { v: 0, h: 0 }, statMod: {}, statLoss: {} });
+  expect(decodeSheet(hash)?.l).toMatchObject({ penalty: 0, exhausted: false, adapt: { v: 0, h: 0 }, statMod: {}, statLoss: {} });
 });
 
 describe('SAN loss', () => {

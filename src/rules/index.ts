@@ -158,7 +158,9 @@ export const filterSkills = (lines: SkillLine[], query: string) => {
 
 // ---- Validation
 export type StepId = 'stats' | 'profession' | 'bonds' | 'details';
-export interface Issue { step: StepId; msg: string }
+/** `warn` issues are advice (the Handler may allow them) and don't block the Live Sheet. */
+export interface Issue { step: StepId; msg: string; warn?: boolean }
+export const blocking = (issues: Issue[]) => issues.filter((i) => !i.warn);
 
 export function bondCount(c: Character) {
   return Math.max(1, (professionOf(c)?.bonds ?? 0) - (veteranOf(c)?.removeBond ? 1 : 0));
@@ -166,7 +168,7 @@ export function bondCount(c: Character) {
 
 export function validate(c: Character): Issue[] {
   const out: Issue[] = [];
-  const add = (step: StepId, msg: string) => out.push({ step, msg });
+  const add = (step: StepId, msg: string, warn?: boolean) => out.push({ step, msg, warn });
   const scores = STATS.map((s) => c.stats[s]);
 
   if (c.statMethod === 'points' && scores.reduce((a, b) => a + b, 0) !== POINT_BUY_TOTAL)
@@ -191,7 +193,7 @@ export function validate(c: Character): Issue[] {
   if (c.bonus.some((k) => !k)) add('profession', `Pick all ${BONUS_PICKS} bonus skills.`);
   if (c.bonus.includes('Unnatural')) add('profession', 'Unnatural cannot be a bonus skill.');
   if (c.bonus.some((k) => k && /^(Art|Craft|Foreign Language|Military Science|Pilot|Science)$/.test(k))) add('profession', 'Name the type for each typed bonus skill.');
-  for (const s of skillsOf(c)) if (s.bonus && (s.professional ?? s.base) + s.bonus > MAX_CREATION_SKILL) add('profession', `${s.key} exceeds ${MAX_CREATION_SKILL}% before veteran adjustments.`);
+  for (const s of skillsOf(c)) if (s.bonus && (s.professional ?? s.base) + s.bonus > MAX_CREATION_SKILL) add('profession', `${s.key} exceeds ${MAX_CREATION_SKILL}% before veteran adjustments (the Handler may allow it).`, true);
 
   const need = bondCount(c);
   const named = c.bonds.slice(0, need).filter((b) => b.name.trim()).length;
@@ -203,7 +205,9 @@ export function validate(c: Character): Issue[] {
   if (v?.extraSkills && c.veteranSkills.filter(Boolean).length !== v.extraSkills.count) add('details', `${v.name}: pick ${v.extraSkills.count} skills for +${v.extraSkills.amount}%.`);
   if (v?.extraSkills) {
     const { cap } = v.extraSkills;
-    for (const s of skillsOf(c)) if (c.veteranSkills.includes(s.key) && s.total > cap) add('details', `${s.key} exceeds ${cap}% — ${v.name} can't raise a skill past ${cap}%.`);
+    const picked = c.veteranSkills.filter(Boolean);
+    if (new Set(picked).size !== picked.length) add('details', `${v.name}: pick ${v.extraSkills.count} different skills.`);
+    for (const s of skillsOf(c)) if ((picked.includes(s.key) || s.key === 'Occult') && s.total > cap) add('details', `${s.key} exceeds ${cap}% — ${v.name} can't raise a skill past ${cap}%.`);
   }
   return out;
 }

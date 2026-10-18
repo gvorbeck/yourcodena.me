@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
-import { filterSkills, liveOutcome, parseLoss, rollExpr, rollLoss, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
+import { blocking, filterSkills, liveOutcome, parseLoss, rollExpr, rollLoss, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { asciiSheet } from '../model/sheet';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
@@ -171,5 +171,25 @@ describe('skill search', () => {
     expect(filterSkills(lines, 'mandarin')).toHaveLength(1);
     expect(filterSkills(lines, 'zzz')).toHaveLength(0);
     expect(filterSkills(lines, '  ')).toBe(lines);
+  });
+});
+
+describe('creation cap and veteran picks', () => {
+  it('treats the 80% cap as a warning the Handler can waive (p. 20)', () => {
+    const c = newCharacter();
+    c.professionId = 'police-officer';
+    c.bonus = ['Alertness', 'Alertness', '', '', '', '', '', ''];
+    const cap = validate(c).filter((i) => i.msg.includes('Alertness exceeds'));
+    expect(cap).toHaveLength(1);
+    expect(blocking(cap)).toHaveLength(0);
+  });
+  it('Hard Experience needs five different skills (p. 38)', () => {
+    const c = newCharacter();
+    c.professionId = 'police-officer';
+    c.veteran = 'hard';
+    c.veteranSkills = ['Law', 'Law', 'Stealth', 'Search', 'Drive'];
+    expect(validate(c).some((i) => i.msg.includes('different skills'))).toBe(true);
+    c.veteranSkills = ['Law', 'Alertness', 'Stealth', 'Search', 'Drive'];
+    expect(validate(c).some((i) => i.msg.includes('different skills'))).toBe(false);
   });
 });

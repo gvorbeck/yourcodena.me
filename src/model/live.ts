@@ -15,7 +15,8 @@ const liveSchema = z.object({
   hp: n, wp: n, san: n, bp: n,
   bonds: z.array(n).max(20), notes: z.string().max(MAX_NOTES).default(''),
   // Added after v1 links existed, so each has a default.
-  penalty: n.max(60).default(0), // exhaustion, sickness, drugs: flat −% to every test
+  penalty: n.max(60).default(0), // sickness, drugs, injury: flat −% to every test
+  exhausted: z.boolean().default(false), // −20% to every test until a full night's sleep (p. 47)
   adapt: z.object({ v: track, h: track }).default({ v: 0, h: 0 }), // p. 74: boxes toward adapting to violence / helplessness
   statMod: z.record(statKey, z.number().int().min(-18).max(0)).default({}), // permanent stat changes (injury, adaptation)
   statLoss: z.record(statKey, z.number().int().min(0).max(18)).default({}), // temporary stat loss, restored 1 per night (p. 55)
@@ -26,7 +27,7 @@ export const parseLive = (raw: unknown): Live => liveSchema.parse(raw);
 
 export const freshLive = (c: Character): Live => {
   const d = derived(c);
-  return { hp: d.hp, wp: d.wp, san: d.san, bp: d.bp, bonds: Array(bondCount(c)).fill(d.bondScore), notes: '', penalty: 0, adapt: { v: 0, h: 0, [veteranOf(c)?.adapts ?? 'v']: veteranOf(c)?.adapts ? 3 : 0 }, statMod: {}, statLoss: {}, spent: { ...noneSpent } };
+  return { hp: d.hp, wp: d.wp, san: d.san, bp: d.bp, bonds: Array(bondCount(c)).fill(d.bondScore), notes: '', penalty: 0, exhausted: false, adapt: { v: 0, h: 0, [veteranOf(c)?.adapts ?? 'v']: veteranOf(c)?.adapts ? 3 : 0 }, statMod: {}, statLoss: {}, spent: { ...noneSpent } };
 };
 
 /** True until anything has been played or noted: the sheet still equals what `c` derives, so it can be rebuilt if `c` changes. */
@@ -47,7 +48,7 @@ const sameRec = (a: Partial<Record<string, number>>, b: Partial<Record<string, n
   [...new Set([...Object.keys(a), ...Object.keys(b)])].every((k) => (a[k] ?? 0) === (b[k] ?? 0)); // a missing key means 0
 /** Same for undo purposes: only the sheet's numbers count. Notes are free text and `spent` follows HP. */
 export const sameState = (a: Live, b: Live) =>
-  a.hp === b.hp && a.wp === b.wp && a.san === b.san && a.bp === b.bp && a.penalty === b.penalty
+  a.hp === b.hp && a.wp === b.wp && a.san === b.san && a.bp === b.bp && a.penalty === b.penalty && a.exhausted === b.exhausted
   && a.adapt.v === b.adapt.v && a.adapt.h === b.adapt.h
   && a.bonds.length === b.bonds.length && a.bonds.every((x, i) => x === b.bonds[i])
   && sameRec(a.statMod, b.statMod) && sameRec(a.statLoss, b.statLoss);
@@ -57,6 +58,7 @@ export function describeChange(a: Live, b: Live, bondNames: string[] = []): stri
   const parts: string[] = [];
   const num = (name: string, x: number, y: number) => { if (x !== y) parts.push(`${name} ${x}→${y}`); };
   num('HP', a.hp, b.hp); num('WP', a.wp, b.wp); num('SAN', a.san, b.san); num('BP', a.bp, b.bp); num('Penalty', a.penalty, b.penalty);
+  if (a.exhausted !== b.exhausted) parts.push(b.exhausted ? 'exhausted' : 'rested');
   b.bonds.forEach((y, i) => num(bondNames[i]?.trim() || `Bond ${i + 1}`, a.bonds[i] ?? y, y));
   if (a.adapt.v !== b.adapt.v) parts.push('violence adaptation');
   if (a.adapt.h !== b.adapt.h) parts.push('helplessness adaptation');
