@@ -20,7 +20,7 @@ const Root = () => {
 };
 
 export const App = () => (
-  <Suspense fallback={<p className="dim page" aria-busy="true">Loading…</p>}>
+  <Suspense fallback={<p className="dim page" role="status">Loading…</p>}>
     <Routes>
       <Route path="/" element={<Root />} />
       <Route path="/g/:gameId" element={<Game />} />

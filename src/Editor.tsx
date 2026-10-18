@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import { Link } from 'react-router-dom';
 import { importJson, type Character } from './model/character';
 import { blocking, type validate } from './rules';
-import { Btn, Win, type Up } from './ui';
+import { Btn, ConfirmDialog, Win, type Up } from './ui';
+import { SkipLink } from './ui/Win';
 import { Legal } from './ui/Legal';
 import { StatsStep } from './steps/StatsStep';
 import { ProfessionStep } from './steps/ProfessionStep';
@@ -24,8 +25,11 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
   const prevStep = useRef(step);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (prevStep.current !== step) { scrollTo(0, 0); heading.current?.focus(); } prevStep.current = step; }, [step]);
+  useEffect(() => { document.title = `${c.details.name.trim() || 'Unnamed agent'} // YOURCODENA.ME`; }, [c.details.name]);
   const file = useRef<HTMLInputElement>(null);
-  const pickFile = () => { if (confirm('Importing a file replaces this Agent. Continue?')) file.current?.click(); };
+  const [askImport, setAskImport] = useState(false);
+  const [importError, setImportError] = useState(false);
+  const pickFile = () => setAskImport(true);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       // Alt+key, never a bare letter, so typing and speech input can't trigger it (WCAG 2.1.4).
@@ -46,6 +50,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
 
   return (
     <>
+      <SkipLink />
       <nav className="menubar" aria-label="Application">
         <Link to="/">YOURCODENA.ME</Link>
         <span className="dim">// Agent intake terminal</span>
@@ -57,21 +62,27 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
               const f = e.target.files?.[0];
               e.target.value = '';
               if (!f) return;
-              try { setC(await importJson(f)); setStep(0); } catch { alert('Not a valid Agent file.'); }
+              try { setC(await importJson(f)); setStep(0); setImportError(false); } catch { setImportError(true); }
             }} />
         </span>
       </nav>
 
+      <main id="main" tabIndex={-1}>
+      <h1 className="sr-only">Agent intake: {c.details.name.trim() || 'unnamed agent'}</h1>
+      <div role="alert" className="noprint">{importError && <p className="warn page">Not a valid Agent file.</p>}</div>
+      <ConfirmDialog open={askImport} title="Import an agent" confirm="Import" onClose={() => setAskImport(false)} onConfirm={() => file.current?.click()}>
+        Importing a file replaces this Agent. Continue?
+      </ConfirmDialog>
       <div className="shell">
         <Win title="CREATION STEPS">
-          <ol className="steps" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <ol className="steps" role="list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {STEPS.map((s, i) => {
               const bad = s.id !== 'review' && blocking(issues).some((x) => x.step === s.id);
               return (
                 <li key={s.id}>
                   <button aria-current={i === step ? 'step' : undefined} onClick={() => setStep(i)}>
                     <span className="n">{i + 1}.</span><span>{s.title}</span>
-                    <span className={`flag ${bad ? 'warn' : 'ok'}`}>{s.id === 'review' ? '' : bad ? '!' : '✓'}</span>
+                    <span className={`flag ${bad ? 'warn' : 'ok'}`}>{s.id === 'review' ? '' : bad ? '!' : '✓'}{s.id !== 'review' && <span className="sr-only">{bad ? ' has open items' : ' complete'}</span>}</span>
                   </button>
                 </li>
               );
@@ -92,11 +103,12 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
           </div>
         </Win>
       </div>
+      </main>
 
       <footer className="statusbar noprint">
         <span>Agent: {c.details.name || 'UNNAMED'}</span>
         <span className={open ? 'warn' : 'ok'}>{open ? `${open} open item${open === 1 ? '' : 's'}` : 'All steps complete'}</span>
-        {failed ? <span className="warn">Not saved: check your connection and reload</span> : <span className="dim">Autosaved to game {gameId} · Source: Agent's Handbook</span>}
+        {failed ? <span className="warn" role="alert">Not saved: check your connection and reload</span> : <span className="dim">Autosaved to game {gameId} · Source: Agent's Handbook</span>}
         <span className="cursor" aria-hidden />
         <Legal />
       </footer>

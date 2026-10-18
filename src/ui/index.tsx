@@ -1,5 +1,5 @@
-import { Button, Checkbox, ComboBox, ComboBoxStateContext, Input, Label, ListBox, ListBoxItem, NumberField, Popover, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
-import { useContext, type CSSProperties, type ReactNode } from 'react';
+import { Button, Checkbox, ComboBox, ComboBoxStateContext, Dialog, Heading, Input, Label, ListBox, ListBoxItem, Modal, ModalOverlay, NumberField, Popover, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
+import { useContext, useId, type CSSProperties, type ReactNode } from 'react';
 export { Win } from './Win';
 import type { Character } from '../model/character';
 import { SKILL_FAMILIES, TYPED_SKILLS, TYPE_SUGGESTIONS, familyOf, makeKey, typeOf } from '../rules/data/skills';
@@ -34,8 +34,24 @@ export const Num = ({ label, value, onChange, min = 3, max = 18 }: { label: stri
   </NumberField>
 );
 
-export const Btn = ({ children, onPress, disabled, className }: { children: ReactNode; onPress: () => void; disabled?: boolean; className?: string }) => (
-  <Button className={className ? `btn ${className}` : 'btn'} onPress={onPress} isDisabled={disabled}>{children}</Button>
+export const Btn = ({ children, onPress, disabled, className, label }: { children: ReactNode; onPress: () => void; disabled?: boolean; className?: string; label?: string }) => (
+  <Button className={className ? `btn ${className}` : 'btn'} onPress={onPress} isDisabled={disabled} aria-label={label}>{children}</Button>
+);
+
+/** In-page replacement for window.confirm(): focus is trapped, Escape and a click outside cancel. */
+export const ConfirmDialog = ({ open, title, children, confirm, onConfirm, onClose }: { open: boolean; title: string; children: ReactNode; confirm: string; onConfirm: () => void; onClose: () => void }) => (
+  <ModalOverlay isOpen={open} onOpenChange={(o) => { if (!o) onClose(); }} isDismissable className="overlay">
+    <Modal className="modal">
+      <Dialog role="alertdialog" className="dialog">
+        <Heading slot="title">{title}</Heading>
+        <p>{children}</p>
+        <div className="row">
+          <Btn onPress={() => { onClose(); onConfirm(); }}>{confirm}</Btn>
+          <Btn onPress={onClose}>Cancel</Btn>
+        </div>
+      </Dialog>
+    </Modal>
+  </ModalOverlay>
 );
 
 export const Choice = ({ value, children, disabled }: { value: string; children: ReactNode; disabled?: boolean }) => (
@@ -73,11 +89,12 @@ export const TypeInput = ({ label, suggestions, value, onChange, style }: { labe
 export function SkillPicker({ label, value, onChange }: { label: string; value: string; onChange: (key: string) => void }) {
   const family = familyOf(value), type = typeOf(value);
   const typed = TYPED_SKILLS.includes(family);
+  const id = useId();
   return (
     <div className="field">
-      <label>{label}</label>
+      <label htmlFor={id}>{label}</label>
       <div className="row" style={{ flexWrap: 'nowrap' }}>
-        <select aria-label={label} value={family} onChange={(e) => onChange(e.target.value)} style={{ flex: 1, minWidth: 0, width: 'auto' }}>
+        <select id={id} value={family} onChange={(e) => onChange(e.target.value)} style={{ flex: 1, minWidth: 0, width: 'auto' }}>
           <option value="">— select —</option>
           {SKILL_FAMILIES.filter((f) => f !== 'Unnatural').map((f) => <option key={f}>{f}</option>)}
         </select>
@@ -102,8 +119,8 @@ export function SkillTable({ c, onlyTouched, onRoll, filter = '', advance, check
             <td className={s.professional !== null ? '' : 'dim'}>
               <span className="skillname">
                 {onRoll ? <button className="rollable" onClick={() => onRoll(s.key, s.total)}>{skillName(s.key)}</button> : <span>{s.key}</span>}
-                {s.professional !== null && <span className="mark" title="Professional skill">▪</span>}
-                {checked.includes(s.key) && <span className="mark" title="Failed this session">✓<span className="sr-only"> failed this session, will advance</span></span>}
+                {s.professional !== null && <span className="mark" title="Professional skill"><span aria-hidden>▪</span><span className="sr-only">professional skill</span></span>}
+                {checked.includes(s.key) && <span className="mark" title="Failed this session"><span aria-hidden>✓</span><span className="sr-only">failed this session, will advance</span></span>}
               </span>
             </td>
             <td className="num">{s.total}%</td>

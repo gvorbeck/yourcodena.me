@@ -82,47 +82,47 @@ Checked against the Handbook and matching: derived attributes (p. 18); crit/fumb
 
 ## 2. Accessibility
 
-- [ ] **A1. Dynamic results and save failures are not announced**
+- [x] **A1. Dynamic results and save failures are not announced**
   - **Where:** alerts list [LiveSheet.tsx:219-224](src/LiveSheet.tsx); fumble panel [206-218](src/LiveSheet.tsx); pending SAN panel [285-294](src/LiveSheet.tsx); "Not saved" at [Editor.tsx:98](src/Editor.tsx), [LiveSheet.tsx:204](src/LiveSheet.tsx), and the Agent load/failure text.
   - **Problem:** None has a live region, so screen-reader users never hear "Lost 4 SAN", "Breaking Point reached", or that their work isn't being saved.
   - **Fix:** `role="status"` on the alerts container and pending panel; `role="alert"` on "Not saved". The container must exist before its content changes, so render an empty `role="status"` wrapper and fill it.
 
-- [ ] **A2. Step buttons lose their names on phones**
+- [x] **A2. Step buttons lose their names on phones**
   - **Where:** [app.css:112](src/styles/app.css), `display: none` on `.n + span`.
   - **Problem:** `display:none` removes the text from the accessibility tree; non-current steps are announced as "2." only.
   - **Fix:** Replace with the `.sr-only` pattern (already defined at [app.css:26](src/styles/app.css)) so the text stays readable by assistive tech.
 
-- [ ] **A3. No landmarks, no `<h1>`, no skip link, no title on editor/live pages**
+- [x] **A3. No landmarks, no `<h1>`, no skip link, no title on editor/live pages**
   - **Where:** [Editor.tsx](src/Editor.tsx) and [LiveSheet.tsx](src/LiveSheet.tsx) render `div.shell` with no `<main>`; `Page.tsx` has one. `Win` renders `<h2>` only ([Win.tsx:8](src/ui/Win.tsx)); no page has an `<h1>`. Only `Page` sets `document.title`.
   - **Fix:** Wrap content in `<main>`; render a visually hidden `<h1>` (e.g. agent name or page name); add a "Skip to content" link in the menubar; set `document.title` in Editor and LiveSheet (agent name). Consider `aria-labelledby` on `Win`'s `<section>` so each window is a named region.
 
-- [ ] **A4. `+`/`−` buttons have no accessible names**
+- [x] **A4. `+`/`−` buttons have no accessible names**
   - **Where:** `Counter` [LiveSheet.tsx:14-16](src/LiveSheet.tsx), stat-loss buttons [263](src/LiveSheet.tsx); `Btn` [ui/index.tsx:37](src/ui/index.tsx) accepts no `aria-label`.
   - **Fix:** Add an optional `label` prop to `Btn` passed as `aria-label`; use "Decrease HP" / "Increase HP" and "Restore one lost STR" style names.
 
-- [ ] **A5. Disabled plain buttons look enabled**
+- [x] **A5. Disabled plain buttons look enabled**
   - **Where:** `<button className="btn">` in [Home.tsx:29,41](src/pages/Home.tsx) and [Game.tsx:42,68-69](src/pages/Game.tsx). Disabled styling targets only `.btn[data-disabled]` ([app.css:68](src/styles/app.css)), and `.btn { color: inherit }` removes the browser's grey. Hover/focus styles also apply only to `button[data-rac].btn`.
   - **Fix:** Replace these buttons with `Btn`, or add `.btn:disabled` and `.btn:focus-visible` rules. The first is preferred (one button component).
   - **Note:** Read from CSS, not confirmed in a browser.
 
-- [ ] **A6. Contrast of `--dim` is below 4.5:1**
+- [x] **A6. Contrast of `--dim` is below 4.5:1** (now `#5f5a4e` light, 5.15:1 on `--bg`; `#c27d27` dark, 5.18:1 on `--panel`. Check the look by eye.)
   - **Where:** [tokens.css:14](src/styles/tokens.css) and [26](src/styles/tokens.css).
   - **Measured:** light `--dim` on `--bg` 4.29:1 (on `--panel` 4.71:1); dark `--dim` on `--panel` 3.90:1 and on `--bg` 4.13:1. `--dim` is used for all helper text. Other tokens pass (fg 12.7 / 8.6, warn 6.4 / 6.2, ok 5.3 / 9.7).
   - **Fix:** Darken the light `--dim` and lighten the dark one until both exceed 4.5:1 on both backgrounds; re-measure.
 
-- [ ] **A7. Generated content is read aloud**
+- [x] **A7. Generated content is read aloud**
   - **Where:** `h2::before/after` and `h3::before/after` [app.css:9](src/styles/app.css); `.choice .mark::before` `[ ]`, `[X]`, `( )`, `(•)` [app.css:79-80](src/styles/app.css).
   - **Fix:** Use the alt-text form `content: '[ ]' / ''`, as already done for the menubar separator at [app.css:18](src/styles/app.css).
 
-- [ ] **A8. Professional-skill marker conveyed by `title` only**
+- [x] **A8. Professional-skill marker conveyed by `title` only**
   - **Where:** [ui/index.tsx:105](src/ui/index.tsx), `<span className="mark" title="Professional skill">▪</span>`.
   - **Fix:** Add `<span className="sr-only">professional skill</span>` and drop `aria-hidden` risk by hiding the glyph itself.
 
-- [ ] **A9. Weak focus indicators**
+- [x] **A9. Weak focus indicators**
   - **Where:** `.steps button:hover/[data-focus-visible]` [app.css:47](src/styles/app.css) and `.choice[data-focus-visible]` [app.css:76](src/styles/app.css) use a 1px dashed outline; `.menubar a:focus-visible` is underline only.
   - **Fix:** 2px solid outline with offset, matching `.rollable:focus-visible` ([app.css:33](src/styles/app.css)).
 
-- [ ] **A10. Smaller semantics**
+- [x] **A10. Smaller semantics** — done: list role, `role="status"` for loading text, label association, redundant `aria-live`, caps limited to chrome and short labels (sentences and typed text keep their case), and `confirm()`/`alert()` replaced by an in-page `ConfirmDialog` and inline copy-failed messages.
   - `<ol class="steps" style="list-style:none">` loses list semantics in Safari/VoiceOver ([Editor.tsx:66](src/Editor.tsx)): add `role="list"`.
   - `aria-busy` on a `<p>` does nothing ([App.tsx:23](src/App.tsx), [Agent.tsx:26](src/pages/Agent.tsx), [Game.tsx:34](src/pages/Game.tsx)): use `role="status"`.
   - `<label>` without `htmlFor` plus a duplicate `aria-label`: [ui/index.tsx:78](src/ui/index.tsx) (`SkillPicker`) and [DetailsStep.tsx:55](src/steps/DetailsStep.tsx): use react-aria `Label`/`Group`.
@@ -164,7 +164,7 @@ Already good (keep): Alt-key shortcut avoiding bare letters, focus moved to the 
   - **Problem:** After play, "Edit agent" then changing stats or importing another Agent leaves HP, SAN, Bonds and adaptation from the old build.
   - **Fix:** When the character changes after play, reconcile: clamp HP/WP/SAN to new maxima, resize `bonds` with `bondCount`, and confirm before importing over a played agent. Or warn that editing resets the live sheet.
 
-- [ ] **B7. Copy button timer bug**
+- [x] **B7. Copy button timer bug**
   - **Where:** [ReviewStep.tsx:19](src/steps/ReviewStep.tsx): `setTimeout(() => setCopied(false), 1500)` runs even if the clipboard write fails and sits outside the `.then`.
   - **Fix:** Resolved by the `useCopy` hook in D2.
 
@@ -190,7 +190,7 @@ Already good (keep): Alt-key shortcut avoiding bare letters, focus moved to the 
   - **Why:** This is the app's most rules-dense code, mixed with UI in a 320-line component, and untested. `loseSan` and `loseStat` in `model/live.ts` already show the better pattern.
   - **Fix:** Export pure `(c, l, rng) => { live, notes }` functions from `model/live.ts`; leave the component to call them and show notes. Pass `rng` for tests.
 
-- [ ] **D2. Clipboard copy and "copied" state implemented three times**
+- [x] **D2. Clipboard copy and "copied" state implemented three times**
   - **Where:** [LiveSheet.tsx:198](src/LiveSheet.tsx), [ReviewStep.tsx:19](src/steps/ReviewStep.tsx), [Game.tsx:31](src/pages/Game.tsx).
   - **Fix:** `useCopy(): [copied, copy(text)]` in `src/lib/`, with failure handled once.
 

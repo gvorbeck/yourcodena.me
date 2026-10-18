@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { copyNote, useCopy } from '../lib/useCopy';
 import { STATS, STAT_NAMES } from '../rules/data/creation';
 import { bondCount, derived, disorderOf, featureOf, professionOf, validate, veteranOf, blocking } from '../rules';
 import { asciiSheet } from '../model/sheet';
@@ -6,7 +6,7 @@ import { exportJson } from '../model/character';
 import { Btn, SkillTable, Rule, type StepProps } from '../ui';
 
 export function ReviewStep({ c, onLive }: StepProps & { onLive: () => void }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, copy] = useCopy();
   const issues = validate(c);
   const d = derived(c);
   const p = professionOf(c);
@@ -16,7 +16,8 @@ export function ReviewStep({ c, onLive }: StepProps & { onLive: () => void }) {
       <div className="row noprint">
         <Btn onPress={() => window.print()}>Print / PDF</Btn>
         <Btn onPress={() => exportJson(c)}>Export JSON</Btn>
-        <Btn onPress={() => { navigator.clipboard.writeText(asciiSheet(c)).then(() => setCopied(true), () => alert('Clipboard unavailable.')); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied ✓' : 'Copy Text'}</Btn>
+        <Btn onPress={() => copy(asciiSheet(c))}>{copied === 'ok' ? 'Copied ✓' : copied === 'fail' ? 'Copy failed' : 'Copy Text'}</Btn>
+        <span className="sr-only" role="status">{copyNote(copied)}</span>
         <Btn disabled={blocking(issues).length > 0} onPress={onLive}>Live Sheet</Btn>
       </div>
       {issues.length > 0 && (

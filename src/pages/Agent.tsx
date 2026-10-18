@@ -23,7 +23,7 @@ export default function Agent() {
     return () => { current = false; };
   }, [gameId, agentId, key]);
 
-  if (s.key !== key) return <Page><p className="dim" aria-busy="true">Loading agent…</p></Page>;
+  if (s.key !== key) return <Page><p className="dim" role="status">Loading agent…</p></Page>;
   if (s.error || !s.agent) {
     return (
       <Page>

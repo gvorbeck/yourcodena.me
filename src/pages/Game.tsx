@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { copyNote, useCopy } from '../lib/useCopy';
 import { createGame, useAgents, useGameExists, useRolls } from '../lib/games';
 import { hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
@@ -15,7 +16,7 @@ export default function Game() {
   const rolls = useRolls(gameId);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [copied, copy] = useCopy();
   useEffect(() => { if (exists.data) rememberGame(gameId); }, [exists.data, gameId]);
 
   const run = async (fn: () => Promise<void>) => {
@@ -28,10 +29,9 @@ export default function Game() {
     const [{ createAgent }, { loadCharacter }] = await Promise.all([import('../lib/agents'), import('../model/character')]);
     nav(`/g/${gameId}/a/${createAgent(gameId, fromSaved ? loadCharacter() : undefined)}`);
   });
-  const copy = () => navigator.clipboard.writeText(location.href).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }, () => alert('Clipboard unavailable.'));
 
   if (exists.error) return <Page title={gameId}><Win title="CANNOT REACH GAME"><p className="warn">Could not load game {gameId}. Check your connection and reload.</p></Win></Page>;
-  if (exists.data === undefined) return <Page title={gameId}><p className="dim" aria-busy="true">Loading game…</p></Page>;
+  if (exists.data === undefined) return <Page title={gameId}><p className="dim" role="status">Loading game…</p></Page>;
   if (!exists.data) {
     const valid = slugifyGameId(gameId) === gameId && gameId.length >= MIN_ID;
     return (
@@ -50,7 +50,7 @@ export default function Game() {
   }
 
   return (
-    <Page title={gameId} actions={<button onClick={copy}>{copied ? 'Link copied ✓' : 'Copy game link'}</button>}>
+    <Page title={gameId} actions={<><button onClick={() => copy(location.href)}>{copied === 'ok' ? 'Link copied ✓' : copied === 'fail' ? 'Copy failed' : 'Copy game link'}</button><span className="sr-only" role="status">{copyNote(copied)}</span></>}>
       <Win title={`GAME // ${gameId.toUpperCase()}`}>
         <h3>Agents</h3>
         {agents.error ? <p className="warn">Could not load agents. Reload to retry.</p> : agents.data === undefined ? <p className="dim">Loading…</p> : agents.data.length === 0 ? <p className="dim">No agents yet.</p> : (

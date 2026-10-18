@@ -1,12 +1,16 @@
 * { box-sizing: border-box; }
 html { font: 14px/1.5 var(--font); }
-body { margin: 0; background: var(--bg); color: var(--fg); text-transform: uppercase; letter-spacing: .02em; }
+body { margin: 0; background: var(--bg); color: var(--fg); letter-spacing: .02em; }
+/* Terminal-style caps for chrome and short labels only; sentences and typed text keep their case so they stay readable. */
+h1, h2, h3, .menubar, .statusbar, .steps, .choice, .lbl, .field > label, th, td, .rollbar, .stamp, .agents, .btn, .option, option, legend { text-transform: uppercase; }
+.statusbar .legal, .alerts p, .dossier p, .modal p { text-transform: none; }
 #root { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
 h1, h2, h3, p { margin: 0; font-weight: normal; }
 h1, h2, h3 { text-wrap: balance; }
 h2 { margin-bottom: .5rem; }
 h3 { color: var(--dim); margin: 1rem 0 .25rem; }
-h2::before, h3::before { content: '[ '; } h2::after, h3::after { content: ' ]'; }
+/* Decoration: the `/ ''` alt text keeps screen readers from announcing the brackets; the line before it is the fallback. */
+h2::before, h3::before { content: '[ '; content: '[ ' / ''; } h2::after, h3::after { content: ' ]'; content: ' ]' / ''; }
 .rule { overflow: hidden; white-space: nowrap; color: var(--dim); }
 .rule::before { content: '================================================================================================================'; }
 .dim { color: var(--dim); } .warn { color: var(--warn); } .ok { color: var(--ok); }
@@ -23,10 +27,13 @@ h2::before, h3::before { content: '[ '; } h2::after, h3::after { content: ' ]'; 
 .counter .note { flex: 1 1 14ch; min-width: 0; overflow-wrap: anywhere; } /* a Bond's relationship: beside the score when there's room, below it when not */
 .counter strong { flex: none; width: 13ch; overflow-wrap: anywhere; }
 .counter output { flex: none; width: 9ch; text-align: center; }
+.skip { position: absolute; left: .5rem; top: -4rem; z-index: 2; padding: .25rem .75rem; background: var(--inv-bg); color: var(--inv-fg); }
+.skip:focus { top: .5rem; }
+main:focus { outline: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 html { scroll-padding-top: 4rem; } /* keeps focused controls clear of the sticky roll bar */
 .rollbar { grid-column: 1 / -1; position: sticky; top: 0; z-index: 1; display: flex; gap: 1.5rem; overflow: hidden; white-space: nowrap; padding: .5rem var(--gap); border: 2px solid var(--line); background: var(--panel); }
-.rollbar .latest::before { content: '> '; }
+.rollbar .latest::before { content: '> '; content: '> ' / ''; }
 .strong { text-decoration: underline; text-underline-offset: .2em; } /* critical successes and fumbles stand out beyond color */
 .rollable { all: unset; cursor: pointer; display: inline-block; padding: .2rem .25rem; margin: -.2rem -.25rem; border-bottom: 1px solid transparent; }
 .rollable:hover { border-bottom-style: dotted; border-bottom-color: currentColor; } /* dotted underline marks the one thing under the pointer; row rules in the live sheet are solid */
@@ -43,8 +50,11 @@ html { scroll-padding-top: 4rem; } /* keeps focused controls clear of the sticky
 .win > .body { padding: var(--gap); }
 
 .steps { list-style: none; margin: 0; padding: 0; }
-.steps button { all: unset; box-sizing: border-box; display: flex; gap: .75rem; width: 100%; padding: .1rem .5rem; cursor: pointer; }
-.steps button:hover, .steps button[data-focus-visible] { outline: 1px dashed var(--line); }
+.steps button { all: unset; box-sizing: border-box; position: relative; display: flex; gap: .75rem; width: 100%; padding: .1rem .5rem; cursor: pointer; }
+.steps button:hover { outline: 1px dashed var(--line); }
+.steps button[data-focus-visible], .choice[data-focus-visible], .menubar :is(a, button):focus-visible, .menubar button[data-focus-visible] { outline: 2px solid var(--fg); outline-offset: 1px; }
+.menubar :is(a, button):focus-visible { outline-color: var(--inv-fg); }
+.steps button[aria-current='step'][data-focus-visible] { outline-color: var(--inv-fg); outline-offset: -3px; }
 .steps button[aria-current='step'] { background: var(--inv-bg); color: var(--inv-fg); }
 .steps .n { flex: none; min-width: 2ch; } .steps .flag { margin-left: auto; }
 .steps button[aria-current='step'] .flag:not(:empty) { background: var(--panel); padding: 0 .5ch; } /* the green/red marks are unreadable straight on the inverted bar */
@@ -58,14 +68,15 @@ input, textarea, select {
 }
 textarea { min-height: 4.5rem; resize: vertical; }
 input:focus, textarea:focus, select:focus, input[data-focused], textarea[data-focused] { outline: none; background: var(--inv-bg); color: var(--inv-fg); }
-option { text-transform: uppercase; }
 
 .btn, button[data-rac].btn {
-  font: inherit; text-transform: inherit; cursor: pointer; background: transparent; color: inherit;
+  font: inherit; text-transform: uppercase; cursor: pointer; background: transparent; color: inherit;
   border: 1px solid var(--line); border-radius: 0; padding: .125rem .75rem;
 }
 button[data-rac].btn:is(:hover, [data-hovered], [data-focus-visible]):not([data-disabled]) { background: var(--inv-bg); color: var(--inv-fg); outline: none; }
-.btn[data-disabled] { opacity: .4; cursor: not-allowed; }
+.btn[data-disabled], button.btn:disabled { opacity: .4; cursor: not-allowed; }
+/* Plain <button class="btn"> (forms, Game page) gets the same hover and focus look as the react-aria ones. */
+button.btn:not([data-rac]):not(:disabled):is(:hover, :focus-visible) { background: var(--inv-bg); color: var(--inv-fg); outline: none; }
 .popover { min-width: var(--trigger-width); border: 2px solid var(--line); background: var(--panel); color: var(--fg); }
 .listbox { max-height: 14rem; overflow: auto; outline: none; padding: .25rem 0; }
 .option { padding: 0 .5rem; cursor: pointer; outline: none; }
@@ -73,18 +84,18 @@ button[data-rac].btn:is(:hover, [data-hovered], [data-focus-visible]):not([data-
 .row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
 
 .choice { position: relative; display: flex; gap: .5rem; padding: 0 .25rem; cursor: pointer; }
-.choice[data-hovered], .choice[data-focus-visible] { outline: 1px dashed var(--line); }
+.choice[data-hovered] { outline: 1px dashed var(--line); }
 .choice[data-selected] { background: var(--inv-bg); color: var(--inv-fg); }
 .choice[data-disabled] { opacity: .4; cursor: not-allowed; }
-.choice .mark::before { content: '[ ]'; } .choice[data-selected] .mark::before { content: '[X]'; }
-.choice.radio .mark::before { content: '( )'; } .choice.radio[data-selected] .mark::before { content: '(•)'; }
+.choice .mark::before { content: '[ ]'; content: '[ ]' / ''; } .choice[data-selected] .mark::before { content: '[X]'; content: '[X]' / ''; }
+.choice.radio .mark::before { content: '( )'; content: '( )' / ''; } .choice.radio[data-selected] .mark::before { content: '(•)'; content: '(•)' / ''; }
 .group-list { position: relative; max-height: 22rem; overflow: auto; border: 1px solid var(--line); padding: .25rem; }
 
 table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; padding: 0 .5rem; border-bottom: 1px dotted var(--dim); } th { color: var(--dim); font-weight: normal; }
 td.num, th.num { text-align: right; }
 .cols { columns: 2 18rem; column-gap: 2rem; }
-.issues { list-style: none; padding: 0; margin: .5rem 0; } .issues li::before { content: '! '; color: var(--warn); } .issues li { color: var(--warn); }
+.issues { list-style: none; padding: 0; margin: .5rem 0; } .issues li::before { content: '! '; content: '! ' / ''; color: var(--warn); } .issues li { color: var(--warn); }
 .stamp { display: inline-block; border: 3px double var(--warn); color: var(--warn); padding: 0 .5rem; transform: rotate(-4deg); }
 .redact { background: var(--fg); color: var(--fg); user-select: none; }
 .statusbar { display: flex; gap: 1.5rem; padding: .25rem 1rem; border-top: 2px solid var(--line); flex-wrap: wrap; }
@@ -109,7 +120,7 @@ td.num, th.num { text-align: right; }
   .steps li { flex: none; }
   .steps li:has([aria-current='step']) { flex: 1; min-width: 0; }
   .steps button { gap: .5rem; padding: .25rem .5rem; }
-  .steps button:not([aria-current='step']) .n + span { display: none; }
+  .steps button:not([aria-current='step']) .n + span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* hidden visually, still the button's name */
   .steps button[aria-current='step'] .n + span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .steps .n { min-width: 0; }
   .steps .flag { margin-left: .25rem; }
@@ -182,3 +193,8 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; } a.btn:is
 .agents li { display: flex; gap: .25rem 1.5rem; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px dotted var(--dim); }
 .agents li > :first-child { flex: 1 1 16ch; }
 .log { max-height: 24rem; overflow-y: auto; }
+
+/* Confirm dialog */
+.overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: var(--gap); background: rgb(0 0 0 / .6); }
+.modal { max-width: min(32rem, 100%); border: 2px solid var(--line); background: var(--panel); color: var(--fg); padding: var(--gap); }
+.dialog { outline: none; } .dialog p { margin: .75rem 0; } .dialog .row { margin-top: 1rem; }

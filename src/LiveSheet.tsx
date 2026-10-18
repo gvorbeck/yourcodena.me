@@ -4,16 +4,17 @@ import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
 import { bondCount, derived, liveOutcome, parseLoss, professionOf, rollD100, rollExpr, rollLoss, type Outcome } from './rules';
 import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, effStat, encodeSheet, loseSan, loseStat, maxSanOf, permStats, refreshSpent, setUnnatural, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
 import type { Character } from './model/character';
-import { Btn, SkillTable, Win } from './ui';
+import { Btn, ConfirmDialog, SkillTable, Win } from './ui';
+import { copyNote, useCopy } from './lib/useCopy';
 
 function Counter({ label, note, value, max, step = 1, onChange, onRoll }: { label: string; note?: string; value: number; max?: number; step?: number; onChange: (v: number) => void; onRoll?: () => void }) {
   const set = (v: number) => onChange(Math.max(0, max === undefined ? v : Math.min(max, v)));
   return (
     <div className={note ? 'row counter noted' : 'row counter'} role="group" aria-label={label}>
       <strong>{onRoll ? <button className="rollable" onClick={onRoll}>{label}</button> : label}</strong>
-      <Btn onPress={() => set(value - step)}>−</Btn>
-      <output aria-live="polite">{value}{max !== undefined && ` / ${max}`}</output>
-      <Btn onPress={() => set(value + step)}>+</Btn>
+      <Btn label={`Decrease ${label}`} onPress={() => set(value - step)}>−</Btn>
+      <output>{value}{max !== undefined && ` / ${max}`}</output>
+      <Btn label={`Increase ${label}`} onPress={() => set(value + step)}>+</Btn>
       {note && <span className="dim note">{note}</span>}
     </div>
   );
@@ -66,7 +67,9 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   };
   const sent = useRef(init); // last state handed to game.onChange
   useEffect(() => { if (l !== sent.current) { sent.current = l; game?.onChange(l); } }, [l]);
-  const [copied, setCopied] = useState(false);
+  useEffect(() => { document.title = `Live: ${c.details.name.trim() || 'Unnamed agent'} // YOURCODENA.ME`; }, [c.details.name]);
+  const [copied, copy] = useCopy();
+  const [leaving, setLeaving] = useState(false);
   const [rolls, setRolls] = useState<Roll[]>([]);
   const nextId = useRef(0);
   const [once, setOnce] = useState(0); // Distraction: applies to the next test only
@@ -201,6 +204,8 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   };
 
   return (
+    <main id="main" tabIndex={-1}>
+    <h1 className="sr-only">Live sheet: {c.details.name.trim() || 'unnamed agent'}</h1>
     <div className="shell live">
       <div className="rollbar noprint">
         {rolls.length === 0 ? <span className="dim">Tap a stat, Luck or skill name to roll d% against it (at or below passes).</span> : rolls.map((r, i) => (
@@ -214,14 +219,19 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
           {game ? <>
             <Link className="btn" to={`/g/${game.gameId}`}>&lt; Game</Link>
             <Btn onPress={game.back}>Edit agent</Btn>
-          </> : <Btn onPress={() => { if (!confirm('Leave this sheet? Bookmark or copy its link first to keep your progress.')) return; history.replaceState(null, '', location.pathname); location.reload(); }}>&lt; Home</Btn>}
-          <Btn onPress={() => navigator.clipboard.writeText(game ? location.href : location.origin + location.pathname + link).then(() => setCopied(true), () => alert('Clipboard unavailable.')).finally(() => setTimeout(() => setCopied(false), 1500))}>{copied ? 'Link copied ✓' : game ? 'Copy agent link' : 'Copy share link'}</Btn>
+          </> : <Btn onPress={() => setLeaving(true)}>&lt; Home</Btn>}
+          <Btn onPress={() => copy(game ? location.href : location.origin + location.pathname + link)}>{copied === 'ok' ? 'Link copied ✓' : copied === 'fail' ? 'Copy failed' : game ? 'Copy agent link' : 'Copy share link'}</Btn>
+          <span className="sr-only" role="status">{copyNote(copied)}</span>
+          <ConfirmDialog open={leaving} title="Leave this sheet?" confirm="Leave" onClose={() => setLeaving(false)}
+            onConfirm={() => { history.replaceState(null, '', location.pathname); location.reload(); }}>
+            Bookmark or copy its link first to keep your progress.
+          </ConfirmDialog>
           <Btn onPress={() => window.print()}>Print / PDF</Btn>
           <Btn onPress={undo} disabled={undoLabel === null}>{undoLabel ? `Undo: ${undoLabel}` : 'Undo'}</Btn>
           <Btn className="phone-only" onPress={() => jump('.live-skills', '.skill-find')}>Skills ↓</Btn>
         </div>
         <p className="noprint live-note"><small>{!game ? "Saved in this page's link: bookmark it to resume. A copied link is a snapshot."
-          : game.failed ? <span className="warn">Not saved: check your connection and reload.</span> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
+          : game.failed ? <span className="warn" role="alert">Not saved: check your connection and reload.</span> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
         {fumble && (
           <div className="alerts noprint">
             <p>Fumble on {fumble.label} (p. 44). The Handler picks a cost:</p>
@@ -235,12 +245,14 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
             <p><small>Strain and burnout may instead cost 1D4 of STR, CON or DEX / INT, POW or CHA temporarily (use the stat table). Alienation: an NPC's CHA and Persuade tests auto-fail. Confusion: false information.</small></p>
           </div>
         )}
-        {alerts.length > 0 && (
-          <div className="alerts noprint">
-            {alerts.map((a, i) => <p key={i}>{a}</p>)}
-            <Btn onPress={() => setAlerts([])}>Clear</Btn>
-          </div>
-        )}
+        <div role="status" className="noprint">
+          {alerts.length > 0 && (
+            <div className="alerts">
+              {alerts.map((a, i) => <p key={i}>{a}</p>)}
+              <Btn onPress={() => setAlerts([])}>Clear</Btn>
+            </div>
+          )}
+        </div>
 
         <h3>Vitals</h3>
         <Counter label="HP" value={l.hp} max={d.hp} onChange={(v) => set('hp', v)} />
@@ -281,7 +293,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
                 <tr key={s}>
                   <td><button className="rollable" onClick={() => roll(s, e * 5)}>{s} {STAT_NAMES[s]}</button></td>
                   <td className="num">{e}</td><td className="num">{e * 5}%</td>
-                  <td className="noprint"><div className="lost"><Btn onPress={() => lose(s, -1)}>−</Btn><output>{l.statLoss[s] ?? 0}</output><Btn onPress={() => lose(s, 1)}>+</Btn></div></td>
+                  <td className="noprint"><div className="lost"><Btn label={`Restore 1 lost ${s}`} onPress={() => lose(s, -1)}>−</Btn><output aria-label={`${s} lost`}>{l.statLoss[s] ?? 0}</output><Btn label={`Lose 1 ${s}`} onPress={() => lose(s, 1)}>+</Btn></div></td>
                 </tr>
               );
             })}
@@ -303,8 +315,9 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
           <Btn onPress={sanRoll}>Roll SAN loss</Btn>
         </div>
         <p className="noprint dim"><small>Loss is success/failure, like 0/1D4. Extra victims go on the failure die: 1D6+2, capped at 6. Tap “SAN” above for a plain SAN test.</small></p>
+        <div role="status" className="noprint">
         {pending && (
-          <div className="alerts noprint">
+          <div className="alerts">
             <p>{pending.result} {pending.amount} SAN to lose ({pending.kind}).</p>
             <div className="row even">
               <Btn onPress={applySan}>Apply</Btn>
@@ -313,6 +326,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
             </div>
           </div>
         )}
+        </div>
         <div className="row noprint">
           <label className="lbl" htmlFor="strain-bond">Bond to strain</label>
           <select id="strain-bond" value={bond ?? ''} onChange={(e) => setBondPick(Number(e.target.value))} disabled={bond === undefined}>
@@ -354,5 +368,6 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         <textarea aria-label="Notes" rows={6} maxLength={MAX_NOTES} className="live-notes" value={l.notes} onChange={(e) => set('notes', e.target.value)} />
       </Win>
     </div>
+    </main>
   );
 }

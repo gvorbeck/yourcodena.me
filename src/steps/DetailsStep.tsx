@@ -52,7 +52,7 @@ export function DetailsStep({ c, up }: StepProps) {
       </RadioGroup>
       {v?.id === 'unnatural' && (
         <div className="field">
-          <label>New disorder (p. 72)</label>
+          <span className="lbl" aria-hidden>New disorder (p. 72)</span>
           <TypeInput label="New disorder (p. 72)" suggestions={UNNATURAL_DISORDERS} value={c.disorder} onChange={(x) => up((d) => { d.disorder = x; })} />
         </div>
       )}
