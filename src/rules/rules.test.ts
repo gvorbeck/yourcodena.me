@@ -36,8 +36,14 @@ describe('data', () => {
   it('packages list eight skills', () => {
     for (const k of PACKAGES) expect(k.skills, k.id).toHaveLength(8);
   });
-  it('4d6 drop lowest stays in 3–18', () => {
-    for (let i = 0; i < 200; i++) expect(roll4d6dl()).toBeGreaterThanOrEqual(3);
+  it('4d6 drop lowest stays in 3–18 and drops the lowest die', () => {
+    for (let i = 0; i < 200; i++) {
+      const r = roll4d6dl();
+      expect(r).toBeGreaterThanOrEqual(3);
+      expect(r).toBeLessThanOrEqual(18);
+    }
+    const dice = [0.99, 0, 0.5, 0.99]; // 6, 1, 4, 6
+    expect(roll4d6dl(() => dice.shift()!)).toBe(16);
   });
 });
 
@@ -116,10 +122,11 @@ describe('persistence', () => {
   });
   it('keeps a backup when the saved Agent is unreadable', () => {
     const store: Record<string, string> = { 'dg.character': '{"version":1,"stats":"broken"}' };
-    (globalThis as any).localStorage = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; } };
+    const g = globalThis as unknown as { localStorage?: unknown };
+    g.localStorage = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; } };
     expect(loadCharacter()).toEqual(newCharacter());
     expect(store['dg.character.bak']).toBe('{"version":1,"stats":"broken"}');
-    delete (globalThis as any).localStorage;
+    delete g.localStorage;
   });
 });
 
@@ -191,5 +198,39 @@ describe('creation cap and veteran picks', () => {
     expect(validate(c).some((i) => i.msg.includes('different skills'))).toBe(true);
     c.veteranSkills = ['Law', 'Alertness', 'Stealth', 'Search', 'Drive'];
     expect(validate(c).some((i) => i.msg.includes('different skills'))).toBe(false);
+  });
+});
+
+describe('stat methods (p. 14)', () => {
+  const stats = (c: ReturnType<typeof newCharacter>, v: number[]) => { ['STR', 'DEX', 'CON', 'INT', 'POW', 'CHA'].forEach((s, i) => { (c.stats as Record<string, number>)[s] = v[i]; }); };
+  const issue = (c: ReturnType<typeof newCharacter>) => validate(c).filter((i) => i.step === 'stats').map((i) => i.msg);
+  it('point buy must total 72', () => {
+    const c = newCharacter();
+    c.statMethod = 'points';
+    stats(c, [12, 12, 12, 12, 12, 12]);
+    expect(issue(c)).toEqual([]);
+    stats(c, [12, 12, 12, 12, 12, 13]);
+    expect(issue(c)[0]).toMatch(/total 72 \(now 73\)/);
+  });
+  it('an assignable set must be used exactly, in any order', () => {
+    const c = newCharacter();
+    c.statMethod = 'set';
+    expect(issue(c)).toEqual(['Choose a stat set.']);
+    c.statSet = 'focused';
+    stats(c, [10, 14, 10, 15, 11, 12]);
+    expect(issue(c)).toEqual([]);
+    stats(c, [10, 14, 10, 15, 11, 13]);
+    expect(issue(c)[0]).toMatch(/exactly 15, 14, 12, 11, 10, 10/);
+  });
+});
+
+describe('ascii sheet adapted boxes (p. 38)', () => {
+  it('ticks the matching box for the veteran', () => {
+    const c = newCharacter();
+    c.professionId = 'police-officer';
+    const adapted = (v: string) => { c.veteran = v; return asciiSheet(c).match(/Adapted \[(.)\]/g); };
+    expect(adapted('')).toEqual(['Adapted [ ]', 'Adapted [ ]']);
+    expect(adapted('violence')).toEqual(['Adapted [x]', 'Adapted [ ]']);
+    expect(adapted('captivity')).toEqual(['Adapted [ ]', 'Adapted [x]']);
   });
 });

@@ -6,3 +6,4 @@ dist
 firebase-debug.log
 .firebase
 skills-lock.json
+*.tsbuildinfo

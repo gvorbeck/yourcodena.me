@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from './character';
-import { advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond } from './live';
+import { reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond } from './live';
 
 it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   const c = newCharacter();
@@ -20,7 +20,8 @@ it('survives large notes and rejects out-of-range values', () => {
 
 it('loads links saved before the play-time fields existed', () => {
   const c = newCharacter();
-  const { penalty, exhausted, checked, advance, disorders, dropped, adapt, statMod, statLoss, ...old } = freshLive(c);
+  const old: Partial<ReturnType<typeof freshLive>> = { ...freshLive(c) };
+  for (const k of ['penalty', 'exhausted', 'checked', 'advance', 'disorders', 'dropped', 'adapt', 'statMod', 'statLoss'] as const) delete old[k];
   const hash = encodeSheet(c, old as ReturnType<typeof freshLive>);
   expect(decodeSheet(hash)?.l).toMatchObject({ penalty: 0, exhausted: false, adapt: { v: 0, h: 0 }, statMod: {}, statLoss: {} });
 });
@@ -209,5 +210,24 @@ describe('skill advancement and Unnatural (pp. 15, 28)', () => {
   it('starts with the Unnatural veteran disorder', () => {
     const x = c(); x.veteran = 'unnatural'; x.disorder = 'Amnesia';
     expect(freshLive(x).disorders).toEqual(['Amnesia']);
+  });
+});
+
+describe('reconcile after editing the character', () => {
+  it('clamps vitals and resizes Bonds to the new build', () => {
+    const c = newCharacter();
+    c.professionId = 'police-officer'; // 3 Bonds
+    c.stats = { ...c.stats, STR: 16, CON: 16, POW: 14, CHA: 14 };
+    const l = freshLive(c);
+    expect(l).toMatchObject({ hp: 16, wp: 14, bonds: [14, 14, 14] });
+    c.stats = { ...c.stats, STR: 8, CON: 8, POW: 8, CHA: 8 };
+    c.professionId = 'special-operator'; // 2 Bonds
+    expect(reconcile(l, c)).toMatchObject({ hp: 8, wp: 8, bonds: [8, 8] });
+  });
+  it('returns the same object when nothing changes', () => {
+    const c = newCharacter();
+    c.professionId = 'police-officer';
+    const l = freshLive(c);
+    expect(reconcile(l, c)).toBe(l);
   });
 });

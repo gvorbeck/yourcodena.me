@@ -1,31 +1,36 @@
 import { z } from 'zod';
 import { STATS } from '../rules/data/creation';
+import { SAVED_AGENT_KEY as KEY } from '../lib/storageKeys';
 
 export const CHARACTER_VERSION = 1;
 
-const text = z.string().default('');
+// Limits keep an imported file or a pasted wall of text from outgrowing a Firestore document (1 MiB); the inputs enforce the same maxima.
+const line = z.string().max(200).default('');
+const name = z.string().max(100).default(''); // also the cap in firestore.rules
+const prose = z.string().max(5000).default('');
+const skill = z.string().max(120); // "Family(Type)"; the type input stops at 100
 const stat = z.number().int().min(3).max(18);
 
 export const characterSchema = z.object({
   version: z.literal(CHARACTER_VERSION),
   stats: z.object(Object.fromEntries(STATS.map((s) => [s, stat])) as Record<(typeof STATS)[number], typeof stat>),
   statMethod: z.enum(['roll', 'points', 'set']).default('roll'),
-  statSet: text,
-  professionId: text,
+  statSet: line,
+  professionId: line,
   orPicks: z.record(z.number().int()).default({}),
-  picks: z.array(z.string()).default([]),
-  types: z.record(z.string()).default({}),
-  bonusPackage: text,
-  bonus: z.array(z.string()).length(8),
-  bonds: z.array(z.object({ name: text, note: text })).default([]),
-  veteran: text,
-  veteranSkills: z.array(z.string()).default([]),
-  disorder: text,
-  motivations: z.array(z.string()).max(5).default([]),
+  picks: z.array(z.string().max(20)).max(30).default([]),
+  types: z.record(z.string().max(100)).default({}),
+  bonusPackage: line,
+  bonus: z.array(skill).length(8),
+  bonds: z.array(z.object({ name: line, note: line })).max(20).default([]),
+  veteran: line,
+  veteranSkills: z.array(skill).max(10).default([]),
+  disorder: line,
+  motivations: z.array(z.string().max(200)).max(5).default([]),
   details: z.object({
-    name: text, codename: text, age: text, sex: text, nationality: text, employer: text, rank: text,
-    education: text, appearance: text, personality: text, admires: text, dislikes: text,
-    trust: text, helps: text,
+    name, codename: name, age: line, sex: line, nationality: line, employer: line, rank: line,
+    education: prose, appearance: prose, personality: prose, admires: prose, dislikes: prose,
+    trust: prose, helps: prose,
   }),
 });
 
@@ -40,15 +45,15 @@ export const newCharacter = (): Character => ({
 });
 
 /** Bump CHARACTER_VERSION and add a step here when the schema changes shape. */
-const migrations: Record<number, (c: any) => any> = {};
+type Raw = { version?: unknown };
+const migrations: Record<number, (c: Raw) => Raw> = {};
 
 export function parseCharacter(raw: unknown): Character {
-  let c: any = raw;
+  let c = raw as Raw | null;
   while (c && typeof c.version === 'number' && c.version < CHARACTER_VERSION) c = migrations[c.version](c);
   return characterSchema.parse(c);
 }
 
-import { SAVED_AGENT_KEY as KEY } from '../lib/storageKeys';
 export const loadCharacter = (): Character => {
   let s: string | null = null;
   try {

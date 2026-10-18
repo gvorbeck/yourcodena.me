@@ -5,7 +5,7 @@ import { LiveSheet } from '../LiveSheet';
 import { loadAgent, saveCharacter, saveLive } from '../lib/agents';
 import { logRoll } from '../lib/games';
 import { useAutosave } from '../lib/useAutosave';
-import { freshLive, untouched, type Live } from '../model/live';
+import { freshLive, reconcile, untouched, type Live } from '../model/live';
 import { blocking, validate } from '../rules';
 import type { Character } from '../model/character';
 import { Win } from '../ui/Win';
@@ -48,13 +48,14 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
   const issues = validate(c);
   const complete = blocking(issues).length === 0;
   // The live sheet exists as soon as creation is complete, so the game page shows the agent's vitals without anyone pressing a button.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `c` is read only at the moment creation becomes complete
   useEffect(() => { if (complete && !live) setLive(freshLive(c)); }, [complete, live]);
   // Until it has been played, the sheet follows the character: rolling better stats after the last step must not leave HP/SAN at the old values.
   const prevC = useRef(c);
   useEffect(() => {
     const prev = prevC.current;
     prevC.current = c;
-    if (prev !== c) setLive((l) => (l && untouched(l, prev) ? freshLive(c) : l));
+    if (prev !== c) setLive((l) => (l && (untouched(l, prev) ? freshLive(c) : reconcile(l, c))));
   }, [c]);
   useAutosave(c, (v) => saveCharacter(gameId, agentId, v), fail);
   useAutosave(live, (v) => (v ? saveLive(gameId, agentId, v) : Promise.resolve()), fail, init.live);

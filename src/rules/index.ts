@@ -177,7 +177,7 @@ export function validate(c: Character): Issue[] {
   if (c.statMethod === 'set') {
     const set = STAT_SETS.find((s) => s.id === c.statSet);
     if (!set) add('stats', 'Choose a stat set.');
-    else if ([...scores].sort().join() !== [...set.values].sort().join()) add('stats', `Scores must be exactly ${set.values.join(', ')}.`);
+    else if ([...scores].sort((a, b) => a - b).join() !== [...set.values].sort((a, b) => a - b).join()) add('stats', `Scores must be exactly ${set.values.join(', ')}.`);
   }
 
   const p = professionOf(c);

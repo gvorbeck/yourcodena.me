@@ -66,6 +66,8 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
     setPending(null); // a half-resolved SAN loss was priced against the state just reverted
   };
   const sent = useRef(init); // last state handed to game.onChange
+  // Runs on state changes only: `game` is a fresh object every render and must not re-send the same state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (l !== sent.current) { sent.current = l; game?.onChange(l); } }, [l]);
   useEffect(() => { document.title = `Live: ${c.details.name.trim() || 'Unnamed agent'} // YOURCODENA.ME`; }, [c.details.name]);
   const [copied, copy] = useCopy();
@@ -118,10 +120,12 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
     if (game) return; // saved to Firestore instead
     const t = setTimeout(() => { try { history.replaceState(null, '', link); } catch { /* rate limited; next change retries */ } }, 300);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `game` only decides whether to skip; `link` is what changes
   }, [link]);
   const set = <K extends keyof Live>(k: K, v: Live[K]) => setL((p) => ({ ...p, [k]: v }));
   const bonds = c.bonds.slice(0, bondCount(c)).map((b, i) => ({ ...b, i })).filter((b) => b.name);
   const bond = bonds.some((b) => b.i === bondPick) ? bondPick : bonds[0]?.i;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- setL is recreated each render; re-run only when HP changes
   useEffect(() => { setL(refreshSpent); }, [l.hp]);
   const [find, setFind] = useState('');
   /** Phone shortcut between Status and Skills; honours reduced-motion. */

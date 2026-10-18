@@ -20,8 +20,8 @@ const liveSchema = z.object({
   adapt: z.object({ v: track, h: track }).default({ v: 0, h: 0 }), // p. 74: boxes toward adapting to violence / helplessness
   statMod: z.record(statKey, z.number().int().min(-18).max(0)).default({}), // permanent stat changes (injury, adaptation)
   statLoss: z.record(statKey, z.number().int().min(0).max(18)).default({}), // temporary stat loss, restored 1 per night (p. 55)
-  checked: z.array(z.string().max(100)).max(100).default([]), // skills failed this session; each gains 1D4 afterwards (p. 28)
-  advance: z.record(z.string().max(100), n).default({}), // skill growth from play, added to the creation totals
+  checked: z.array(z.string().max(120)).max(100).default([]), // skills failed this session; each gains 1D4 afterwards (p. 28)
+  advance: z.record(z.string().max(120), n).default({}), // skill growth from play, added to the creation totals
   disorders: z.array(z.string().max(100)).max(20).default([]), // pp. 38, 69
   dropped: z.array(z.string().max(200)).max(5).default([]), // motivations lost to disorders
   spent: spentSchema.default(noneSpent), // once-per-event actions: HP after the last first aid / at the last injury test (null = unused), and today's rest and sleep
@@ -39,6 +39,17 @@ export const untouched = (l: Live, c: Character) => {
   const fresh = freshLive(c), extras = (x: Live) => JSON.stringify([x.checked, x.advance, x.disorders, x.dropped]);
   return !l.notes && sameState(l, fresh) && extras(l) === extras(fresh);
 };
+
+/**
+ * After the character was edited mid-campaign: keep HP, WP, SAN and Bonds within what the new build allows and give a
+ * changed Bond count the right number of slots. Returns `l` itself when nothing needs to change.
+ */
+export function reconcile(l: Live, c: Character): Live {
+  const d = derived(permStats(c, l));
+  const bonds = Array.from({ length: bondCount(c) }, (_, i) => Math.min(l.bonds[i] ?? d.bondScore, d.bondScore));
+  const next = { ...l, hp: Math.min(l.hp, d.hp), wp: Math.min(l.wp, d.wp), san: Math.min(l.san, maxSanOf(c, l)), bonds };
+  return next.hp === l.hp && next.wp === l.wp && next.san === l.san && next.bonds.length === l.bonds.length && next.bonds.every((b, i) => b === l.bonds[i]) ? l : next;
+}
 
 /** Unnatural skill as played (veteran gain plus growth); it caps SAN at 99 minus itself (pp. 15, 68). */
 export const unnaturalOf = (c: Character, l: Live) => skillsOf(c, l.advance).find((s) => s.key === 'Unnatural')?.total ?? 0;

@@ -34,7 +34,7 @@ export function DetailsStep({ c, up }: StepProps) {
       <Rule />
       <div className="grid wide">
         {FIELDS.map(([k, label, area]) => (
-          <Text key={k} label={label} area={area} onRoll={roll[k] && (() => up((d) => { d.details[k] = roll[k]!(); }))} value={c.details[k]} onChange={(x) => up((d) => { d.details[k] = x; })} />
+          <Text key={k} label={label} area={area} max={k === 'name' || k === 'codename' ? 100 : undefined} onRoll={roll[k] && (() => up((d) => { d.details[k] = roll[k]!(); }))} value={c.details[k]} onChange={(x) => up((d) => { d.details[k] = x; })} />
         ))}
       </div>
       <h3>Motivations (up to five)</h3>

@@ -17,8 +17,9 @@ const Dice = () => (
   </svg>
 );
 
-export const Text = ({ label, value, onChange, area, onRoll }: { label: string; value: string; onChange: (v: string) => void; area?: boolean; onRoll?: () => void }) => (
-  <TextField className="field" value={value} onChange={onChange}>
+/** `max` matches the character schema: 200 for a line, 5000 for a text area, unless given. */
+export const Text = ({ label, value, onChange, area, onRoll, max = area ? 5000 : 200 }: { label: string; value: string; onChange: (v: string) => void; area?: boolean; onRoll?: () => void; max?: number }) => (
+  <TextField className="field" value={value} onChange={onChange} maxLength={max}>
     <Label>{label}</Label>
     <div className="with-roll">
       {area ? <TextArea /> : <Input />}
@@ -67,7 +68,7 @@ export { RadioGroup, Label };
 /** Opens the list on click; keyboard focus alone (tabbing past) stays quiet. */
 const ClickInput = () => {
   const state = useContext(ComboBoxStateContext);
-  return <Input placeholder="type…" onClick={() => state?.open(null, 'manual')} />;
+  return <Input placeholder="type…" maxLength={100} onClick={() => state?.open(null, 'manual')} />;
 };
 
 /** Free-text input with suggestions. A real ComboBox (not <datalist>) so the popup can be styled and anchors to the input. */

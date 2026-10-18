@@ -22,12 +22,8 @@
   --control-padding-y: .125rem;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root {
     --bg: #141414; --panel: #1b1a17; --fg: #ffa133; --dim: #c27d27; --line: #ffa133;
     --accent: #ffd08a; --inv-bg: #ffa133; --inv-fg: #141414; --warn: #ff6a5a; --ok: #8fd18a;
   }
-}
-:root[data-theme='dark'] {
-  --bg: #141414; --panel: #1b1a17; --fg: #ffa133; --dim: #c27d27; --line: #ffa133;
-  --accent: #ffd08a; --inv-bg: #ffa133; --inv-fg: #141414; --warn: #ff6a5a; --ok: #8fd18a;
 }

@@ -6,8 +6,10 @@ service cloud.firestore {
     // read and write that game, but cannot list games or delete anything
     // (cleanup goes through admin scripts). Writes are shape-checked: only the
     // fields below, with bounded strings, so a document can't be stuffed with
-    // arbitrary keys. Rules can't count children, so the number of agents and
-    // rolls per game is not capped here (see App Check in the console).
+    // arbitrary keys, and numbers stay in range so the roll log can't be
+    // stuffed with impossible results. Rules can't count children or measure
+    // bytes, so the number of agents and rolls per game is not capped here
+    // (turn on App Check: see VITE_APPCHECK_SITE_KEY in .env.example).
     // Adding a field to a document means adding it to its hasOnly list.
 
     match /games/{gameId} {
@@ -25,10 +27,19 @@ service cloud.firestore {
           && request.resource.data.codename is string && request.resource.data.codename.size() <= 100
           && request.resource.data.profession is string && request.resource.data.profession.size() <= 100
           && request.resource.data.character is map
+          && request.resource.data.character.version is number
+          && request.resource.data.character.keys().size() <= 30
+          && request.resource.data.character.bonds.size() <= 20
           && (request.resource.data.live == null
               || (request.resource.data.live is map
+                  && request.resource.data.live.keys().size() <= 30
                   && request.resource.data.live.notes is string
-                  && request.resource.data.live.notes.size() <= 4000))
+                  && request.resource.data.live.notes.size() <= 4000
+                  && request.resource.data.live.hp is number && request.resource.data.live.hp >= 0 && request.resource.data.live.hp <= 999
+                  && request.resource.data.live.wp is number && request.resource.data.live.wp >= 0 && request.resource.data.live.wp <= 999
+                  && request.resource.data.live.san is number && request.resource.data.live.san >= 0 && request.resource.data.live.san <= 999
+                  && request.resource.data.live.bp is number && request.resource.data.live.bp >= 0 && request.resource.data.live.bp <= 999
+                  && request.resource.data.live.bonds.size() <= 20))
           && request.resource.data.createdAt is number
           && request.resource.data.updatedAt is number;
         allow delete: if false;
@@ -38,13 +49,13 @@ service cloud.firestore {
       match /rolls/{rollId} {
         allow read: if true;
         allow create: if request.resource.data.keys().hasOnly(['agentId', 'agentName', 'label', 'chance', 'penalty', 'roll', 'outcome', 'createdAt'])
-          && request.resource.data.agentId is string && request.resource.data.agentId.size() <= 40
+          && request.resource.data.agentId is string && request.resource.data.agentId.size() > 0 && request.resource.data.agentId.size() <= 40
           && request.resource.data.agentName is string && request.resource.data.agentName.size() <= 100
-          && request.resource.data.label is string && request.resource.data.label.size() <= 100
-          && request.resource.data.chance is number
-          && request.resource.data.penalty is number
-          && request.resource.data.roll is number
-          && request.resource.data.outcome is string && request.resource.data.outcome.size() <= 30
+          && request.resource.data.label is string && request.resource.data.label.size() > 0 && request.resource.data.label.size() <= 100
+          && request.resource.data.chance is number && request.resource.data.chance >= 0 && request.resource.data.chance <= 100
+          && request.resource.data.penalty is number && request.resource.data.penalty >= 0 && request.resource.data.penalty <= 200
+          && request.resource.data.roll is number && request.resource.data.roll >= 1 && request.resource.data.roll <= 100
+          && request.resource.data.outcome in ['critical success', 'success', 'failure', 'fumble']
           && request.resource.data.createdAt is number;
         allow update, delete: if false;
       }

@@ -8,10 +8,10 @@ const pick = (n: number) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
 /** What the Open box accepts: lowercase letters, digits and single dashes, so an ID is always a safe URL segment. */
 export const slugifyGameId = (raw: string) => raw.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-/** Like `kestrel-lantern-7f3k`. ~30 bits: an unlisted link, not a secret (the rules deny listing games). */
+/** Like `kestrel-lantern-7f3k`. ~40 bits (older 4-character IDs still work): an unlisted link, not a secret (the rules deny listing games). */
 export const newGameId = () => {
   const word = () => CODENAMES[pick(CODENAMES.length)].toLowerCase();
-  return `${word()}-${word()}-${Array.from({ length: 4 }, () => ALPHABET[pick(ALPHABET.length)]).join('')}`;
+  return `${word()}-${word()}-${Array.from({ length: 6 }, () => ALPHABET[pick(ALPHABET.length)]).join('')}`;
 };
 
 // Games this browser has opened, newest first, so the landing page can offer a way back in.

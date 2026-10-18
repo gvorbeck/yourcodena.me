@@ -136,30 +136,36 @@ Already good (keep): Alt-key shortcut avoiding bare letters, focus moved to the 
 
 ## 3. Best practice and security
 
-- [ ] **B1. `index.html` cached for up to 1 hour**
+- [x] **B1. `index.html` cached for up to 1 hour**
+  - **Done:** one `**` rule now sets `Cache-Control: no-cache` plus the security headers, and `/assets/**` (immutable) comes after it. Firebase's docs don't say which rule wins when two set the same header; community reports say the later one does. **After the next deploy, check with `curl -sI https://yourcodena.me/ | grep -i cache-control` and the same on a file in `/assets/`.**
   - **Where:** [firebase.json:6-26](firebase.json). Only `/assets/**` has a cache header.
   - **Problem:** Firebase's default for other files is `max-age=3600`. After a deploy the hashed assets are replaced, so a returning user with a cached `index.html` requests files that no longer exist.
   - **Fix:** Add a header rule for `**/*.html` (and the SPA rewrite target) with `Cache-Control: no-cache`.
 
-- [ ] **B2. CI never deploys Firestore rules**
+- [x] **B2. CI never deploys Firestore rules**
+  - **Done in the workflow:** `permissions:` set, `npm run lint` added, and a rules-deploy step added. **Manual:** grant the service account the "Firebase Rules Admin" role, and add the `VITE_APPCHECK_SITE_KEY` secret if you use App Check. The step was not run.
   - **Where:** [.github/workflows/deploy.yml:23-28](.github/workflows/deploy.yml) uses `action-hosting-deploy`, which deploys Hosting only.
   - **Fix:** Add a step running `firebase deploy --only firestore:rules --project codename-dg` with the service account, or document that rules are deployed by hand. Also set `permissions:` on the workflow (the hosting action needs `checks: write`; add `contents: read`).
 
-- [ ] **B3. Firestore rules are loose**
+- [x] **B3. Firestore rules are loose**
+  - **Done:** shape and range checks on `character`, `live` and rolls (see the file). **Not tested:** no emulator was available. Run `firebase emulators:start --only firestore` or deploy to a test project and play a session before relying on it; a too-strict rule shows up as a silent "Not saved".
   - **Where:** [firestore.rules:27](firestore.rules) `character is map` (no size bound); [40-48](firestore.rules) roll fields only type-checked.
   - **Problems:** Anyone with the game ID can write oversized characters (document limit is 1 MiB) and forge roll-log entries (e.g. `roll: 9999`, any `outcome`). `live` is only checked for `notes`.
   - **Fix:** Bound `roll` 1–100, `chance` 0–100 (or −100…200 if penalties are stored), `penalty` ≥ 0, `outcome in [four values]`; require `character.version`, cap `character.keys().size()`; check `live.hp/wp/san/bp` are numbers 0–999. Add tests with the Firebase emulator if feasible.
 
-- [ ] **B4. Game IDs are guessable and unlimited**
+- [x] **B4. Game IDs are guessable and unlimited**
+  - **Done in code:** new game IDs have 6 random characters (~40 bits; old IDs still work); `firebase.ts` starts App Check when `VITE_APPCHECK_SITE_KEY` is set; the CSP allows reCAPTCHA. **Manual:** create a reCAPTCHA Enterprise key, register the app in App Check, set the env var and secret, then enforce App Check for Firestore. Not exercised end to end.
   - **Where:** [gameId.ts:12-15](src/lib/gameId.ts) (~30 bits) with `allow get: if true` ([firestore.rules:14](firestore.rules)); `createGame` is unrestricted.
   - **Fix:** Enable App Check (reCAPTCHA Enterprise) in the Firebase console and in [firebase.ts](src/lib/firebase.ts); lengthen IDs (e.g. three words plus 6 characters, ~45 bits) for new games while still accepting old ones.
 
-- [ ] **B5. Concurrent edits overwrite each other**
+- [x] **B5. Concurrent edits overwrite each other**
+  - **Done:** `src/lib/diff.ts` finds the changed leaves and `agents.ts` writes only those with field paths, so two devices changing different fields no longer overwrite each other. The same field is still last-write-wins, and a second device doesn't see the other's change until it reloads. Not tried against a live Firestore.
   - **Where:** [agents.ts:21-22](src/lib/agents.ts) write the whole `character` / `live`; `loadAgent` is a one-shot read ([agents.ts:25](src/lib/agents.ts)).
   - **Problem:** Two devices on one agent (phone and laptop) clobber each other, last write wins.
   - **Fix:** Use field-path updates (e.g. `'live.hp'`) for live changes, or store an `updatedAt` and refuse to write when the stored value is newer than what was loaded, prompting a reload.
 
-- [ ] **B6. Live sheet goes stale after editing the character**
+- [x] **B6. Live sheet goes stale after editing the character**
+  - **Done:** `reconcile()` in `model/live.ts` clamps HP/WP/SAN and resizes Bonds whenever the character changes after play. Adaptation and disorders from a previous character are not reset by an import.
   - **Where:** [Agent.tsx:54-58](src/pages/Agent.tsx) only rebuilds the live sheet if it is `untouched`; `importJson` ([Editor.tsx:59](src/Editor.tsx)) replaces the character regardless.
   - **Problem:** After play, "Edit agent" then changing stats or importing another Agent leaves HP, SAN, Bonds and adaptation from the old build.
   - **Fix:** When the character changes after play, reconcile: clamp HP/WP/SAN to new maxima, resize `bonds` with `bondCount`, and confirm before importing over a played agent. Or warn that editing resets the live sheet.
@@ -168,7 +174,8 @@ Already good (keep): Alt-key shortcut avoiding bare letters, focus moved to the 
   - **Where:** [ReviewStep.tsx:19](src/steps/ReviewStep.tsx): `setTimeout(() => setCopied(false), 1500)` runs even if the clipboard write fails and sits outside the `.then`.
   - **Fix:** Resolved by the `useCopy` hook in D2.
 
-- [ ] **B8. Repo and tooling hygiene**
+- [x] **B8. Repo and tooling hygiene**
+  - **Done:** ESLint 9 with react-hooks and jsx-a11y (`npm run lint`, run in CI; ESLint 10 isn't supported by jsx-a11y yet), `tsbuildinfo` untracked and ignored (the file is removed from the git index but nothing is committed), mid-file import moved, schema and input length limits added, numeric stat-set sort, unused `data-theme` CSS removed, security headers added (with B1).
   - `tsconfig.tsbuildinfo` is tracked (empty). `git rm --cached` it and add it to [.gitignore](.gitignore).
   - Add ESLint with `react-hooks` and `jsx-a11y`; `exhaustive-deps` would flag [LiveSheet.tsx:68](src/LiveSheet.tsx) and [102](src/LiveSheet.tsx). Run it in CI before the build.
   - [character.ts:51](src/model/character.ts) imports mid-file; move to the top.
@@ -178,6 +185,7 @@ Already good (keep): Alt-key shortcut avoiding bare letters, focus moved to the 
   - Missing security headers in [firebase.json](firebase.json): `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`. The CSP allows `style-src 'unsafe-inline'` because of inline `style={{}}` (D6) plus react-aria positioning styles.
 
 - [ ] **B9. Test gaps**
+  - **Done:** tests for the 4d6 range and dropped die, point-buy and stat-set validation, the ASCII sheet adapted boxes, `diffPaths` and `reconcile`. **Still open:** the live-sheet actions (`heal`, `sleep`, `recuperate`, `injuryTest`, `project`, `repress`) can't be unit-tested until D1 moves them out of `LiveSheet.tsx`.
   - [rules.test.ts:40](src/rules/rules.test.ts) only checks the 4d6 result is ≥ 3; also check ≤ 18 and that the lowest die is dropped (inject `rng`).
   - No tests for `validate` stat-set and point-buy branches, `heal`/`sleep`/`recuperate`/`injuryTest`/`project`/`repress` (closures in LiveSheet), or `asciiSheet` adapted boxes. Fixing D1 makes most of these unit-testable.
 
