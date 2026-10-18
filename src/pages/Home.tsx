@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { isStaleChunk, reloadForNewBuild } from '../lib/staleBuild';
 import { MIN_ID, newGameId, recentGames, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
 import { Page } from './Page';
@@ -17,7 +18,7 @@ export default function Home() {
     setBusy(true); setErr('');
     const id = newGameId();
     // Firestore loads on click, not with the landing page.
-    try { await (await import('../lib/games')).createGame(id); nav(`/g/${id}`); } catch { setErr('Could not create a game. Check your connection and try again.'); }
+    try { await (await import('../lib/games')).createGame(id); nav(`/g/${id}`); } catch (e) { if (!(isStaleChunk(e) && reloadForNewBuild())) setErr('Could not create a game. Check your connection and try again.'); }
     setBusy(false);
   };
 

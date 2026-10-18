@@ -231,3 +231,12 @@ Already good (keep): Alt-key shortcut avoiding bare letters, focus moved to the 
   - `refreshSpent` runs in an effect on `l.hp` ([LiveSheet.tsx:102](src/LiveSheet.tsx)); derive it inside the same `setL` that changes HP instead.
   - `LiveSheet` keeps `l`, `latest` ref and an `UndoStack` in parallel ([LiveSheet.tsx:48-66](src/LiveSheet.tsx)); a `useReducer` holding `{ live, stack }` would remove the ref.
   - `DetailsStep.tsx` defines its own `pick`; [gameId.ts](src/lib/gameId.ts) has a different `pick`. Share one random-choice helper.
+
+---
+
+## 5. Added after the review
+
+- [x] **S1. Tabs left open across a deploy fail with "Something went wrong"**
+  - **Cause:** after a deploy the hashed files an old tab asks for are gone, so lazy page loads and the game page's on-demand imports fail.
+  - **Fix:** `src/lib/staleBuild.ts` reloads the page once (not again within 10 seconds, so a truly broken deploy shows its error instead of looping). It is wired to Vite's `vite:preloadError` event in `main.tsx` and to the catch blocks that load code on demand in `Game.tsx` and `Home.tsx`. Unit tests cover the error matching and the loop guard.
+  - **Not tested for real:** do it once by hand. Open the site, deploy again, then click "New agent" in the old tab; it should reload instead of showing an error.

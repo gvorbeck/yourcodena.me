@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { outcomeClass } from '../rules/outcome';
+import { isStaleChunk, reloadForNewBuild } from '../lib/staleBuild';
 import { copyNote, useCopy } from '../lib/useCopy';
 import { createGame, useAgents, useGameExists, useRolls } from '../lib/games';
 import { hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } from '../lib/gameId';
@@ -22,7 +23,7 @@ export default function Game() {
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true); setErr('');
-    try { await fn(); } catch { setErr('Something went wrong. Check your connection and try again.'); }
+    try { await fn(); } catch (e) { if (!(isStaleChunk(e) && reloadForNewBuild())) setErr('Something went wrong. Check your connection and try again.'); }
     setBusy(false);
   };
   // The sheet model is loaded on demand so this page stays small.
