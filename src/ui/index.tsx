@@ -1,20 +1,12 @@
 import { Button, Checkbox, ComboBox, ComboBoxStateContext, Input, Label, ListBox, ListBoxItem, NumberField, Popover, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
-import { useContext, type CSSProperties, type ReactNode, type Ref } from 'react';
+import { useContext, type CSSProperties, type ReactNode } from 'react';
+export { Win } from './Win';
 import type { Character } from '../model/character';
 import { SKILL_FAMILIES, TYPED_SKILLS, TYPE_SUGGESTIONS, familyOf, makeKey, typeOf } from '../rules/data/skills';
 import { filterSkills, skillsOf } from '../rules';
 
 export type Up = (fn: (draft: Character) => void) => void;
 export interface StepProps { c: Character; up: Up }
-
-interface WinProps { title: string; className?: string; right?: ReactNode; children: ReactNode; headingRef?: Ref<HTMLHeadingElement> }
-
-export const Win = ({ title, right, children, headingRef, className }: WinProps) => (
-  <section className={className ? `win ${className}` : 'win'}>
-    <header><h2 tabIndex={headingRef ? -1 : undefined} ref={headingRef}>{title}</h2><span>{right}</span></header>
-    <div className="body">{children}</div>
-  </section>
-);
 
 export const Rule = () => <div className="rule" aria-hidden />;
 

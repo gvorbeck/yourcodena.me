@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
 import { bondCount, derived, liveOutcome, parseLoss, professionOf, rollD100, rollExpr, type Outcome } from './rules';
 import { MAX_NOTES, UndoStack, canHeal, canInjuryTest, effStat, encodeSheet, loseSan, loseStat, permStats, refreshSpent, withBond, type Live, type SanKind } from './model/live';
@@ -34,7 +35,16 @@ const RollLine = ({ r }: { r: Roll }) => (
 
 const tenth = (v: number) => v || 10; // a 0 on a d10 reads as 10
 
-export function LiveSheet({ c, init }: { c: Character; init: Live }) {
+/** Present when the sheet belongs to an agent in a game: saves go to Firestore and rolls to the game's log instead of the URL. */
+export interface GameLink {
+  gameId: string;
+  failed: boolean;
+  back: () => void;
+  onChange: (l: Live) => void;
+  onRoll: (r: Omit<Roll, 'id'>) => void;
+}
+
+export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: GameLink }) {
   const [l, setLive] = useState(init);
   const latest = useRef(init); // newest state, so several changes in one event compose
   const [stack] = useState(() => new UndoStack());
@@ -54,6 +64,8 @@ export function LiveSheet({ c, init }: { c: Character; init: Live }) {
     setLive(prev);
     setPending(null); // a half-resolved SAN loss was priced against the state just reverted
   };
+  const sent = useRef(init); // last state handed to game.onChange
+  useEffect(() => { if (l !== sent.current) { sent.current = l; game?.onChange(l); } }, [l]);
   const [copied, setCopied] = useState(false);
   const [rolls, setRolls] = useState<Roll[]>([]);
   const nextId = useRef(0);
@@ -73,12 +85,14 @@ export function LiveSheet({ c, init }: { c: Character; init: Live }) {
     const { chance, pen, outcome } = liveOutcome(r, base, wp, l.penalty + once);
     setOnce(0);
     setRolls((p) => [{ id: nextId.current++, label, chance, pen, roll: r, outcome }, ...p].slice(0, 10));
+    game?.onRoll({ label, chance, pen, roll: r, outcome });
     return { outcome, roll: r, chance, ok: outcome === 'success' || outcome === 'critical success' };
   };
   const roll = (label: string, chance: number) => { test(label, chance); };
-  const link = encodeSheet(c, l);
+  const link = game ? '' : encodeSheet(c, l);
   // The URL is the save file. Debounced and guarded: Safari throws past 100 replaceState calls per 30 s.
   useEffect(() => {
+    if (game) return; // saved to Firestore instead
     const t = setTimeout(() => { try { history.replaceState(null, '', link); } catch { /* rate limited; next change retries */ } }, 300);
     return () => clearTimeout(t);
   }, [link]);
@@ -177,13 +191,17 @@ export function LiveSheet({ c, init }: { c: Character; init: Live }) {
 
       <Win className="live-status" title={`LIVE SHEET // ${(c.details.name || 'UNNAMED').toUpperCase()}`} right={professionOf(c)?.name}>
         <div className="row noprint">
-          <Btn onPress={() => { if (!confirm('Leave the live sheet? Bookmark or copy its link first to keep your progress.')) return; history.replaceState(null, '', location.pathname); location.reload(); }}>&lt; Back to editor</Btn>
-          <Btn onPress={() => navigator.clipboard.writeText(location.origin + location.pathname + link).then(() => setCopied(true), () => alert('Clipboard unavailable.')).finally(() => setTimeout(() => setCopied(false), 1500))}>{copied ? 'Link copied ✓' : 'Copy share link'}</Btn>
+          {game ? <>
+            <Link className="btn" to={`/g/${game.gameId}`}>&lt; Game</Link>
+            <Btn onPress={game.back}>Edit agent</Btn>
+          </> : <Btn onPress={() => { if (!confirm('Leave this sheet? Bookmark or copy its link first to keep your progress.')) return; history.replaceState(null, '', location.pathname); location.reload(); }}>&lt; Home</Btn>}
+          <Btn onPress={() => navigator.clipboard.writeText(game ? location.href : location.origin + location.pathname + link).then(() => setCopied(true), () => alert('Clipboard unavailable.')).finally(() => setTimeout(() => setCopied(false), 1500))}>{copied ? 'Link copied ✓' : game ? 'Copy agent link' : 'Copy share link'}</Btn>
           <Btn onPress={() => window.print()}>Print / PDF</Btn>
           <Btn onPress={undo} disabled={undoLabel === null}>{undoLabel ? `Undo: ${undoLabel}` : 'Undo'}</Btn>
           <Btn className="phone-only" onPress={() => jump('.live-skills', '.skill-find')}>Skills ↓</Btn>
         </div>
-        <p className="noprint live-note"><small>Saved in this page's link: bookmark it to resume. A copied link is a snapshot.</small></p>
+        <p className="noprint live-note"><small>{!game ? "Saved in this page's link: bookmark it to resume. A copied link is a snapshot."
+          : game.failed ? <span className="warn">Not saved: check your connection and reload.</span> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
         {fumble && (
           <div className="alerts noprint">
             <p>Fumble on {fumble.label} (p. 44). The Handler picks a cost:</p>

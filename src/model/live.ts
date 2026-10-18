@@ -22,11 +22,15 @@ const liveSchema = z.object({
   spent: spentSchema.default(noneSpent), // once-per-event actions: HP after the last first aid / at the last injury test (null = unused), and today's rest and sleep
 });
 export type Live = z.infer<typeof liveSchema>;
+export const parseLive = (raw: unknown): Live => liveSchema.parse(raw);
 
 export const freshLive = (c: Character): Live => {
   const d = derived(c);
   return { hp: d.hp, wp: d.wp, san: d.san, bp: d.bp, bonds: Array(bondCount(c)).fill(d.bondScore), notes: '', penalty: 0, adapt: { v: 0, h: 0 }, statMod: {}, statLoss: {}, spent: { ...noneSpent } };
 };
+
+/** True until anything has been played or noted: the sheet still equals what `c` derives, so it can be rebuilt if `c` changes. */
+export const untouched = (l: Live, c: Character) => !l.notes && sameState(l, freshLive(c));
 
 /** Replace one Bond score without disturbing the others; holes (a link with fewer scores than Bonds) take `fallback`. */
 export const withBond = (bonds: number[], i: number, v: number, fallback: number) =>
