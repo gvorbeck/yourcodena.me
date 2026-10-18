@@ -1,6 +1,8 @@
 node_modules
 dist
 .claude
+.agents
 .env
 firebase-debug.log
 .firebase
+skills-lock.json
