@@ -198,3 +198,11 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; } a.btn:is
 .overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: var(--gap); background: rgb(0 0 0 / .6); }
 .modal { max-width: min(32rem, 100%); border: 2px solid var(--line); background: var(--panel); color: var(--fg); padding: var(--gap); }
 .dialog { outline: none; } .dialog p { margin: .75rem 0; } .dialog .row { margin-top: 1rem; }
+
+/* Small layout helpers (replacing inline styles) */
+.mt-s { margin-top: .5rem; } .mt-m { margin-top: .75rem; } .mt-l { margin-top: 1.5rem; } .my-m { margin: .75rem 0; }
+.plain-list { list-style: none; padding: 0; margin: 0; }
+.auto-width { width: auto; max-width: 100%; }
+.combo { flex: 1; min-width: 0; } .combo.inline { flex: none; width: 12rem; margin-left: .5rem; display: inline-block; }
+.row.nowrap { flex-wrap: nowrap; } .row.nowrap > select { flex: 1; min-width: 0; width: auto; }
+.san-loss { width: 10ch; }

@@ -12,7 +12,7 @@ export function ProfessionStep({ c, up }: StepProps) {
   const setType = (slot: string, v: string) => up((d) => { d.types[slot] = v; });
 
   const typeInput = (slot: string, alt: Alt) =>
-    alt.askType ? <TypeInput label={`${alt.family} type`} suggestions={TYPE_SUGGESTIONS[alt.family] ?? []} value={c.types[slot] ?? ''} onChange={(v) => setType(slot, v)} style={{ width: '12rem', marginLeft: '.5rem', display: 'inline-block' }} /> : null;
+    alt.askType ? <TypeInput label={`${alt.family} type`} suggestions={TYPE_SUGGESTIONS[alt.family] ?? []} value={c.types[slot] ?? ''} onChange={(v) => setType(slot, v)} inline /> : null;
 
   const fixedSlot = (s: Slot) =>
     s.alts.length === 1 ? (
@@ -56,7 +56,7 @@ export function ProfessionStep({ c, up }: StepProps) {
               <h3>{p.name}</h3>
               <p className="dim">{p.page}{p.stats.length ? ` · recommended ${p.stats.join(', ')} ≥ 10` : ''} · {p.bonds} bond{p.bonds === 1 ? '' : 's'}</p>
               <h3>Professional skills</h3>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>{kit.fixed.map(fixedSlot)}</ul>
+              <ul className="plain-list">{kit.fixed.map(fixedSlot)}</ul>
               {kit.n > 0 && (
                 <>
                   <h3>Choose {kit.n} <span className={c.picks.length === kit.n ? 'ok' : 'warn'}>({c.picks.length}/{kit.n})</span></h3>
@@ -89,7 +89,7 @@ export function ProfessionStep({ c, up }: StepProps) {
       <h3>Bonus skill points</h3>
       <div className="row">
         <label className="lbl" htmlFor="pkg">Package (p. 27)</label>
-        <select id="pkg" style={{ width: 'auto', maxWidth: '100%' }} value={c.bonusPackage}
+        <select id="pkg" className="auto-width" value={c.bonusPackage}
           onChange={(e) => up((d) => {
             d.bonusPackage = e.target.value;
             const pk = PACKAGES.find((k) => k.id === e.target.value);
@@ -100,7 +100,7 @@ export function ProfessionStep({ c, up }: StepProps) {
         </select>
         <span className="dim">Pick {BONUS_PICKS}; repeats stack. Not Unnatural.</span>
       </div>
-      <div className="grid" style={{ marginTop: '.5rem' }}>
+      <div className="grid mt-s">
         {c.bonus.map((k, i) => <SkillPicker key={i} label={`Bonus ${i + 1} (+${BONUS_POINTS})`} value={k} onChange={(v) => up((d) => { d.bonus[i] = v; })} />)}
       </div>
       <h3>Skills so far</h3>

@@ -184,7 +184,7 @@ Already good (keep): Alt-key shortcut avoiding bare letters, focus moved to the 
   - [tokens.css:30](src/styles/tokens.css) has `data-theme` rules with no toggle in the UI: add a toggle or delete.
   - Missing security headers in [firebase.json](firebase.json): `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`. The CSP allows `style-src 'unsafe-inline'` because of inline `style={{}}` (D6) plus react-aria positioning styles.
 
-- [ ] **B9. Test gaps**
+- [x] **B9. Test gaps**
   - **Done:** tests for the 4d6 range and dropped die, point-buy and stat-set validation, the ASCII sheet adapted boxes, `diffPaths` and `reconcile`. **Still open:** the live-sheet actions (`heal`, `sleep`, `recuperate`, `injuryTest`, `project`, `repress`) can't be unit-tested until D1 moves them out of `LiveSheet.tsx`.
   - [rules.test.ts:40](src/rules/rules.test.ts) only checks the 4d6 result is ≥ 3; also check ≤ 18 and that the lowest die is dropped (inject `rng`).
   - No tests for `validate` stat-set and point-buy branches, `heal`/`sleep`/`recuperate`/`injuryTest`/`project`/`repress` (closures in LiveSheet), or `asciiSheet` adapted boxes. Fixing D1 makes most of these unit-testable.
@@ -193,7 +193,8 @@ Already good (keep): Alt-key shortcut avoiding bare letters, focus moved to the 
 
 ## 4. DRY and simplification
 
-- [ ] **D1. Move rules logic out of `LiveSheet.tsx`**
+- [x] **D1. Move rules logic out of `LiveSheet.tsx`**
+  - **Done:** the rules now live in `src/model/actions.ts` as pure functions (`strain`, `burnout`, `exhaust`, `heal`, `recuperate`, `sleep`, `planSanLoss`, `spendWillpower`, `project`, `repress`, `addDisorder`, and more), with 17 tests in `actions.test.ts`. `LiveSheet.tsx` just calls them.
   - **Where:** [LiveSheet.tsx:112-182](src/LiveSheet.tsx): `strain`, `burnout`, `exhaust`, `heal`, `recuperate`, `injuryTest`, `applyInjury`, `sleep`, `sanRoll`, `project`, `repress`.
   - **Why:** This is the app's most rules-dense code, mixed with UI in a 320-line component, and untested. `loseSan` and `loseStat` in `model/live.ts` already show the better pattern.
   - **Fix:** Export pure `(c, l, rng) => { live, notes }` functions from `model/live.ts`; leave the component to call them and show notes. Pass `rng` for tests.
@@ -202,25 +203,30 @@ Already good (keep): Alt-key shortcut avoiding bare letters, focus moved to the 
   - **Where:** [LiveSheet.tsx:198](src/LiveSheet.tsx), [ReviewStep.tsx:19](src/steps/ReviewStep.tsx), [Game.tsx:31](src/pages/Game.tsx).
   - **Fix:** `useCopy(): [copied, copy(text)]` in `src/lib/`, with failure handled once.
 
-- [ ] **D3. Outcome success and class logic repeated four times**
+- [x] **D3. Outcome success and class logic repeated four times**
+  - **Done:** `isSuccess` and `outcomeClass` in `src/rules/outcome.ts` (a tiny module so the game page doesn't load all the rules), used by LiveSheet and Game. The game page's roll log now also underlines criticals and fumbles.
   - **Where:** `ok` in [LiveSheet.tsx:89](src/LiveSheet.tsx), `RollLine` [33-34](src/LiveSheet.tsx), [Game.tsx:86](src/pages/Game.tsx), and `includes('success')` string tests.
   - **Fix:** `isSuccess(outcome)` and `outcomeClass(outcome)` in `rules/`.
 
-- [ ] **D4. Menubar markup duplicated**
+- [x] **D4. Menubar markup duplicated**
+  - **Done:** `src/ui/MenuBar.tsx` (skip link plus menu bar) is used by `Editor` and `Page`.
   - **Where:** [Editor.tsx:48-62](src/Editor.tsx) and [Page.tsx:10-14](src/pages/Page.tsx).
   - **Fix:** One `MenuBar` component taking a `subtitle` and children.
 
-- [ ] **D5. Duplicated constants and patterns**
+- [x] **D5. Duplicated constants and patterns**
+  - **Done:** `MAX_SKILL` and `TYPED_SKILLS` are used instead of literals, the veteran ids are replaced by `adapts` (R1), and the unused `ProfessionDef.note` and `VeteranDef.page` are removed. The `99` in max SAN stays; it is the SAN rule, not the skill cap.
   - Literal `99` at [index.ts:144](src/rules/index.ts) vs unused `MAX_SKILL` in [skills.ts:26](src/rules/data/skills.ts).
   - Typed-skill regex at [index.ts:188](src/rules/index.ts) vs `TYPED_SKILLS`.
   - `'violence'` / `'captivity'` ids repeated in [sheet.ts:80-81](src/model/sheet.ts) and [ReviewStep.tsx:54](src/steps/ReviewStep.tsx) (see R1).
   - Unused fields: `ProfessionDef.note`, `VeteranDef.page` appear unused; delete or use.
 
-- [ ] **D6. Inline `style={{}}`**
+- [x] **D6. Inline `style={{}}`**
+  - **Done:** all inline `style={{}}` are now classes in `app.css`. The CSP still needs `style-src 'unsafe-inline'` because react-aria positions its popovers with inline styles.
   - **Where:** [Editor.tsx:66,88](src/Editor.tsx), [ProfessionStep.tsx:15,59,92,103](src/steps/ProfessionStep.tsx), [DetailsStep.tsx:60](src/steps/DetailsStep.tsx), [BondsStep.tsx:27](src/steps/BondsStep.tsx), [LiveSheet.tsx:281](src/LiveSheet.tsx), [ui/index.tsx:63,79-80](src/ui/index.tsx).
   - **Fix:** Move to named classes in [app.css](src/styles/app.css). This is a step toward dropping `'unsafe-inline'` from the CSP.
 
-- [ ] **D7. Misc simplifications**
+- [x] **D7. Misc simplifications**
+  - **Done:** `DerivedStep` became `DerivedTable` (no unused prop), `refreshSpent` now runs inside `setL` instead of an effect, and one shared `pick`/`randomInt` (in `rules/data/random.ts`) replaced the two copies. **Skipped on purpose:** replacing `l` + `latest` ref + `UndoStack` with a `useReducer`; it works and the change would be large for little gain.
   - `DerivedStep` ([steps/DerivedStep.tsx](src/steps/DerivedStep.tsx)) is not a step and takes an `up` prop it ignores; rename to `DerivedTable` and move to `ui/` or drop the prop.
   - `refreshSpent` runs in an effect on `l.hp` ([LiveSheet.tsx:102](src/LiveSheet.tsx)); derive it inside the same `setL` that changes HP instead.
   - `LiveSheet` keeps `l`, `latest` ref and an `UndoStack` in parallel ([LiveSheet.tsx:48-66](src/LiveSheet.tsx)); a `useReducer` holding `{ live, stack }` would remove the ref.

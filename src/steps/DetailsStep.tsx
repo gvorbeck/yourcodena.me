@@ -1,6 +1,7 @@
 import { UNNATURAL_DISORDERS, VETERANS } from '../rules/data/creation';
 import { veteranOf, professionOf } from '../rules';
 import * as R from '../rules/data/random';
+import { pick, randomInt } from '../rules/data/random';
 import { Choice, Rule, RadioGroup, Label, SkillPicker, Text, TypeInput, type StepProps } from '../ui';
 
 const FIELDS: [keyof StepProps['c']['details'], string, boolean?][] = [
@@ -11,13 +12,11 @@ const FIELDS: [keyof StepProps['c']['details'], string, boolean?][] = [
   ['trust', 'Why Delta Green trusts this Agent', true], ['helps', 'Why this Agent helps Delta Green', true],
 ];
 
-const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-
 export function DetailsStep({ c, up }: StepProps) {
   const v = veteranOf(c);
   const p = professionOf(c);
   const roll: Partial<Record<keyof StepProps['c']['details'], () => string>> = {
-    name: () => `${pick(R.FIRST)} ${pick(R.LAST)}`, codename: () => pick(R.CODENAMES), age: () => String(24 + Math.floor(Math.random() * 40)),
+    name: () => `${pick(R.FIRST)} ${pick(R.LAST)}`, codename: () => pick(R.CODENAMES), age: () => String(24 + randomInt(40)),
     sex: () => pick(['Female', 'Male', 'Nonbinary']), nationality: () => pick(R.NATIONALITIES),
     appearance: () => pick(R.APPEARANCE), personality: () => pick(R.PERSONALITY), admires: () => pick(R.ADMIRES), dislikes: () => pick(R.DISLIKES), trust: () => pick(R.TRUST), helps: () => pick(R.HELPS),
     ...(p && { rank: () => p.name, education: () => `Trained and worked as ${p.name.toLowerCase()}.` }),
@@ -57,7 +56,7 @@ export function DetailsStep({ c, up }: StepProps) {
         </div>
       )}
       {v?.extraSkills && (
-        <div className="grid" style={{ marginTop: '.5rem' }}>
+        <div className="grid mt-s">
           {Array.from({ length: v.extraSkills.count }, (_, i) => (
             <SkillPicker key={i} label={`+${v.extraSkills!.amount}% skill ${i + 1}`} value={c.veteranSkills[i] ?? ''}
               onChange={(x) => up((d) => { const s = [...d.veteranSkills]; while (s.length < v.extraSkills!.count) s.push(''); s[i] = x; d.veteranSkills = s; })} />

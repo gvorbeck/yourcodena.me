@@ -1,6 +1,6 @@
 import { STATS, STAT_NAMES, STAT_SETS, POINT_BUY_TOTAL } from '../rules/data/creation';
 import { featureOf, roll4d6dl } from '../rules';
-import { DerivedStep } from './DerivedStep';
+import { DerivedTable } from './DerivedTable';
 import { Btn, Choice, Num, Rule, RadioGroup, Label, type StepProps } from '../ui';
 
 export function StatsStep({ c, up }: StepProps) {
@@ -15,7 +15,7 @@ export function StatsStep({ c, up }: StepProps) {
         <Choice value="points">Divide {POINT_BUY_TOTAL} points</Choice>
         <Choice value="set">Assignable set</Choice>
       </RadioGroup>
-      <div className="row" style={{ margin: '.75rem 0' }}>
+      <div className="row my-m">
         {c.statMethod === 'roll' && (
           <Btn onPress={() => up((d) => { STATS.forEach((s) => { d.stats[s] = roll4d6dl(); }); })}>Roll six scores</Btn>
         )}
@@ -37,10 +37,10 @@ export function StatsStep({ c, up }: StepProps) {
           );
         })}
       </div>
-      {c.statMethod === 'set' && <p className="dim" style={{ marginTop: '.5rem' }}>Reorder by editing scores; the set must keep the same values.</p>}
+      {c.statMethod === 'set' && <p className="dim mt-s">Reorder by editing scores; the set must keep the same values.</p>}
       <Rule />
       <h3>Derived attributes</h3>
-      <DerivedStep c={c} up={up} />
+      <DerivedTable c={c} />
     </>
   );
 }

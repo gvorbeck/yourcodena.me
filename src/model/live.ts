@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { parseCharacter, type Character } from './character';
 import { bondCount, derived, disorderOf, rollExpr, skillsOf, veteranOf } from '../rules';
 import { STATS, type Stat } from '../rules/data/creation';
+import { MAX_SKILL } from '../rules/data/skills';
 
 /** Play-time state. The whole sheet lives in the URL hash, so no server or database is involved. */
 export const MAX_NOTES = 4000;
@@ -57,7 +58,7 @@ export const maxSanOf = (c: Character, l: Live) => 99 - unnaturalOf(c, l);
 
 /** Set the Unnatural skill (never below the veteran's starting gain); SAN is pulled down to the new maximum. */
 export function setUnnatural(c: Character, l: Live, value: number): Live {
-  const adv = Math.max(0, Math.min(99, value) - (veteranOf(c)?.unnatural ?? 0));
+  const adv = Math.max(0, Math.min(MAX_SKILL, value) - (veteranOf(c)?.unnatural ?? 0));
   const live = { ...l, advance: { ...l.advance, Unnatural: adv } };
   return { ...live, san: Math.min(live.san, maxSanOf(c, live)) };
 }
@@ -66,7 +67,7 @@ export function setUnnatural(c: Character, l: Live, value: number): Live {
 export function advanceSkills(c: Character, l: Live, rng = Math.random): { live: Live; gains: [string, number][] } {
   const totals = skillsOf(c, l.advance);
   const gains = l.checked.flatMap((key): [string, number][] => {
-    const n = Math.min(rollExpr('1D4', rng)!, 99 - (totals.find((s) => s.key === key)?.total ?? 0));
+    const n = Math.min(rollExpr('1D4', rng)!, MAX_SKILL - (totals.find((s) => s.key === key)?.total ?? 0));
     return n > 0 ? [[key, n]] : [];
   });
   const advance = { ...l.advance };

@@ -24,7 +24,7 @@ export function BondsStep({ c, up }: StepProps) {
           </div>
         ))}
       </div>
-      <p className="dim" style={{ marginTop: '.75rem' }}>Ideas: {SAMPLE_BONDS.join(' · ')}</p>
+      <p className="dim mt-m">Ideas: {SAMPLE_BONDS.join(' · ')}</p>
     </>
   );
 }

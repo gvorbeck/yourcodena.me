@@ -12,7 +12,6 @@ export interface ProfessionDef {
   fixed: string[];
   choose?: { n: number; from: string[] };
   agency?: string;
-  note?: string;
 }
 
 const p = (

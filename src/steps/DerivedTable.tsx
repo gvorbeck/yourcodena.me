@@ -1,8 +1,8 @@
 import { derived } from '../rules';
-import { type StepProps } from '../ui';
+import type { Character } from '../model/character';
 import { stepNo } from '.';
 
-export function DerivedStep({ c }: StepProps) {
+export function DerivedTable({ c }: { c: Character }) {
   const d = derived(c);
   const rows: [string, number, string][] = [
     ['Hit Points', d.hp, '(STR + CON) ÷ 2, rounded up'],

@@ -1,5 +1,5 @@
 import { Button, Checkbox, ComboBox, ComboBoxStateContext, Dialog, Heading, Input, Label, ListBox, ListBoxItem, Modal, ModalOverlay, NumberField, Popover, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
-import { useContext, useId, type CSSProperties, type ReactNode } from 'react';
+import { useContext, useId, type ReactNode } from 'react';
 export { Win } from './Win';
 import type { Character } from '../model/character';
 import { SKILL_FAMILIES, TYPED_SKILLS, TYPE_SUGGESTIONS, familyOf, makeKey, typeOf } from '../rules/data/skills';
@@ -72,12 +72,12 @@ const ClickInput = () => {
 };
 
 /** Free-text input with suggestions. A real ComboBox (not <datalist>) so the popup can be styled and anchors to the input. */
-export const TypeInput = ({ label, suggestions, value, onChange, style }: { label: string; suggestions: string[]; value: string; onChange: (v: string) => void; style?: CSSProperties }) => {
+export const TypeInput = ({ label, suggestions, value, onChange, inline }: { label: string; suggestions: string[]; value: string; onChange: (v: string) => void; inline?: boolean }) => {
   const items = suggestions.map((id) => ({ id }));
   // A value that already is a suggestion would filter the list down to itself; show everything instead.
   const complete = items.some((i) => i.id.toLowerCase() === value.toLowerCase());
   return (
-    <ComboBox aria-label={label} allowsCustomValue inputValue={value} onInputChange={onChange} defaultItems={items} defaultFilter={complete ? () => true : undefined} style={{ flex: 1, minWidth: 0, ...style }}>
+    <ComboBox aria-label={label} allowsCustomValue inputValue={value} onInputChange={onChange} defaultItems={items} defaultFilter={complete ? () => true : undefined} className={inline ? 'combo inline' : 'combo'}>
       <ClickInput />
       <Popover className="popover">
         <ListBox className="listbox">{(t: { id: string }) => <ListBoxItem className="option">{t.id}</ListBoxItem>}</ListBox>
@@ -94,8 +94,8 @@ export function SkillPicker({ label, value, onChange }: { label: string; value: 
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <div className="row" style={{ flexWrap: 'nowrap' }}>
-        <select id={id} value={family} onChange={(e) => onChange(e.target.value)} style={{ flex: 1, minWidth: 0, width: 'auto' }}>
+      <div className="row nowrap">
+        <select id={id} value={family} onChange={(e) => onChange(e.target.value)}>
           <option value="">— select —</option>
           {SKILL_FAMILIES.filter((f) => f !== 'Unnatural').map((f) => <option key={f}>{f}</option>)}
         </select>

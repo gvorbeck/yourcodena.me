@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { importJson, type Character } from './model/character';
 import { blocking, type validate } from './rules';
 import { Btn, ConfirmDialog, Win, type Up } from './ui';
-import { SkipLink } from './ui/Win';
+import { MenuBar } from './ui/MenuBar';
 import { Legal } from './ui/Legal';
 import { StatsStep } from './steps/StatsStep';
 import { ProfessionStep } from './steps/ProfessionStep';
@@ -50,22 +50,17 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
 
   return (
     <>
-      <SkipLink />
-      <nav className="menubar" aria-label="Application">
-        <Link to="/">YOURCODENA.ME</Link>
-        <span className="dim">// Agent intake terminal</span>
-        <span className="grow">
-          <Link to={`/g/${gameId}`}>&lt; Game {gameId}</Link>
-          <button onClick={pickFile}>[Alt+I] Import agent</button>
-          <input ref={file} type="file" accept=".json,application/json" hidden
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              e.target.value = '';
-              if (!f) return;
-              try { setC(await importJson(f)); setStep(0); setImportError(false); } catch { setImportError(true); }
-            }} />
-        </span>
-      </nav>
+      <MenuBar subtitle="// Agent intake terminal">
+        <Link to={`/g/${gameId}`}>&lt; Game {gameId}</Link>
+        <button onClick={pickFile}>[Alt+I] Import agent</button>
+        <input ref={file} type="file" accept=".json,application/json" hidden
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            try { setC(await importJson(f)); setStep(0); setImportError(false); } catch { setImportError(true); }
+          }} />
+      </MenuBar>
 
       <main id="main" tabIndex={-1}>
       <h1 className="sr-only">Agent intake: {c.details.name.trim() || 'unnamed agent'}</h1>
@@ -75,7 +70,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
       </ConfirmDialog>
       <div className="shell">
         <Win title="CREATION STEPS">
-          <ol className="steps" role="list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <ol className="steps" role="list">
             {STEPS.map((s, i) => {
               const bad = s.id !== 'review' && blocking(issues).some((x) => x.step === s.id);
               return (
@@ -97,7 +92,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
           {cur.id === 'details' && <DetailsStep {...props} />}
           {cur.id === 'review' && <ReviewStep {...props} onLive={onLive} />}
           {cur.id !== 'review' && here.length > 0 && <ul className="issues noprint">{here.map((x, n) => <li key={n}>{x.msg}</li>)}</ul>}
-          <div className="row noprint" style={{ marginTop: '1.5rem' }}>
+          <div className="row noprint mt-l">
             <Btn disabled={step === 0} onPress={() => setStep(step - 1)}>&lt; Back</Btn>
             <Btn disabled={step === STEPS.length - 1} onPress={() => setStep(step + 1)}>Next ▸</Btn>
           </div>

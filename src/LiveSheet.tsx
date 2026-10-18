@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
-import { bondCount, derived, liveOutcome, parseLoss, professionOf, rollD100, rollExpr, rollLoss, type Outcome } from './rules';
-import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, effStat, encodeSheet, loseSan, loseStat, maxSanOf, permStats, refreshSpent, setUnnatural, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
+import { bondCount, derived, isSuccess, liveOutcome, outcomeClass, professionOf, rollD100, type Outcome } from './rules';
+import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, effStat, encodeSheet, loseSan, maxSanOf, permStats, refreshSpent, setUnnatural, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
 import type { Character } from './model/character';
 import { Btn, ConfirmDialog, SkillTable, Win } from './ui';
 import { copyNote, useCopy } from './lib/useCopy';
+import * as play from './model/actions';
 
 function Counter({ label, note, value, max, step = 1, onChange, onRoll }: { label: string; note?: string; value: number; max?: number; step?: number; onChange: (v: number) => void; onRoll?: () => void }) {
   const set = (v: number) => onChange(Math.max(0, max === undefined ? v : Math.min(max, v)));
@@ -31,10 +32,8 @@ interface Roll { id: number; label: string; chance: number; pen: number; roll: n
 
 const RollLine = ({ r }: { r: Roll }) => (
   <>{r.label} {r.chance}%{r.pen ? ` (−${r.pen})` : ''}: <b>{String(r.roll).padStart(2, '0')}</b>{' '}
-    <span className={`${r.outcome.includes('success') ? 'ok' : 'warn'}${r.outcome === 'success' || r.outcome === 'failure' ? '' : ' strong'}`}>{r.outcome.toUpperCase()}</span></>
+    <span className={outcomeClass(r.outcome)}>{r.outcome.toUpperCase()}</span></>
 );
-
-const tenth = (v: number) => v || 10; // a 0 on a d10 reads as 10
 
 /** Present when the sheet belongs to an agent in a game: saves go to Firestore and rolls to the game's log instead of the URL. */
 export interface GameLink {
@@ -46,13 +45,14 @@ export interface GameLink {
 }
 
 export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: GameLink }) {
-  const [l, setLive] = useState(init);
-  const latest = useRef(init); // newest state, so several changes in one event compose
+  const start = refreshSpent(init);
+  const [l, setLive] = useState(start);
+  const latest = useRef(start); // newest state, so several changes in one event compose
   const [stack] = useState(() => new UndoStack());
   const [undoLabel, setUndoLabel] = useState<string | null>(null); // what Undo would revert; null = nothing
   /** Every change goes through here; the stack decides whether it earns an undo step. */
   const setL = (u: Live | ((p: Live) => Live)) => {
-    const next = typeof u === 'function' ? u(latest.current) : u;
+    const next = refreshSpent(typeof u === 'function' ? u(latest.current) : u); // once HP is back above 2, the next drop is a new injury event
     if (stack.record(latest.current, next, c.bonds.map((b) => b.name))) setUndoLabel(stack.label);
     latest.current = next;
     setLive(next);
@@ -84,19 +84,20 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const [bondPick, setBondPick] = useState(0);
   const d = derived(permStats(c, l));
   const say = (...m: string[]) => setAlerts((p) => [...m, ...p].slice(0, 8));
-  const dice = (e: string) => rollExpr(e) ?? 0;
+  /** Run a pure action on the newest state, then show its notes. */
+  const act = (fn: (cur: Live) => play.Result) => { const r = fn(latest.current); setL(r.live); say(...r.notes); };
   const test = (label: string, base: number, wp = l.wp) => {
     const r = rollD100();
     const { chance, pen, outcome } = liveOutcome(r, base, wp, l.penalty + (l.exhausted ? 20 : 0) + once);
     setOnce(0);
     setRolls((p) => [{ id: nextId.current++, label, chance, pen, roll: r, outcome }, ...p].slice(0, 10));
     game?.onRoll({ label, chance, pen, roll: r, outcome });
-    return { outcome, roll: r, chance, ok: outcome === 'success' || outcome === 'critical success' };
+    return { outcome, roll: r, chance, ok: isSuccess(outcome) };
   };
   const roll = (label: string, chance: number) => { test(label, chance); };
   /** A failed skill roll earns a check toward end-of-session advancement (p. 28). */
   const rollSkill = (key: string, chance: number) => {
-    if (!test(key, chance).ok) setL((p) => (p.checked.includes(key) ? p : { ...p, checked: [...p.checked, key] }));
+    if (!test(key, chance).ok) setL((p) => play.checkSkill(p, key));
   };
   const endSession = () => {
     const r = advanceSkills(c, l);
@@ -108,11 +109,10 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const [drop, setDrop] = useState('');
   const motivations = c.motivations.map((m) => m.trim()).filter((m) => m && !l.dropped.includes(m));
   const addDisorder = () => {
-    const name = disorder.trim(), lost = motivations.includes(drop) ? drop : '';
+    const name = disorder.trim();
     if (!name) return;
-    setL((p) => ({ ...p, disorders: [...p.disorders, name], dropped: lost ? [...p.dropped, lost] : p.dropped }));
+    act((cur) => play.addDisorder(cur, name, motivations.includes(drop) ? drop : ''));
     setDisorder(''); setDrop('');
-    say(`Gained ${name}${lost ? `; lost the motivation “${lost}”` : ''} (pp. 38, 69).`);
   };
   const link = game ? '' : encodeSheet(c, l);
   // The URL is the save file. Debounced and guarded: Safari throws past 100 replaceState calls per 30 s.
@@ -125,8 +125,6 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const set = <K extends keyof Live>(k: K, v: Live[K]) => setL((p) => ({ ...p, [k]: v }));
   const bonds = c.bonds.slice(0, bondCount(c)).map((b, i) => ({ ...b, i })).filter((b) => b.name);
   const bond = bonds.some((b) => b.i === bondPick) ? bondPick : bonds[0]?.i;
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- setL is recreated each render; re-run only when HP changes
-  useEffect(() => { setL(refreshSpent); }, [l.hp]);
   const [find, setFind] = useState('');
   /** Phone shortcut between Status and Skills; honours reduced-motion. */
   const jump = (sel: string, focus: string) => {
@@ -136,75 +134,50 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const fumble = rolls[0]?.outcome === 'fumble' && rolls[0].id !== dismissed ? rolls[0] : null;
   const con5 = () => effStat(c, l, 'CON') * 5;
 
-  // ---- Fumbles (p. 44)
+  // ---- Fumbles (p. 44), damage and healing (pp. 54–55), sanity (pp. 66–75): the rules live in model/actions.ts
   const fumbled = (fn: () => void) => () => { fn(); if (fumble) setDismissed(fumble.id); };
-  const strain = fumbled(() => { const n = dice('1D6'); set('hp', Math.max(0, l.hp - n)); say(`Physical strain: lost ${n} HP.`); });
-  const burnout = fumbled(() => { const n = dice('1D6'); set('wp', Math.max(0, l.wp - n)); say(`Emotional burnout: lost ${n} WP.`); });
-  const exhaust = fumbled(() => { const n = dice('1D6'); setL((p) => ({ ...p, wp: Math.max(0, p.wp - n), exhausted: true })); say(`Exhausted: lost ${n} WP, −20% to all tests until a full night's sleep (p. 47).`); });
+  const strain = fumbled(() => act((cur) => play.strain(cur)));
+  const burnout = fumbled(() => act((cur) => play.burnout(cur)));
+  const exhaust = fumbled(() => act((cur) => play.exhaust(cur)));
   const distract = fumbled(() => setOnce(20));
 
-  // ---- Damage and healing (pp. 54–55)
-  const heal = () => {
-    const n = dice('1D4'), hp = Math.min(d.hp, l.hp + n);
-    setL((p) => ({ ...p, hp, spent: { ...p.spent, healHp: hp } }));
-    say(`Healed ${n} HP. First Aid or treatment doubles on a critical, and a fumble does 1D4 damage (p. 55).`);
-  };
+  const heal = () => act((cur) => play.heal(c, cur));
   const recuperate = () => {
     const t = test('CON×5 (rest)', con5());
-    const n = t.outcome === 'critical success' ? dice('1D4') : t.ok ? 1 : t.outcome === 'fumble' ? -1 : 0;
-    setL((p) => ({ ...p, hp: Math.max(0, Math.min(d.hp, p.hp + n)), spent: { ...p.spent, rest: true } }));
+    setL((cur) => play.recuperate(c, cur, t.outcome));
   };
   const injuryTest = () => {
-    setL((p) => ({ ...p, spent: { ...p.spent, injuryHp: p.hp } }));
+    setL(play.spendInjuryTest);
     const t = test('CON×5 (injury)', con5());
     if (t.ok) return say('No permanent injury.');
-    const n = Math.min(tenth(Math.floor((t.roll % 100) / 10)), tenth(t.roll % 10)); // lowest d10 of the percentile roll
+    const n = play.lowestD10(t.roll);
     setInjury(n); say(`Permanent injury: the Handler picks a stat to lose ${n} (p. 55).`);
   };
   const applyInjury = () => {
     if (injury === null) return;
-    const r = loseStat(c, l, injuryStat, injury);
-    setL(r.live); setInjury(null); say(`Permanently lost ${r.lost} ${injuryStat}.`);
+    act((cur) => play.applyInjury(c, cur, injuryStat, injury));
+    setInjury(null);
   };
-  const sleep = () => {
-    const n = dice('1D6');
-    setL((p) => ({ ...p, wp: Math.min(d.wp, p.wp + n), exhausted: false, spent: { ...p.spent, sleep: true }, statLoss: Object.fromEntries(Object.entries(p.statLoss).map(([k, v]) => [k, Math.max(0, v - 1)])) }));
-    say(`Full night's sleep: +${n} WP (once per 24 h), exhaustion cured, 1 point of each lost stat restored. After insanity or a new disorder, make a SAN test first (p. 47).`);
-  };
-  const lose = (s: Stat, by: number) => set('statLoss', { ...l.statLoss, [s]: Math.max(0, Math.min(18, (l.statLoss[s] ?? 0) + by)) });
+  const sleep = () => act((cur) => play.sleep(c, cur));
+  const lose = (s: Stat, by: number) => setL((cur) => play.adjustStatLoss(cur, s, by));
 
-  // ---- Sanity (pp. 66–75)
-  const adapted = (k: SanKind) => (k === 'violence' ? l.adapt.v : k === 'helplessness' ? l.adapt.h : 0) >= 3;
   const sanRoll = () => {
-    const loss = parseLoss(san.loss);
-    if (!loss) return say('SAN loss must be written success/failure, like 0/1D4 or 1/1D10.');
-    const auto = adapted(san.kind) && l.wp > 0;
-    const t = auto ? null : test('SAN (loss)', l.san);
-    const ok = auto || !!t?.ok;
-    const result = auto ? `Adapted to ${san.kind}: the SAN test automatically succeeds (p. 74).` : `${ok ? 'Passed' : 'Failed'} the SAN test (rolled ${t!.roll} against ${t!.chance}%).`;
-    setPending({ kind: san.kind, amount: rollLoss(ok ? loss[0] : loss[1]) ?? 0, result });
+    const r = play.planSanLoss(l, san.kind, san.loss, () => test('SAN (loss)', l.san));
+    if ('error' in r) return say(r.error);
+    setPending(r);
   };
   const applySan = () => {
     if (!pending) return;
     const r = loseSan(c, l, pending.amount, pending.kind);
     setL(r.live); setPending(null); say(`Lost ${pending.amount} SAN.`, ...r.notes);
   };
-  /** Bond scores after strain `n` is taken from Bond `i` (projecting a loss, repressing an episode). */
-  const strainBond = (p: Live, i: number, n: number) => withBond(p.bonds, i, (p.bonds[i] ?? d.bondScore) - n, d.bondScore);
   const project = () => {
     if (!pending || bond === undefined) return;
-    const n = dice('1D4'), wp = Math.max(0, l.wp - n);
-    setL((p) => ({ ...p, wp, bonds: wp >= 1 ? strainBond(p, bond, n) : p.bonds }));
-    if (wp < 1) return say(`Spent ${n} WP but none is left: the loss stands.`);
-    setPending({ ...pending, amount: Math.max(0, pending.amount - n) });
-    say(`Projected onto a Bond: spent ${n} WP, SAN loss reduced by ${n}, Bond reduced by ${n}. Describe the strain (p. 74).`);
+    const r = play.project(c, latest.current, pending, bond);
+    setL(r.live); setPending(r.pending); say(...r.notes);
   };
   const repress = () => {
-    if (bond === undefined) return;
-    const n = dice('1D4'), wp = Math.max(0, l.wp - n);
-    if (wp < 1) { set('wp', wp); return say(`Spent ${n} WP but none is left: cannot repress.`); }
-    setL((p) => ({ ...p, wp, bonds: strainBond(p, bond, n) }));
-    say(test('SAN (repress)', l.san, wp).ok ? `Spent ${n} WP and ${n} Bond points: the episode is suppressed (p. 75).` : `Spent ${n} WP and ${n} Bond points, but the episode takes hold.`);
+    if (bond !== undefined) act((cur) => play.repress(c, cur, bond, (wp) => test('SAN (repress)', cur.san, wp).ok));
   };
 
   return (
@@ -315,7 +288,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
           <select aria-label="Trauma type" value={san.kind} onChange={(e) => setSan({ ...san, kind: e.target.value as SanKind })}>
             <option value="violence">Violence</option><option value="helplessness">Helplessness</option><option value="unnatural">The Unnatural</option>
           </select>
-          <input aria-label="SAN loss as success/failure, like 0/1D4" title="Success/failure loss as printed in the book (pp. 67–68). Add extra victims to the failure die, like 1D6+2 (the total never exceeds the die's maximum)." value={san.loss} onChange={(e) => setSan({ ...san, loss: e.target.value })} style={{ width: '10ch' }} />
+          <input className="san-loss" aria-label="SAN loss as success/failure, like 0/1D4" title="Success/failure loss as printed in the book (pp. 67–68). Add extra victims to the failure die, like 1D6+2 (the total never exceeds the die's maximum)." value={san.loss} onChange={(e) => setSan({ ...san, loss: e.target.value })} />
           <Btn onPress={sanRoll}>Roll SAN loss</Btn>
         </div>
         <p className="noprint dim"><small>Loss is success/failure, like 0/1D4. Extra victims go on the failure die: 1D6+2, capped at 6. Tap “SAN” above for a plain SAN test.</small></p>

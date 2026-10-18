@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { outcomeClass } from '../rules/outcome';
 import { copyNote, useCopy } from '../lib/useCopy';
 import { createGame, useAgents, useGameExists, useRolls } from '../lib/games';
 import { hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } from '../lib/gameId';
@@ -83,7 +84,7 @@ export default function Game() {
                     <td><Link to={`/g/${gameId}/a/${r.agentId}`}>{r.agentName}</Link></td>
                     <td>{r.label} {r.chance}%{r.penalty ? ` (−${r.penalty})` : ''}</td>
                     <td className="num"><b>{String(r.roll).padStart(2, '0')}</b></td>
-                    <td className={r.outcome.includes('success') ? 'ok' : 'warn'}>{r.outcome.toUpperCase()}</td>
+                    <td className={outcomeClass(r.outcome)}>{r.outcome.toUpperCase()}</td>
                   </tr>
                 ))}
               </tbody>

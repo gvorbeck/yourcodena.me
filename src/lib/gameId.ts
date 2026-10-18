@@ -1,17 +1,16 @@
-import { CODENAMES } from '../rules/data/random';
+import { CODENAMES, randomInt } from '../rules/data/random';
 import { SAVED_AGENT_KEY } from './storageKeys';
 
 export const MIN_ID = 3;
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
-const pick = (n: number) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
 
 /** What the Open box accepts: lowercase letters, digits and single dashes, so an ID is always a safe URL segment. */
 export const slugifyGameId = (raw: string) => raw.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
 /** Like `kestrel-lantern-7f3k`. ~40 bits (older 4-character IDs still work): an unlisted link, not a secret (the rules deny listing games). */
 export const newGameId = () => {
-  const word = () => CODENAMES[pick(CODENAMES.length)].toLowerCase();
-  return `${word()}-${word()}-${Array.from({ length: 6 }, () => ALPHABET[pick(ALPHABET.length)]).join('')}`;
+  const word = () => CODENAMES[randomInt(CODENAMES.length)].toLowerCase();
+  return `${word()}-${word()}-${Array.from({ length: 6 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('')}`;
 };
 
 // Games this browser has opened, newest first, so the landing page can offer a way back in.

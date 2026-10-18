@@ -1,7 +1,7 @@
 import type { Character } from '../model/character';
 import { STATS, STAT_SETS, POINT_BUY_TOTAL, VETERANS, FEATURES, type Stat } from './data/creation';
 import { PROFESSIONS, type ProfessionDef } from './data/professions';
-import { BASE_RATINGS, BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPED_SKILLS, baseRating, makeKey } from './data/skills';
+import { BASE_RATINGS, BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, MAX_SKILL, TYPED_SKILLS, baseRating, makeKey } from './data/skills';
 
 // ---- Statistics (pp. 14, 18–19)
 export const roll4d6dl = (rng = Math.random) => {
@@ -18,6 +18,7 @@ export function testOutcome(roll: number, chance: number): Outcome {
   if (roll <= chance) return 'success';
   return match ? 'fumble' : 'failure';
 }
+export { isSuccess, outcomeClass } from './outcome';
 export const rollD100 = () => 1 + Math.floor(Math.random() * 100);
 
 /** p. 47: 1–2 WP is −20% to everything; at 0 WP no test can succeed. `extra` is any other flat penalty. */
@@ -147,7 +148,7 @@ export function skillsOf(c: Character, advance: Record<string, number> = {}): Sk
     const professional = kit.get(key) ?? null;
     const base = baseRating(key);
     const b = bonus.get(key) ?? 0, vv = vet.get(key) ?? 0;
-    return { key, base, professional, bonus: b, veteran: vv, total: Math.min(99, (professional ?? base) + b + vv + (advance[key] ?? 0)) };
+    return { key, base, professional, bonus: b, veteran: vv, total: Math.min(MAX_SKILL, (professional ?? base) + b + vv + (advance[key] ?? 0)) };
   });
 }
 
@@ -193,7 +194,7 @@ export function validate(c: Character): Issue[] {
 
   if (c.bonus.some((k) => !k)) add('profession', `Pick all ${BONUS_PICKS} bonus skills.`);
   if (c.bonus.includes('Unnatural')) add('profession', 'Unnatural cannot be a bonus skill.');
-  if (c.bonus.some((k) => k && /^(Art|Craft|Foreign Language|Military Science|Pilot|Science)$/.test(k))) add('profession', 'Name the type for each typed bonus skill.');
+  if (c.bonus.some((k) => k && TYPED_SKILLS.includes(k))) add('profession', 'Name the type for each typed bonus skill.');
   for (const s of skillsOf(c)) if (s.bonus && (s.professional ?? s.base) + s.bonus > MAX_CREATION_SKILL) add('profession', `${s.key} exceeds ${MAX_CREATION_SKILL}% before veteran adjustments (the Handler may allow it).`, true);
 
   const need = bondCount(c);

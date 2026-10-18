@@ -1,4 +1,7 @@
 // Flavor lists for the "Randomize details" button. Not from the Handbook.
+/** A uniform integer in [0, n). */
+export const randomInt = (n: number) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+export const pick = <T,>(a: readonly T[]) => a[randomInt(a.length)];
 export const FIRST = ['James', 'Mary', 'Robert', 'Patricia', 'Michael', 'Linda', 'David', 'Barbara', 'Daniel', 'Susan', 'Carlos', 'Maria', 'Wei', 'Priya', 'Omar', 'Aisha', 'Thomas', 'Karen', 'Marcus', 'Elena'];
 export const LAST = ['Smith', 'Johnson', 'Williams', 'Brown', 'Garcia', 'Miller', 'Davis', 'Nguyen', 'Kowalski', 'Okafor', 'Patel', 'Reyes', 'Sullivan', 'Hoffman', 'Tanaka', 'Rossi', 'Haddad', 'Larsen', 'Whitaker', 'Moreau'];
 export const CODENAMES = ['Anvil', 'Bellwether', 'Cinder', 'Dovetail', 'Echo', 'Foxglove', 'Gannet', 'Halcyon', 'Ironbark', 'Jackdaw', 'Kestrel', 'Lantern', 'Marlin', 'Nightjar', 'Obsidian', 'Plover', 'Quarry', 'Raven', 'Sable', 'Tamarack', 'Umber', 'Vesper', 'Wren', 'Yarrow'];
