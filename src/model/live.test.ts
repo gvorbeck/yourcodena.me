@@ -54,10 +54,10 @@ describe('SAN loss', () => {
 describe('review fixes', () => {
   it('resets the Breaking Point from current POW, veteran penalty included', () => {
     const c = newCharacter();
-    c.stats.POW = 12; c.veteran = 'captivity'; // POW −3 → 9, SAN 60 − 5 = 55, BP 46
+    c.stats.POW = 12; c.veteran = 'captivity'; // POW −3 → 9, SAN 60 − 5 = 55, BP 60 − 9 = 51 (starting SAN is pre-veteran; the book is silent on Captivity's POW drop)
     const l = freshLive(c);
-    expect(l.bp).toBe(46);
-    expect(loseSan(c, { ...l, san: 47 }, 2, 'unnatural').live).toMatchObject({ san: 45, bp: 36 }); // 45 − 9, not 45 − 12
+    expect(l.bp).toBe(51);
+    expect(loseSan(c, { ...l, san: 53 }, 2, 'unnatural').live).toMatchObject({ san: 51, bp: 42 }); // 51 − 9, not 51 − 12
   });
   it('rejects negative temporary loss, positive permanent change and unknown stats', () => {
     const c = newCharacter();
@@ -167,5 +167,14 @@ describe('damaged veterans start adapted (p. 38)', () => {
     expect(freshLive(c).adapt).toEqual({ v: 0, h: 3 });
     c.veteran = 'hard';
     expect(freshLive(c).adapt).toEqual({ v: 0, h: 0 });
+  });
+});
+
+describe('Breaking Point with veterans (p. 38 example: SAN 60→55, BP stays 48)', () => {
+  it('only Things Man Was Not Meant to Know lowers BP with SAN', () => {
+    const c = newCharacter();
+    c.stats.POW = 12;
+    const bp = (v: string) => { c.veteran = v; return freshLive(c).bp; };
+    expect([bp(''), bp('violence'), bp('hard'), bp('unnatural')]).toEqual([48, 48, 48, 36]);
   });
 });

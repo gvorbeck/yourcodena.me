@@ -70,7 +70,7 @@ export function derived(c: Character) {
     pow,
     cha: CHA - (v?.cha ?? 0),
     san,
-    bp: san - pow,
+    bp: (unnatural ? san : baseSan) - pow, // p. 38: only Things Man Was Not Meant to Know resets BP to the reduced SAN
     maxSan: 99 - unnatural,
     bondScore: CHA - (v?.bonds ?? 0),
   };

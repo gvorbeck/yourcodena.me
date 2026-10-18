@@ -33,11 +33,12 @@ Checked against the Handbook and matching: derived attributes (p. 18); crit/fumb
   - **Test:** `freshLive` for each veteran gives the expected `adapt`; `loseSan` with `kind: 'violence'` on an Extreme Violence Agent reports an automatic pass path (check `adapted()` is true).
   - **Existing data:** `untouched()` compares against `freshLive`, so unplayed sheets rebuild themselves. Played sheets saved before the fix keep 0; decide whether to leave them.
 
-- [ ] **R2. Breaking Point too low for Violence, Captivity and Hard Experience**
+- [x] **R2. Breaking Point too low for Violence, Captivity and Hard Experience**
   - **Where:** [src/rules/index.ts:64-73](src/rules/index.ts) (`derived`): `bp: san - pow` where `san` already has the veteran's −5 applied.
   - **Rule:** BP is starting SAN minus POW (pp. 18–19). The p. 38 worked example (Hard Experience): SAN drops 60→55, and Daryl's BP is still 60 − 12 = 48 (p. 68 example). Only Things Man Was Not Meant to Know says "reset BP to new SAN minus POW".
   - **Observed:** With POW 12 and CHA 12: none → BP 48; violence → 43 (book: 48); hard → 43 (book: 48); captivity → 46; unnatural → 36 (correct).
   - **Fix:** Compute `bp` from the pre-veteran SAN for violence, hard and captivity: `bp = baseSan - POW` (that is `POW * 5 - POW`). Keep the current behaviour for `unnatural`.
+  - **Done:** Captivity uses `60 − 9 = 51` (pre-veteran SAN minus current POW), consistent with how `loseSan` resets BP from current POW. Change if a ruling says otherwise.
   - **Open question (Captivity):** POW also drops by 3, so BP could be `60 − 12` (48) or `60 − 9` (51). The book doesn't say. Pick one, and note the ruling in a comment.
   - **Tests to change:** [live.test.ts](src/model/live.test.ts) "review fixes" asserts captivity BP 46 and `freshLive(...).bp`; [rules.test.ts:91-94](src/rules/rules.test.ts) only checks `san` for violence. Update and add BP assertions.
 
