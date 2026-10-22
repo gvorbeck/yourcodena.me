@@ -1,4 +1,4 @@
-import { copyNote, useCopy } from '../lib/useCopy';
+import { copyLabel, copyNote, useCopy } from '../lib/useCopy';
 import { STATS, STAT_NAMES } from '../rules/data/creation';
 import { bondCount, derived, disorderOf, featureOf, professionOf, validate, veteranOf, blocking } from '../rules';
 import { asciiSheet } from '../model/sheet';
@@ -16,7 +16,7 @@ export function ReviewStep({ c, onLive }: StepProps & { onLive: () => void }) {
       <div className="row noprint">
         <Btn onPress={() => window.print()}>Print / PDF</Btn>
         <Btn onPress={() => exportJson(c)}>Export JSON</Btn>
-        <Btn onPress={() => copy(asciiSheet(c))}>{copied === 'ok' ? 'Copied ✓' : copied === 'fail' ? 'Copy failed' : 'Copy Text'}</Btn>
+        <Btn onPress={() => copy(asciiSheet(c))}>{copyLabel(copied, 'Copy Text', 'Copied ✓')}</Btn>
         <span className="sr-only" role="status">{copyNote(copied)}</span>
         <Btn disabled={blocking(issues).length > 0} onPress={onLive}>Live Sheet</Btn>
       </div>

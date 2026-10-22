@@ -5,7 +5,7 @@ import { bondCount, derived, isSuccess, liveOutcome, outcomeClass, professionOf,
 import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, effStat, encodeSheet, loseSan, maxSanOf, permStats, refreshSpent, setUnnatural, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
 import type { Character } from './model/character';
 import { Btn, ConfirmDialog, SkillTable, Win } from './ui';
-import { copyNote, useCopy } from './lib/useCopy';
+import { copyLabel, copyNote, useCopy } from './lib/useCopy';
 import * as play from './model/actions';
 
 function Counter({ label, note, value, max, step = 1, onChange, onRoll }: { label: string; note?: string; value: number; max?: number; step?: number; onChange: (v: number) => void; onRoll?: () => void }) {
@@ -197,7 +197,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
             <Link className="btn" to={`/g/${game.gameId}`}>&lt; Game</Link>
             <Btn onPress={game.back}>Edit agent</Btn>
           </> : <Btn onPress={() => setLeaving(true)}>&lt; Home</Btn>}
-          <Btn onPress={() => copy(game ? location.href : location.origin + location.pathname + link)}>{copied === 'ok' ? 'Link copied ✓' : copied === 'fail' ? 'Copy failed' : game ? 'Copy agent link' : 'Copy share link'}</Btn>
+          <Btn onPress={() => copy(game ? location.href : location.origin + location.pathname + link)}>{copyLabel(copied, game ? 'Copy agent link' : 'Copy share link')}</Btn>
           <span className="sr-only" role="status">{copyNote(copied)}</span>
           <ConfirmDialog open={leaving} title="Leave this sheet?" confirm="Leave" onClose={() => setLeaving(false)}
             onConfirm={() => { history.replaceState(null, '', location.pathname); location.reload(); }}>

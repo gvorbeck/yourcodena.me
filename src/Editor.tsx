@@ -29,6 +29,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
   const file = useRef<HTMLInputElement>(null);
   const [askImport, setAskImport] = useState(false);
   const [importError, setImportError] = useState(false);
+  const [imports, setImports] = useState(0); // keys the step so its local state (e.g. roll undo) resets on import
   const pickFile = () => setAskImport(true);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
@@ -58,7 +59,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
             const f = e.target.files?.[0];
             e.target.value = '';
             if (!f) return;
-            try { setC(await importJson(f)); setStep(0); setImportError(false); } catch { setImportError(true); }
+            try { setC(await importJson(f)); setStep(0); setImports((n) => n + 1); setImportError(false); } catch { setImportError(true); }
           }} />
       </MenuBar>
 
@@ -86,7 +87,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
         </Win>
 
         <Win title={`STEP ${step + 1} // ${cur.title.toUpperCase()}`} right={`${step + 1}/${STEPS.length}`} headingRef={heading}>
-          {cur.id === 'stats' && <StatsStep {...props} />}
+          {cur.id === 'stats' && <StatsStep key={imports} {...props} />}
           {cur.id === 'profession' && <ProfessionStep {...props} />}
           {cur.id === 'bonds' && <BondsStep {...props} />}
           {cur.id === 'details' && <DetailsStep {...props} />}

@@ -33,6 +33,7 @@ export default function Home() {
         {recent.length > 0 && (
           <>
             <h3>Recent</h3>
+            <p className="dim"><small>Games you opened in this browser.</small></p>
             <ul className="agents">{recent.map((id) => <li key={id}><Link to={`/g/${id}`}>{id}</Link></li>)}</ul>
           </>
         )}

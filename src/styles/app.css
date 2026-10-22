@@ -207,3 +207,5 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; } a.btn:is
 .combo { flex: 1; min-width: 0; } .combo.inline { flex: none; width: 12rem; margin-left: .5rem; display: inline-block; }
 .row.nowrap { flex-wrap: nowrap; } .row.nowrap > select { flex: 1; min-width: 0; width: auto; }
 .san-loss { width: 10ch; }
+code.link { font: inherit; overflow-wrap: anywhere; }
+.was { color: var(--accent); }

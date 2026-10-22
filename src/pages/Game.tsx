@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { outcomeClass } from '../rules/outcome';
 import { isStaleChunk, reloadForNewBuild } from '../lib/staleBuild';
-import { copyNote, useCopy } from '../lib/useCopy';
+import { copyLabel, copyNote, useCopy } from '../lib/useCopy';
 import { createGame, useAgents, useGameExists, useRolls } from '../lib/games';
 import { hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
@@ -19,6 +19,7 @@ export default function Game() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [copied, copy] = useCopy();
+  const link = `${location.origin}/g/${gameId}`; // no query or hash the visitor arrived with
   useEffect(() => { if (exists.data) rememberGame(gameId); }, [exists.data, gameId]);
 
   const run = async (fn: () => Promise<void>) => {
@@ -52,8 +53,14 @@ export default function Game() {
   }
 
   return (
-    <Page title={gameId} actions={<><button onClick={() => copy(location.href)}>{copied === 'ok' ? 'Link copied ✓' : copied === 'fail' ? 'Copy failed' : 'Copy game link'}</button><span className="sr-only" role="status">{copyNote(copied)}</span></>}>
+    <Page title={gameId}>
       <Win title={`GAME // ${gameId.toUpperCase()}`}>
+        <p className="dim">Anyone with this link can see the game's agents and rolls. Share it with your table.</p>
+        <div className="row">
+          <code className="link">{link}</code>
+          <button className="btn" onClick={() => copy(link)}>{copyLabel(copied, 'Copy game link')}</button>
+          <span className="sr-only" role="status">{copyNote(copied)}</span>
+        </div>
         <h3>Agents</h3>
         {agents.error ? <p className="warn">Could not load agents. Reload to retry.</p> : agents.data === undefined ? <p className="dim">Loading…</p> : agents.data.length === 0 ? <p className="dim">No agents yet.</p> : (
           <ul className="agents">
