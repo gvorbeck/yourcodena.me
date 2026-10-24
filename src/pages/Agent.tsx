@@ -43,8 +43,11 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
   // A complete agent always has a live sheet, including one saved before that was automatic, so it opens straight into it.
   const [live, setLive] = useState(() => init.live ?? (blocking(validate(init.c)).length === 0 ? freshLive(init.c) : null));
   const [mode, setMode] = useState<'edit' | 'live'>(live ? 'live' : 'edit');
-  const [failed, setFailed] = useState(false);
-  const fail = () => setFailed(true);
+  // One flag per kind of write, so one succeeding never hides another still failing. A roll is never retried,
+  // so its warning stays until a later roll is logged.
+  const [fails, setFails] = useState({ c: false, live: false, roll: false });
+  const report = (k: keyof typeof fails) => (ok: boolean) => setFails((f) => (f[k] === !ok ? f : { ...f, [k]: !ok }));
+  const failed = fails.c || fails.live || fails.roll;
   const issues = validate(c);
   const complete = blocking(issues).length === 0;
   // The live sheet exists as soon as creation is complete, so the game page shows the agent's vitals without anyone pressing a button.
@@ -57,15 +60,15 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
     prevC.current = c;
     if (prev !== c) setLive((l) => (l && (untouched(l, prev) ? freshLive(c) : reconcile(l, c))));
   }, [c]);
-  useAutosave(c, (v) => saveCharacter(gameId, agentId, v), fail);
-  useAutosave(live, (v) => (v ? saveLive(gameId, agentId, v) : Promise.resolve()), fail, init.live);
+  useAutosave(c, (v) => saveCharacter(gameId, agentId, v), report('c'));
+  useAutosave(live, (v) => (v ? saveLive(gameId, agentId, v) : Promise.resolve()), report('live'), init.live);
 
   if (mode === 'live' && live) {
     // `init` is read once when the sheet mounts; later changes flow back through onChange.
     return (
       <LiveSheet c={c} init={live} game={{
         gameId, failed, back: () => setMode('edit'), onChange: setLive,
-        onRoll: ({ pen, ...r }) => logRoll(gameId, { ...r, penalty: pen, agentId, agentName: c.details.codename.trim() || c.details.name.trim() || 'Unnamed agent' }).catch(fail),
+        onRoll: ({ pen, ...r }) => logRoll(gameId, { ...r, penalty: pen, agentId, agentName: c.details.codename.trim() || c.details.name.trim() || 'Unnamed agent' }).then(() => report('roll')(true), () => report('roll')(false)),
       }} />
     );
   }

@@ -51,7 +51,7 @@ service cloud.firestore {
         allow create: if request.resource.data.keys().hasOnly(['agentId', 'agentName', 'label', 'chance', 'penalty', 'roll', 'outcome', 'createdAt'])
           && request.resource.data.agentId is string && request.resource.data.agentId.size() > 0 && request.resource.data.agentId.size() <= 40
           && request.resource.data.agentName is string && request.resource.data.agentName.size() <= 100
-          && request.resource.data.label is string && request.resource.data.label.size() > 0 && request.resource.data.label.size() <= 100
+          && request.resource.data.label is string && request.resource.data.label.size() > 0 && request.resource.data.label.size() <= 120
           && request.resource.data.chance is number && request.resource.data.chance >= 0 && request.resource.data.chance <= 100
           && request.resource.data.penalty is number && request.resource.data.penalty >= 0 && request.resource.data.penalty <= 200
           && request.resource.data.roll is number && request.resource.data.roll >= 1 && request.resource.data.roll <= 100

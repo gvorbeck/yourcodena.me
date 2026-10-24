@@ -8,15 +8,15 @@ import { useAutosave } from './useAutosave';
 
 type Props = { value: number; loaded?: number };
 let save: Mock<(v: number) => Promise<void>>;
-let onError: Mock<() => void>;
+let report: Mock<(ok: boolean) => void>;
 let root: ReturnType<typeof createRoot>;
-const Probe = ({ value, loaded }: Props) => { useAutosave(value, save, onError, loaded); return null; };
+const Probe = ({ value, loaded }: Props) => { useAutosave(value, save, report, loaded); return null; };
 const render = (p: Props) => act(() => root.render(createElement(Probe, p)));
 
 beforeEach(() => {
   vi.useFakeTimers();
   save = vi.fn<(v: number) => Promise<void>>().mockResolvedValue(undefined);
-  onError = vi.fn<() => void>();
+  report = vi.fn<(ok: boolean) => void>();
   root = createRoot(document.createElement('div'));
 });
 afterEach(() => { act(() => root.unmount()); vi.useRealTimers(); });
@@ -49,15 +49,17 @@ describe('useAutosave', () => {
     expect(save).toHaveBeenCalledWith(5);
   });
 
-  it('retries a rejected write on the next flush and reports the error', async () => {
+  it('retries a rejected write on the next flush and reports each outcome', async () => {
     save.mockRejectedValueOnce(new Error('denied'));
     render({ value: 1 });
     render({ value: 2 });
     vi.advanceTimersByTime(600);
     await vi.advanceTimersByTimeAsync(0);
-    expect(onError).toHaveBeenCalledTimes(1);
+    expect(report.mock.calls).toEqual([[false]]);
     act(() => root.unmount()); // unmount flush retries the unsaved value
     expect(save).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(report.mock.calls).toEqual([[false], [true]]); // the retry going through clears the failure
     root = createRoot(document.createElement('div'));
   });
 });

@@ -1,0 +1,7 @@
+# Bumps the pinned hosting action SHA in deploy.yml. firebase-tools there is pinned by hand (Dependabot can't read npx versions).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

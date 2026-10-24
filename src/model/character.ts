@@ -8,7 +8,7 @@ export const CHARACTER_VERSION = 1;
 const line = z.string().max(200).default('');
 const name = z.string().max(100).default(''); // also the cap in firestore.rules
 const prose = z.string().max(5000).default('');
-const skill = z.string().max(120); // "Family(Type)"; the type input stops at 100
+const skill = z.string().max(120); // "Family(Type)"; the type input stops at 100. Also the roll label cap in firestore.rules.
 const stat = z.number().int().min(3).max(18);
 
 export const characterSchema = z.object({

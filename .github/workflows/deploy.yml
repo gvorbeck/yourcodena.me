@@ -25,17 +25,20 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_APPCHECK_SITE_KEY: ${{ secrets.VITE_APPCHECK_SITE_KEY }}
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODENAME_DG }}
-          channelId: live
-          projectId: codename-dg
+      # Rules go first, so a new build never runs against old rules that reject its fields. Open tabs keep running the
+      # old build, so rules must accept both builds' writes: add a field in one release, stop allowing it in a later one.
       # The hosting action ships Hosting only. The service account needs the "Firebase Rules Admin" role for this step.
+      # Tools that receive the service account are pinned: bump these by hand.
       - name: Deploy Firestore rules
         env:
           SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODENAME_DG }}
         run: |
           printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
-          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools deploy --only firestore:rules --project codename-dg
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@15.34.1 deploy --only firestore:rules --project codename-dg
           rm -f "$RUNNER_TEMP/sa.json"
+      - uses: FirebaseExtended/action-hosting-deploy@500ac625ca2dd40cbd15f7659af953801858032a # v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODENAME_DG }}
+          channelId: live
+          projectId: codename-dg

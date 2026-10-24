@@ -76,7 +76,9 @@ export function derived(c: Character) {
     pow,
     cha: CHA - (v?.cha ?? 0),
     san,
-    bp: (unnatural ? san : baseSan) - pow, // p. 38: only Things Man Was Not Meant to Know resets BP to the reduced SAN
+    // p. 38: only Things Man Was Not Meant to Know resets BP to the reduced SAN. Captivity also lowers POW and the book
+    // doesn't say which POW to subtract; ruling: the reduced one (60 − 9 = 51, not 48), matching how loseSan resets BP.
+    bp: (unnatural ? san : baseSan) - pow,
     maxSan: 99 - unnatural,
     bondScore: CHA - (v?.bonds ?? 0),
   };
