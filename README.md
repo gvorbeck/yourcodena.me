@@ -1,37 +1,37 @@
 # YOURCODENA.ME
 
-**Agent Intake.** Live at [yourcodena.me](https://yourcodena.me/).
+A character creator for Delta Green. It's running at [yourcodena.me](https://yourcodena.me/).
 
-A Delta Green character creator. It walks you through the Agent's Handbook one step at a time, then hands you a sheet you can actually play from. Your Handler gets a shared game with every Agent and a roll log in one place. No accounts. Nobody wants another password. Nobody wants anything anymore.
+It follows the Agent's Handbook in order: statistics, profession and skills, bonds, details, then a review page where you get the finished sheet. After that you can keep playing from it. A Handler can make a game and everyone's Agents and rolls end up in the same place. There are no accounts.
 
-## What it does
+## What's in it
 
-- **Step-by-step creation.** Statistics and derived attributes, profession and skills, bonds, final details, review. Five steps. Same order as the book. Don't skip ahead. You'll want to.
-- **Shared games.** Make a game, get an ID like `kestrel-lantern-7f3k`, pass the link around. Everyone with it can add Agents and see the roll log. That's the security model. It's an unlisted link, not a secret. Act accordingly.
-- **Live sheet.** HP, WP, SAN, Breaking Point, bonds, exhaustion, adaptation to violence and helplessness, stat loss, disorders, skill checks that grow after the session. All the slow erosion, tracked so you don't have to.
-- **Roll log.** Percentile tests with penalties, logged per game, append-only. Fumbles stay on the record. Like everything else.
-- **Standalone sheets.** A whole sheet can live in the URL hash (`/#sheet=...`). No server involved. Bookmark it. Lose it. Your call.
-- **Plain-text and print output.** A 30-column ASCII sheet for pasting wherever, plus a print stylesheet for people who still trust paper.
-- **Recent games.** The landing page remembers the last five games this browser opened. It's the only thing here that remembers anything fondly.
+- Character creation in five steps, same order as the book.
+- Shared games. You get an ID like `kestrel-lantern-7f3k` and send the link to people. Anyone with the link can read and write the game. It's unlisted, not secret, so don't put anything in there you'd mind losing.
+- A live sheet for play: HP, WP, SAN, Breaking Point, bonds, exhaustion, adaptation to violence and helplessness, temporary and permanent stat loss, disorders, and the skills you failed this session so they can improve afterward.
+- A roll log per game. Percentile tests, penalties, outcome. You can't edit or delete rolls.
+- Standalone sheets that live entirely in the URL hash (`/#sheet=...`). Nothing is stored on a server. If you lose the link you lose the Agent.
+- A plain-text sheet, 30 columns wide, for pasting into chat. Also a print stylesheet.
+- The home page remembers the last five games you opened in this browser.
 
 ## Routes
 
-| Path | What lives there |
+| Path | |
 | --- | --- |
-| `/` | Landing. Open a game by ID or generate a new one. |
-| `/#sheet=...` | Standalone sheet, stored entirely in the hash. |
-| `/g/:gameId` | The game: Agents and the roll log. |
-| `/g/:gameId/a/:agentId` | One Agent's editor and live sheet. |
+| `/` | Open a game by ID or make a new one |
+| `/#sheet=...` | Standalone sheet stored in the hash |
+| `/g/:gameId` | A game's Agents and roll log |
+| `/g/:gameId/a/:agentId` | One Agent, editor and live sheet |
 
-Anything else bounces you back to `/`. Probably for the best.
+Anything else redirects to `/`.
 
 ## Stack
 
-React 19, TypeScript, Vite, React Router, React Aria Components, Zod, Firebase (Firestore + Hosting, optional App Check). Vitest for tests. ESLint with jsx-a11y because accessibility is not optional, even down here.
+React 19, TypeScript, Vite, React Router, React Aria Components, Zod, Firebase (Firestore, Hosting, optional App Check). Tests are Vitest. Lint is ESLint with jsx-a11y.
 
-## Running it
+## Running locally
 
-Node 22. Same as CI. Don't argue with CI.
+Use Node 22, since that's what CI runs.
 
 ```bash
 npm install
@@ -41,67 +41,65 @@ npm install
 cp .env.example .env
 ```
 
-Fill in the Firebase values from your own project. `VITE_APPCHECK_SITE_KEY` is optional; set it and App Check turns on with reCAPTCHA Enterprise. Enable it in the Firebase console and enforce it for Firestore, or don't, and find out why you should have.
+Put your own Firebase project's values in `.env`. `VITE_APPCHECK_SITE_KEY` is optional. If you set it, App Check starts up with reCAPTCHA Enterprise, but it doesn't do much until you also enable it in the Firebase console and enforce it for Firestore.
 
 ```bash
 npm run dev
 ```
 
-| Script | Does |
-| --- | --- |
-| `npm run dev` | Vite dev server. |
-| `npm run build` | Typecheck, then build to `dist/`. |
-| `npm run preview` | Serve the build locally. |
-| `npm test` | Vitest, once. |
-| `npm run lint` | ESLint over `src/`. |
+Other scripts:
 
-## Layout
+| | |
+| --- | --- |
+| `npm run build` | Typecheck, then build to `dist/` |
+| `npm run preview` | Serve the build |
+| `npm test` | Run the tests once |
+| `npm run lint` | Lint `src/` |
+
+## Where things are
 
 ```
 src/
-  pages/    Home, Game, Agent, Shared. Each one lazy-loaded. Nobody downloads more than they have to.
-  steps/    The five creation steps.
-  rules/    Dice, test outcomes, and rules data: stats, professions, skills, codenames.
-  model/    Character and live-sheet schemas (Zod), roll actions, ASCII sheet output.
-  lib/      Firestore access, game IDs, autosave, diffing, stale-build recovery, copy-to-clipboard.
-  ui/       Window chrome, menu bar, skip link, the legal line.
-  styles/   Tokens, app styles, print styles.
-firestore.rules   The only thing standing between you and chaos.
+  pages/    Home, Game, Agent, Shared (each loaded separately)
+  steps/    the five creation steps
+  rules/    dice, test outcomes, and rules data (stats, professions, skills, codenames)
+  model/    Zod schemas for the character and live sheet, roll actions, the text sheet
+  lib/      Firestore, game IDs, autosave, diffing, stale build reload, clipboard
+  ui/       window chrome, menu bar, skip link, legal text
+  styles/   tokens, app, print
+firestore.rules
 ```
 
 ## Data
 
-Firestore. No auth. A game is gated by its ID and nothing else.
+Firestore, no auth. Knowing a game's ID is the only thing that gets you into it.
 
 ```
-games/{gameId}                    { createdAt, schemaVersion }                          immutable
-games/{gameId}/agents/{agentId}   { name, codename, profession, character, live,        create/update only
+games/{gameId}                    { createdAt, schemaVersion }                      never changes
+games/{gameId}/agents/{agentId}   { name, codename, profession, character, live,    create and update
                                     createdAt, updatedAt }
-games/{gameId}/rolls/{rollId}     { agentId, agentName, label, chance, penalty,         append-only
+games/{gameId}/rolls/{rollId}     { agentId, agentName, label, chance, penalty,     create only
                                     roll, outcome, createdAt }
 ```
 
-What the rules enforce:
+The rules don't let anyone list games or delete anything. Cleanup has to be done by hand with admin access. Every write is checked against an allowed set of keys, string lengths, and number ranges, so a roll can't come in as 147.
 
-- Nobody lists games. Nobody deletes anything. Cleanup is an admin job.
-- Every write is shape-checked: allowed keys only, bounded strings, numbers in range. You can't stuff a roll log with a 147.
-- Rules can't count documents, so agents and rolls per game are uncapped. That's what App Check is for.
-- **Adding a field means adding it to that document's `hasOnly` list.** Forget, and writes start failing. Quietly. Then loudly.
+The rules can't count documents, so there's no cap on Agents or rolls per game. App Check is the only thing that helps with that.
 
-Saves send only the fields that changed since this tab last read or wrote, so two devices editing different parts of one Agent don't trample each other. Same field, last write wins. Nothing is fair.
+If you add a field to a document you have to add it to that document's `hasOnly` list in `firestore.rules`. If you don't, the writes get rejected and you'll probably notice later than you'd like.
+
+When an Agent saves, it only sends the fields that changed since that tab last read or wrote them. Two people editing different parts of one sheet won't overwrite each other. If they edit the same field, whoever saves last wins.
 
 ## Deploying
 
-Push to `main`. [The workflow](.github/workflows/deploy.yml) lints, tests, builds, deploys Firestore rules, then deploys Hosting to the `codename-dg` project.
+Pushing to `main` runs [the workflow](.github/workflows/deploy.yml): lint, test, build, deploy Firestore rules, deploy Hosting to `codename-dg`.
 
-Rules ship before the build on purpose. Old tabs keep running the old build for a while, so the rules have to accept writes from both. Adding a field: allow it in one release, depend on it in the next. Removing one: stop writing it first, stop allowing it later. Two releases. Every time. Yes, really.
+Rules go out before the new build. Tabs that are already open keep running the old build for a while, so the rules have to accept writes from both versions at once. That means adding a field takes two releases (allow it, then use it) and removing one also takes two (stop writing it, then stop allowing it).
 
-If an open tab asks for a chunk the new deploy deleted, the app reloads once to pick up the new build. Only once. If the deploy itself is broken, you get the error instead of a reload loop. Small mercies.
+After a deploy, an old tab may ask for a file that no longer exists. When that happens the app reloads once. If it fails again within a few seconds it shows the error instead of reloading forever.
 
-Secrets the workflow wants: the `VITE_FIREBASE_*` values, `VITE_APPCHECK_SITE_KEY`, and `FIREBASE_SERVICE_ACCOUNT_CODENAME_DG`. The service account needs **Firebase Rules Admin** for the rules step. The `firebase-tools` version and the hosting action are pinned by hand. Dependabot handles the rest of the Actions. Somebody has to.
+The workflow needs these secrets: the `VITE_FIREBASE_*` values, `VITE_APPCHECK_SITE_KEY`, and `FIREBASE_SERVICE_ACCOUNT_CODENAME_DG`. That service account needs the Firebase Rules Admin role or the rules step fails. The `firebase-tools` version and the hosting action are pinned and have to be bumped by hand. Dependabot does the other Actions.
 
 ## Legal
 
 Published by arrangement with the Delta Green Partnership. The intellectual property known as Delta Green is a trademark and copyright owned by the Delta Green Partnership, who has licensed its use here. The contents of this document are © [J. Garrett Vorbeck](https://iamgarrett.com), excepting those elements that are components of the Delta Green intellectual property.
-
-You didn't see any of this.
