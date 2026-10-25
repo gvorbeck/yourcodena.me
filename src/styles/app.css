@@ -209,3 +209,36 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; } a.btn:is
 .san-loss { width: 10ch; }
 code.link { font: inherit; overflow-wrap: anywhere; }
 .was { color: var(--accent); }
+
+/* Glitch: the title tears into colour-shifted slices in short bursts; window titles flicker now and then. */
+.glitch { position: relative; display: inline-block; }
+.menubar a:is(:hover, :focus-visible) .glitch { text-decoration: underline; } /* inline-block blocks the link's underline from reaching it */
+@media (prefers-reduced-motion: no-preference) {
+  .glitch { animation: jitter 5s steps(1) infinite; }
+  .glitch::before, .glitch::after { content: attr(data-text); position: absolute; inset: 0; background: var(--inv-bg); clip-path: inset(0 0 100% 0); }
+  .glitch::before { color: var(--accent); animation: slice 5s steps(1) infinite; }
+  .glitch::after { color: var(--warn); animation: slice 7.3s steps(1) infinite -2s; } /* off-beat so bursts never repeat the same way */
+  .win > header h2:not(:focus) { animation: flicker 9s steps(1) infinite; }
+  .win:nth-of-type(even) > header h2 { animation-duration: 13s; animation-delay: -5s; }
+  .live .win > header h2 { animation: none; } /* keep live-play headings steady */
+}
+@keyframes slice {
+  0%, 88%, 100% { clip-path: inset(0 0 100% 0); transform: none; }
+  89% { clip-path: inset(10% 0 60% 0); transform: translateX(-3px); }
+  91% { clip-path: inset(55% 0 20% 0); transform: translateX(3px); }
+  93% { clip-path: inset(30% 0 45% 0); transform: translate(-2px, 1px); }
+  95% { clip-path: inset(70% 0 5% 0); transform: translateX(2px); }
+  97% { clip-path: inset(0 0 80% 0); transform: translateX(-1px); }
+}
+@keyframes jitter {
+  0%, 89%, 100% { transform: none; opacity: 1; }
+  90% { transform: translate(1px, -1px) skewX(8deg); }
+  94% { transform: translateX(-1px); }
+  96% { transform: skewX(-6deg); opacity: .6; }
+}
+@keyframes flicker {
+  0%, 96%, 100% { opacity: 1; transform: none; }
+  96.5% { opacity: .2; }
+  97% { opacity: 1; transform: translateX(2px); }
+  97.5% { opacity: .5; transform: none; }
+}
