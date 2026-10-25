@@ -16,7 +16,7 @@ Add server code (Firebase Cloud Functions), then build on it in order. Today the
 
 Every phase must leave today's experience unchanged. Nobody signs up, nobody types a password, and no existing link, game or sheet stops working.
 
-- **Order of deploys:** ship the app first and the rules last. Any rule that expects new app behavior waits 2 weeks after that app ships, because old tabs keep running old code until they hit a missing file.
+- **Old and new app together:** CI deploys rules before the app (see README, Deploying), so rules must accept both versions. A rule that expects new app behavior waits 2 weeks after that app ships, because old tabs keep running old code until they hit a missing file.
 - **Rules only add permissions** until that wait is over. They never take any away before then.
 - **Test before deploying rules:** every rules change is run in the emulator against the current app's writes. Those writes must still pass.
 - **Untouched:** open games, `/#sheet=` links, the recent-games list, offline play and the roll log.
@@ -28,12 +28,16 @@ End state: browsers only touch game data (`games`, `agents`, `rolls`, `members`)
 
 - [x] **You:** switch Firebase to the Blaze plan. Functions need it.
 - [x] **You:** set a $5/month budget with email alerts in Google Cloud Billing.
-- [ ] **Me:** kill switch: when the budget is passed, a Function turns billing off. The site goes offline until you turn billing back on. Google's built-in spend caps were checked on 2026-10-25 and can't do this job: they cover one service per budget, from a list of 4 that doesn't include Firestore.
-- [ ] **You:** set `VITE_APPCHECK_SITE_KEY` and deploy. Leave enforcement **off**.
-- [ ] **You:** after 2 weeks, check the App Check metrics in the console. Enforce only if unverified requests are near zero. Some privacy browsers block reCAPTCHA, and enforcing would lock those players out.
-- [ ] **Me:** cap every Function at 5 instances, a 10-second timeout and 256 MiB of memory.
+- [x] **Me:** kill switch (`functions/src/index.ts`, recovery steps in the README): when the budget is passed, a Function turns billing off. The site goes offline until you turn billing back on. Google's built-in spend caps were checked on 2026-10-25 and can't do this job: they cover one service per budget, from a list of 4 that doesn't include Firestore.
+- [x] **You:** set `VITE_APPCHECK_SITE_KEY` and deploy. Leave enforcement **off**. (Live since 2026-10-18.)
+- [ ] **You:** on or after 2026-11-01, check the App Check metrics in the console. Enforce only if unverified requests are near zero. Some privacy browsers block reCAPTCHA, and enforcing would lock those players out.
+- [x] **Me:** cap every Function at 5 instances, a 10-second timeout and 256 MiB of memory.
+- [x] **You:** turn on the Cloud Billing API (Cloud console → APIs & Services → Library → "Cloud Billing API" → Enable).
+- [x] **You:** run `firebase deploy --only functions` (done 2026-10-25, region us-east1). This also creates the `budget-alerts` Pub/Sub topic.
+- [x] **You:** in IAM (Cloud console → IAM & Admin → IAM), give `<project number>-compute@developer.gserviceaccount.com` the **Project Billing Manager** role.
+- [x] **You:** edit the $5 budget → Manage notifications → Connect a Pub/Sub topic → `budget-alerts` → Save.
 
-**Done when:** going over $5 shuts billing off and emails you. This is the one exception to "current users notice nothing": a site that's down beats a surprise bill.
+**Done when:** going over $5 shuts billing off and emails you. Wiring verified 2026-10-25: a test 50% alert and Google's own alerts (every ~20 min) reach the kill switch and are ignored. This is the one exception to "current users notice nothing": a site that's down beats a surprise bill.
 
 Normal play stays in the free tier. Spam is the risk, and phases 2a and 4 add per-user limits for it. Skipped: extra debouncing (autosave already waits 0.6 s), and having users bring their own Firebase (too much setup for players).
 

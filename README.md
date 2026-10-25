@@ -68,6 +68,8 @@ src/
   ui/       window chrome, menu bar, skip link, legal text
   styles/   tokens, app, print
 firestore.rules
+functions/  Cloud Functions: the budget kill switch
+docs/       plans in progress
 ```
 
 ## Data
@@ -99,6 +101,27 @@ Rules go out before the new build. Tabs that are already open keep running the o
 After a deploy, an old tab may ask for a file that no longer exists. When that happens the app reloads once. If it fails again within a few seconds it shows the error instead of reloading forever.
 
 The workflow needs these secrets: the `VITE_FIREBASE_*` values, `VITE_APPCHECK_SITE_KEY`, and `FIREBASE_SERVICE_ACCOUNT_CODENAME_DG`. That service account needs the Firebase Rules Admin role or the rules step fails. The `firebase-tools` version and the hosting action are pinned and have to be bumped by hand. Dependabot does the other Actions.
+
+Cloud Functions (`functions/`) are not in the workflow. Deploy them by hand with `firebase deploy --only functions`.
+
+## If the site was shut off for going over budget
+
+The project has a $5/month budget. When this month's actual cost reaches it, the `budgetKillSwitch` Function unlinks the billing account. Everything that costs money stops, and the site, the database or both stop working. You'll have budget emails at 50%, 90% and 100%.
+
+Don't just turn billing back on. This month's cost is still over the budget, so the next budget alert (about every 30 minutes) shuts it off again. Do these in order:
+
+1. **Find what cost money.** In the Google Cloud console, go to Billing → Reports. Set Group by to "SKU" and the time range to the current month. Usually it's Firestore reads or writes, or Cloud Functions.
+2. **Find who did it.** In the Firebase console, check Firestore → Usage for the spike. Check Functions → Logs too, or run `firebase functions:log`. A single game ID or Agent showing up thousands of times is spam.
+3. **Stop the cause before going back online.** Examples:
+    - Enforce App Check (Firebase console → App Check → Firestore → Enforce).
+    - Delete the spam game in the Firestore console.
+    - Fix whatever rule or code let it through.
+4. **Raise the budget for the rest of the month.** In Billing → Budgets & caps, edit "Firebase Project codename-dg". Set the amount above what's already been spent, for example spent + $5. Save it. Skip this step if it's the 1st of a new month, because the cost has reset.
+5. **Turn billing back on.** In the Firebase console, open ⚙ → Usage and billing → Details & settings → Modify plan, and choose Blaze with the "Firebase Payment" billing account. Or, in the Cloud console, go to Billing → Account management for project `codename-dg`, then Link a billing account → "Firebase Payment".
+6. **Check it works.** Open [yourcodena.me](https://yourcodena.me/), open a game and make a roll. If Functions aren't responding after 10 minutes, run `firebase deploy --only functions`.
+7. **On the 1st of next month,** set the budget back to $5.
+
+Don't leave billing off for long. Google may eventually delete resources in a project with no billing account.
 
 ## Legal
 
