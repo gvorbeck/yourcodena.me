@@ -3,9 +3,12 @@
   "private": true,
   "type": "module",
   "main": "lib/index.js",
-  "engines": { "node": "22" },
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "webhook:test": "tsc && node lib/webhookTest.js"
   },
   "dependencies": {
     "@google-cloud/billing": "^6.2.0",

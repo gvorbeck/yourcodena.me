@@ -12,6 +12,11 @@ service cloud.firestore {
     // (turn on App Check: see VITE_APPCHECK_SITE_KEY in .env.example).
     // Adding a field to a document means adding it to its hasOnly list.
 
+    // Discord webhook URLs and other server-only data. Only Cloud Functions (Admin SDK) touch it.
+    match /gameSecrets/{gameId} {
+      allow read, write: if false;
+    }
+
     match /games/{gameId} {
       allow get: if true;
       allow list: if false;

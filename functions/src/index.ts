@@ -1,13 +1,21 @@
 import { CloudBillingClient } from '@google-cloud/billing';
+import { initializeApp } from 'firebase-admin/app';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { projectID } from 'firebase-functions/params';
-import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { setGlobalOptions } from 'firebase-functions/v2';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { HttpsError, onCall } from 'firebase-functions/v2/https';
+import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { overBudget, type BudgetAlert } from './budget.js';
+import { formatRoll, isWebhookUrl, postWebhook, webhookName, type Roll } from './discord.js';
 
 // Cost caps for every Function in this project (docs/discord-plan.md, phase 0).
-setGlobalOptions({ maxInstances: 5, timeoutSeconds: 10, memory: '256MiB' });
+// us-central1 because Firestore triggers must sit with the database, which is in nam5.
+setGlobalOptions({ region: 'us-central1', maxInstances: 5, timeoutSeconds: 10, memory: '256MiB' });
 
+initializeApp();
+const db = getFirestore();
 const billing = new CloudBillingClient();
 
 /**
@@ -15,7 +23,7 @@ const billing = new CloudBillingClient();
  * unlink the billing account, which stops everything that costs money (and takes the site down).
  * To bring the site back, see "If the site was shut off for going over budget" in the README.
  */
-export const budgetKillSwitch = onMessagePublished<BudgetAlert>({ topic: 'budget-alerts', maxInstances: 1 }, async (event) => {
+export const budgetKillSwitch = onMessagePublished<BudgetAlert>({ topic: 'budget-alerts', region: 'us-east1', maxInstances: 1 }, async (event) => {
   const alert = event.data.message.json;
   if (!overBudget(alert)) return;
 
@@ -25,4 +33,50 @@ export const budgetKillSwitch = onMessagePublished<BudgetAlert>({ topic: 'budget
 
   await billing.updateProjectBillingInfo({ name, projectBillingInfo: { billingAccountName: '' } });
   logger.warn('Budget reached: billing disabled', { cost: alert.costAmount, budget: alert.budgetAmount });
+});
+
+/** gameSecrets/{gameId}: { webhookUrl, webhookName, updatedAt }. Rules deny all browser access; only Functions read it. */
+const secretRef = (gameId: string) => db.doc(`gameSecrets/${gameId}`);
+
+/**
+ * The game page's Discord panel. `url` omitted: report status. `url: ''`: disconnect.
+ * Otherwise check the URL with Discord, post a hello, and save it. The URL is never sent back.
+ * shortcut: anyone with the game link can change the webhook until phase 2b adds a Handler role.
+ */
+export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>(async (req) => {
+  const { gameId, url } = req.data ?? {};
+  if (typeof gameId !== 'string' || !/^[a-z0-9-]{1,100}$/.test(gameId)) throw new HttpsError('invalid-argument', 'Bad game ID.');
+  if (!(await db.doc(`games/${gameId}`).get()).exists) throw new HttpsError('not-found', 'No such game.');
+
+  if (url === undefined) {
+    const s = (await secretRef(gameId).get()).data();
+    return { connected: Boolean(s?.webhookUrl), name: s?.webhookName ?? '' };
+  }
+  if (url === '') {
+    await secretRef(gameId).delete();
+    return { connected: false, name: '' };
+  }
+  if (typeof url !== 'string' || !isWebhookUrl(url.trim())) throw new HttpsError('invalid-argument', "That isn't a Discord webhook URL.");
+
+  const hook = url.trim();
+  const name = await webhookName(hook);
+  if (name === null) throw new HttpsError('failed-precondition', "Discord doesn't recognise that webhook. Was it deleted?");
+  const status = await postWebhook(hook, `Connected to YOURCODENA.ME game \`${gameId}\`. Rolls from this game will post here.`);
+  if (status !== 204) throw new HttpsError('unavailable', `Discord refused the test message (${status}). Try again in a minute.`);
+
+  await secretRef(gameId).set({ webhookUrl: hook, webhookName: name, updatedAt: Date.now() });
+  return { connected: true, name };
+});
+
+/** Posts each new roll to the game's Discord channel, if it has one. Never retries: the in-app log is the record. */
+export const rollToDiscord = onDocumentCreated('games/{gameId}/rolls/{rollId}', async (event) => {
+  const roll = event.data?.data() as Roll | undefined;
+  if (!roll) return;
+  const ref = secretRef(event.params.gameId);
+  const url = (await ref.get()).get('webhookUrl') as string | undefined;
+  if (!url) return;
+
+  const status = await postWebhook(url, formatRoll(roll));
+  if (status === 404) await ref.update({ webhookUrl: FieldValue.delete() }); // deleted in Discord: stop trying
+  else if (status !== 204) logger.warn('Discord did not take a roll', { gameId: event.params.gameId, status });
 });

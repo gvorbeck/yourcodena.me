@@ -17,7 +17,7 @@ const missing = Object.values(envVars).filter((v) => !import.meta.env[v]);
 if (missing.length) throw new Error(`Missing Firebase env vars: ${missing.join(', ')}. See .env.example.`);
 
 // The persistent cache lets pages open and writes queue while offline; the multi-tab manager keeps several open sheets coherent.
-const app = initializeApp(config);
+export const app = initializeApp(config);
 
 // App Check keeps scripts that never loaded this site from reading or writing games. Off until a site key is set.
 const siteKey = import.meta.env.VITE_APPCHECK_SITE_KEY;

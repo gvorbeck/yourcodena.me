@@ -43,12 +43,14 @@ Normal play stays in the free tier. Spam is the risk, and phases 2a and 4 add pe
 
 ## Phase 1: Rolls post to Discord
 
-- [ ] **Me:** add a `functions/` folder (TypeScript, Node 22).
-- [ ] **Me:** `setWebhook` saves the webhook URL where browsers can't read it, then sends a test message.
-- [ ] **Me:** post each new roll to the channel: `**Agent Smith** · Firearms 45% → 23 · Success`. @-pings are blocked.
-- [ ] **Me:** add a Discord panel to the game page: paste URL, test, remove.
-- [ ] **Me:** tests for the message format and for browsers being unable to read the URL.
-- [ ] **You:** make a webhook (Discord channel settings → Integrations → Webhooks) and paste it in.
+- [x] **Me:** add a `functions/` folder (TypeScript, Node 22). Done in phase 0.
+- [x] **Me:** `discordWebhook` callable: checks the URL with Discord, posts a hello, saves it to `gameSecrets` (browsers denied in `firestore.rules`). Never returns the URL.
+- [x] **Me:** `rollToDiscord` posts each new roll: `**Agent Smith** · Firearms 45% → 23 · Success`. @-pings blocked, Markdown in names defused.
+- [x] **Me:** Discord panel on the game page: paste URL, connect, disconnect.
+- [x] **Me:** tests for the message format, URL check and ping blocking. `gameSecrets` denial is a plain `if false` rule; no emulator test.
+- [x] **Me:** `npm --prefix functions run webhook:test` posts sample rolls from your terminal.
+- [ ] **You:** `firebase deploy --only functions,firestore:rules`, then push the app.
+- [ ] **You:** delete the "Captain Hook" webhook (its URL was pasted in chat), make a new one, paste it into the game page panel.
 
 **Done when:** a roll in the app shows up in Discord.
 

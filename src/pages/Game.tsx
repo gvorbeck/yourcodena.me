@@ -6,6 +6,7 @@ import { copyLabel, copyNote, useCopy } from '../lib/useCopy';
 import { createGame, useAgents, useGameExists, useRolls } from '../lib/games';
 import { hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
+import { DiscordPanel } from '../DiscordPanel';
 import { Page } from './Page';
 
 const when = (t: number) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -79,6 +80,8 @@ export default function Game() {
         </div>
         {err && <p className="warn" role="alert">{err}</p>}
       </Win>
+
+      <DiscordPanel gameId={gameId} />
 
       <Win title="ROLL LOG" right="latest 50">
         {rolls.error ? <p className="warn">Could not load the roll log. Reload to retry.</p> : rolls.data === undefined ? <p className="dim">Loading…</p> : rolls.data.length === 0 ? <p className="dim">No rolls yet. Rolls made on an agent's live sheet appear here for everyone.</p> : (

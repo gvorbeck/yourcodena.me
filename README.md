@@ -102,7 +102,21 @@ After a deploy, an old tab may ask for a file that no longer exists. When that h
 
 The workflow needs these secrets: the `VITE_FIREBASE_*` values, `VITE_APPCHECK_SITE_KEY`, and `FIREBASE_SERVICE_ACCOUNT_CODENAME_DG`. That service account needs the Firebase Rules Admin role or the rules step fails. The `firebase-tools` version and the hosting action are pinned and have to be bumped by hand. Dependabot does the other Actions.
 
-Cloud Functions (`functions/`) are not in the workflow. Deploy them by hand with `firebase deploy --only functions`.
+Cloud Functions (`functions/`) are not in the workflow. Deploy them by hand with `firebase deploy --only functions`, before pushing any app change that calls a new Function. Otherwise the app goes out first and the call fails.
+
+| Function | Region | Does |
+| --- | --- | --- |
+| `budgetKillSwitch` | us-east1 | Turns billing off at the $5 budget (next section) |
+| `discordWebhook` | us-central1 | Game page Discord panel: connect, disconnect, status |
+| `rollToDiscord` | us-central1 | Posts each new roll to the game's Discord webhook |
+
+Firestore triggers have to run in `us-central1`, because the database is in `nam5`. `gameSecrets/{gameId}` holds each game's webhook URL. The rules deny browsers entirely, so only Functions can read it.
+
+To see how roll messages look without the app, run this and paste a webhook URL when it asks:
+
+```bash
+npm --prefix functions run webhook:test
+```
 
 ## If the site was shut off for going over budget
 
