@@ -244,3 +244,5 @@ code.link { font: inherit; overflow-wrap: anywhere; }
   97% { opacity: 1; transform: translateX(2px); }
   97.5% { opacity: .5; transform: none; }
 }
+
+.row.adjust { align-items: flex-end; flex-wrap: wrap; } .row.adjust > span { flex: 0 1 min(18rem, 100%); min-width: 0; padding-bottom: .4rem; } .row.adjust .field { flex: 0 1 min(14rem, 100%); }

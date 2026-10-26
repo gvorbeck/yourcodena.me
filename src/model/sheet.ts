@@ -74,7 +74,7 @@ export function asciiSheet(c: Character): string {
     ...prose('HELPS DELTA GREEN', det.helps),
 
     ...section('SKILLS', '(When you attempt to use a skill & fail, check it. After the session, add 1D4 to each checked skill.)',
-      ...skillsOf(c).filter((s) => s.total > 0).map((s) => `${short(s.key).padEnd(20)}${String(s.total).padStart(2)}`)),
+      ...skillsOf(c).filter((s) => s.total > 0).map((s) => `${short(s.key).padEnd(20)}${String(s.total).padStart(2)}${s.adjust ? ' *' : ''}`)),
 
     ...section('INCIDENTS OF SAN LOSS',
       `Violence:  [ ] [ ] [ ] Adapted${v?.adapts === 'v' ? ' [x]' : ' [ ]'}`.replace(' Adapted [', '\n           Adapted ['),

@@ -146,7 +146,7 @@ export const duplicatesKit = (c: Character, o: Slot) => {
 };
 
 // ---- Skills
-export interface SkillLine { key: string; base: number; professional: number | null; bonus: number; veteran: number; total: number }
+export interface SkillLine { key: string; base: number; professional: number | null; bonus: number; veteran: number; adjust: number; total: number }
 
 /** `advance` is play-time skill growth (p. 28), keyed by skill. */
 export function skillsOf(c: Character, advance: Record<string, number> = {}): SkillLine[] {
@@ -160,12 +160,13 @@ export function skillsOf(c: Character, advance: Record<string, number> = {}): Sk
   if (v?.unnatural) vet.set('Unnatural', v.unnatural);
   if (v?.extraSkills) for (const k of c.veteranSkills.slice(0, v.extraSkills.count)) if (k) vet.set(k, (vet.get(k) ?? 0) + v.extraSkills.amount);
 
-  const keys = new Set([...Object.keys(BASE_RATINGS).filter((k) => !TYPED_SKILLS.includes(k)), ...kit.keys(), ...bonus.keys(), ...vet.keys(), ...Object.keys(advance)]);
+  const keys = new Set([...Object.keys(BASE_RATINGS).filter((k) => !TYPED_SKILLS.includes(k)), ...kit.keys(), ...bonus.keys(), ...vet.keys(), ...Object.keys(c.adjust), ...Object.keys(advance)]);
   return [...keys].sort().map((key) => {
     const professional = kit.get(key) ?? null;
     const base = baseRating(key);
     const b = bonus.get(key) ?? 0, vv = vet.get(key) ?? 0;
-    return { key, base, professional, bonus: b, veteran: vv, total: Math.min(MAX_SKILL, (professional ?? base) + b + vv + (advance[key] ?? 0)) };
+    const adj = c.adjust[key] ?? 0;
+    return { key, base, professional, bonus: b, veteran: vv, adjust: adj, total: Math.max(0, Math.min(MAX_SKILL, (professional ?? base) + b + vv + adj + (advance[key] ?? 0))) };
   });
 }
 
@@ -221,7 +222,9 @@ export function validate(c: Character): Issue[] {
   if (c.bonus.some((k) => !k)) add('profession', `Pick all ${BONUS_PICKS} bonus skills.`);
   if (c.bonus.includes('Unnatural')) add('profession', 'Unnatural cannot be a bonus skill.');
   if (c.bonus.some((k) => k && TYPED_SKILLS.includes(k))) add('profession', 'Name the type for each typed bonus skill.');
-  for (const s of skillsOf(c)) if (s.bonus && (s.professional ?? s.base) + s.bonus > MAX_CREATION_SKILL) add('profession', `${s.key} exceeds ${MAX_CREATION_SKILL}% before veteran adjustments (the Handler may allow it).`, true);
+  for (const s of skillsOf(c)) if (s.bonus && s.adjust <= 0 && (s.professional ?? s.base) + s.bonus > MAX_CREATION_SKILL) add('profession', `${s.key} exceeds ${MAX_CREATION_SKILL}% before veteran adjustments (the Handler may allow it).`, true);
+
+  if (Object.keys(c.adjust).some((k) => TYPED_SKILLS.includes(familyOf(k)) && !typeOf(k))) add('profession', 'Name the type for each typed Handler adjustment.');
 
   const need = bondCount(c);
   const named = c.bonds.slice(0, need).filter((b) => b.name.trim()).length;

@@ -110,7 +110,7 @@ const skillName = (key: string) => (typeOf(key) ? <>{familyOf(key)}<small classN
 
 export function SkillTable({ c, onlyTouched, onRoll, filter = '', advance, checked = [] }: { c: Character; onlyTouched?: boolean; onRoll?: (label: string, chance: number) => void; filter?: string; advance?: Record<string, number>; checked?: string[] }) {
   const q = filter.trim();
-  const rows = filterSkills(skillsOf(c, advance).filter((s) => (onlyTouched ? s.professional !== null || s.bonus || s.veteran : s.total > 0)), q);
+  const rows = filterSkills(skillsOf(c, advance).filter((s) => (onlyTouched ? s.professional !== null || s.bonus || s.veteran || s.adjust : s.total > 0)), q);
   return (
     <table>
       <thead><tr><th>Skill</th><th className="num">Total</th></tr></thead>
@@ -121,6 +121,7 @@ export function SkillTable({ c, onlyTouched, onRoll, filter = '', advance, check
               <span className="skillname">
                 {onRoll ? <button className="rollable" onClick={() => onRoll(s.key, s.total)}>{skillName(s.key)}</button> : <span>{s.key}</span>}
                 {s.professional !== null && <span className="mark" title="Professional skill"><span aria-hidden>▪</span><span className="sr-only">professional skill</span></span>}
+                {s.adjust !== 0 && <span className="mark" title="Handler adjustment"><span aria-hidden>±</span><span className="sr-only">adjusted by the Handler</span></span>}
                 {checked.includes(s.key) && <span className="mark" title="Failed this session"><span aria-hidden>✓</span><span className="sr-only">failed this session, will advance</span></span>}
               </span>
             </td>

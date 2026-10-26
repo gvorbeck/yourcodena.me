@@ -43,6 +43,7 @@ export function ReviewStep({ c, onLive }: StepProps & { onLive: () => void }) {
         <p>HP {d.hp} · WP {d.wp} · SAN {d.san}/{d.maxSan} · BP {d.bp}</p>
         <h3>Skills</h3>
         <div className="cols"><SkillTable c={c} /></div>
+        {Object.keys(c.adjust).length > 0 && <p><span className="dim">Handler adjustments (±):</span> {Object.entries(c.adjust).map(([k, n]) => `${k} ${n > 0 ? '+' : ''}${n}`).join(', ')}</p>}
         <h3>Bonds</h3>
         <ul>{c.bonds.slice(0, bondCount(c)).filter((b) => b.name).map((b, i) => <li key={i}>{b.name} — {d.bondScore}{b.note && ` · ${b.note}`}</li>)}</ul>
         {disorderOf(c) && <p><span className="dim">disorder:</span> {disorderOf(c)}</p>}

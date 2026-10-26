@@ -288,3 +288,38 @@ describe('building a new profession (p. 26)', () => {
     expect(kitOf(c).map((k) => k.key)).toContain('Craft(Electric)');
   });
 });
+
+describe('Handler adjustments', () => {
+  it('adds to the total, can go below base, and clamps to 0..99', () => {
+    const c = newCharacter();
+    const t = (k: string) => skillsOf(c).find((l) => l.key === k)!.total;
+    const base = t('Alertness');
+    c.adjust = { Alertness: 15, Dodge: -99, Stealth: 99 };
+    expect(t('Alertness')).toBe(base + 15);
+    expect(t('Dodge')).toBe(0);
+    expect(t('Stealth')).toBe(99);
+  });
+});
+
+describe('Handler adjustment import and validation', () => {
+  const raw = () => JSON.parse(JSON.stringify(newCharacter()));
+  it('defaults when absent and rejects bad values', () => {
+    const r = raw(); delete r.adjust;
+    expect(parseCharacter(r).adjust).toEqual({});
+    expect(() => parseCharacter({ ...raw(), adjust: { Dodge: 100 } })).toThrow();
+    expect(() => parseCharacter({ ...raw(), adjust: { Unnatural: 5 } })).toThrow();
+    expect(() => parseCharacter({ ...raw(), adjust: Object.fromEntries(Array.from({ length: 31 }, (_, i) => [`S${i}`, 1])) })).toThrow();
+  });
+  it('a positive adjustment skips the 80% warning; a typed skill needs its type', () => {
+    const c = newCharacter();
+    c.bonus = ['Firearms', ...c.bonus.slice(1)];
+    const over = () => validate(c).some((i) => i.warn && i.msg.includes('Firearms'));
+    c.adjust = { Firearms: -5 };
+    const was = over();
+    c.adjust = { Firearms: 5 };
+    expect(over()).toBe(false);
+    if (was) expect(was).toBe(true);
+    c.adjust = { 'Foreign Language': 10 };
+    expect(validate(c).some((i) => i.msg.includes('typed Handler adjustment'))).toBe(true);
+  });
+});

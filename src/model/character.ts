@@ -30,6 +30,8 @@ export const characterSchema = z.object({
   types: z.record(z.string().max(100)).default({}),
   bonusPackage: line,
   bonus: z.array(skill).length(8),
+  // Handler-approved per-skill fudge, added to the total. Capped like the other lists; Unnatural stays out because it sets max SAN.
+  adjust: z.record(skill, z.number().int().min(-99).max(99)).refine((r) => Object.keys(r).length <= 30 && !('Unnatural' in r)).default({}),
   bonds: z.array(z.object({ name: line, note: line })).max(20).default([]),
   veteran: line,
   veteranSkills: z.array(skill).max(10).default([]),
@@ -48,7 +50,7 @@ export const newCharacter = (): Character => ({
   version: CHARACTER_VERSION,
   stats: { STR: 10, DEX: 10, CON: 10, INT: 10, POW: 10, CHA: 10 },
   statMethod: 'roll', statSet: '', professionId: '', custom: emptyCustom(), orPicks: {}, picks: [], types: {},
-  bonusPackage: '', bonus: Array(8).fill(''), bonds: [], veteran: '', veteranSkills: [], disorder: '', motivations: [],
+  bonusPackage: '', bonus: Array(8).fill(''), adjust: {}, bonds: [], veteran: '', veteranSkills: [], disorder: '', motivations: [],
   details: { name: '', codename: '', age: '', sex: '', nationality: '', employer: '', rank: '', education: '', appearance: '', personality: '', admires: '', dislikes: '', trust: '', helps: '' },
 });
 

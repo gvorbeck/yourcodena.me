@@ -1,14 +1,16 @@
+import { useState } from 'react';
 import { PROFESSIONS, GROUP_LABEL, POSTINGS, type Group } from '../rules/data/professions';
 import { PACKAGES } from '../rules/data/creation';
-import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPE_SUGGESTIONS, baseRating } from '../rules/data/skills';
+import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPED_SKILLS, TYPE_SUGGESTIONS, baseRating, familyOf, typeOf } from '../rules/data/skills';
 import { CUSTOM_ID, CUSTOM_MAX_RATING, customBudget, duplicatesKit, professionOf, slotsOf, type Alt, type Slot } from '../rules';
-import { Choice, Num, Pick, RadioGroup, Label, Rule, SkillPicker, SkillTable, Text, TypeInput, type StepProps } from '../ui';
+import { Btn, Choice, Num, Pick, RadioGroup, Label, Rule, SkillPicker, SkillTable, Text, TypeInput, type StepProps } from '../ui';
 
 const altLabel = (a: Alt) => `${a.family}${a.type ? `(${a.type})` : a.askType ? ' (type)' : ''} ${a.rating}%`;
 
 export function ProfessionStep({ c, up }: StepProps) {
   const p = professionOf(c);
   const kit = p && slotsOf(p);
+  const [adjusting, setAdjusting] = useState(''); // skill being picked; added once a typed skill has its type
   const setType = (slot: string, v: string) => up((d) => { d.types[slot] = v; });
 
   const typeInput = (slot: string, alt: Alt) =>
@@ -127,6 +129,20 @@ export function ProfessionStep({ c, up }: StepProps) {
       <div className="grid mt-s">
         {c.bonus.map((k, i) => <SkillPicker key={i} label={`Bonus ${i + 1} (+${BONUS_POINTS})`} value={k} onChange={(v) => up((d) => { d.bonus[i] = v; })} />)}
       </div>
+      <h3>Handler adjustments</h3>
+      <p className="dim">Agreed fudges, added to the skill's total (±99). Marked ± on the sheet; a positive one skips the 80% warning.</p>
+      {Object.entries(c.adjust).map(([k, n]) => (
+        <div key={k} className="row adjust">
+          <span>{k}</span>
+          <Num label={`${k} adjustment`} value={n} min={-99} max={99} onChange={(v) => up((d) => { d.adjust[k] = v; })} />
+          <Btn onPress={() => up((d) => { delete d.adjust[k]; })}>Remove</Btn>
+        </div>
+      ))}
+      <SkillPicker label="Adjust skill" value={adjusting} onChange={(k) => {
+        if (!k || (TYPED_SKILLS.includes(familyOf(k)) && !typeOf(k))) return setAdjusting(k);
+        setAdjusting('');
+        up((d) => { d.adjust[k] ??= 10; });
+      }} />
       <h3>Skills so far</h3>
       <div className="cols"><SkillTable c={c} onlyTouched /></div>
     </>
