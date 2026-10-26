@@ -95,7 +95,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
           {cur.id !== 'review' && here.length > 0 && <ul className="issues noprint">{here.map((x, n) => <li key={n}>{x.msg}</li>)}</ul>}
           <div className="row noprint mt-l">
             <Btn disabled={step === 0} onPress={() => setStep(step - 1)}>&lt; Back</Btn>
-            <Btn disabled={step === STEPS.length - 1} onPress={() => setStep(step + 1)}>Next ▸</Btn>
+            <Btn disabled={step === STEPS.length - 1} onPress={() => setStep(step + 1)}>Next &gt;</Btn>
           </div>
         </Win>
       </div>
