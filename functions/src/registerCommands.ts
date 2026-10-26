@@ -5,8 +5,12 @@ import { DG } from './commands.js';
 
 const rl = createInterface({ input: process.stdin, output: process.stdout });
 const appId = (await rl.question('Application ID: ')).trim();
-const token = (await rl.question('Bot token: ')).trim();
+// The token isn't echoed, so it never sits on screen (or in a terminal scrollback someone else reads).
+const asked = rl.question('Bot token (hidden as you type): ');
+(rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = () => {};
+const token = (await asked).trim();
 rl.close();
+process.stdout.write('\n');
 if (!/^\d{15,25}$/.test(appId) || !token) { console.error('Need the numeric Application ID and the bot token.'); process.exit(1); }
 
 const res = await fetch(`https://discord.com/api/v10/applications/${appId}/commands`, {

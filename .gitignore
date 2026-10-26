@@ -8,3 +8,4 @@ firebase-debug.log
 skills-lock.json
 *.tsbuildinfo
 functions/lib
+discord_bot_credentials.txt
