@@ -94,15 +94,15 @@ When an Agent saves, it only sends the fields that changed since that tab last r
 
 ## Deploying
 
-Pushing to `main` runs [the workflow](.github/workflows/deploy.yml): lint, test, build, deploy Firestore rules, deploy Hosting to `codename-dg`.
+Pushing to `main` runs [the workflow](.github/workflows/deploy.yml): lint, test, build, deploy Firestore rules, deploy Functions (only when `src/rules`, `src/model` or `functions/` changed), deploy Hosting to `codename-dg`. A manual run of the workflow always deploys Functions.
 
 Rules go out before the new build. Tabs that are already open keep running the old build for a while, so the rules have to accept writes from both versions at once. That means adding a field takes two releases (allow it, then use it) and removing one also takes two (stop writing it, then stop allowing it).
 
 After a deploy, an old tab may ask for a file that no longer exists. When that happens the app reloads once. If it fails again within a few seconds it shows the error instead of reloading forever.
 
-The workflow needs these secrets: the `VITE_FIREBASE_*` values, `VITE_APPCHECK_SITE_KEY`, and `FIREBASE_SERVICE_ACCOUNT_CODENAME_DG`. That service account needs the Firebase Rules Admin role or the rules step fails. The `firebase-tools` version and the hosting action are pinned and have to be bumped by hand. Dependabot does the other Actions.
+The workflow needs these secrets: the `VITE_FIREBASE_*` values, `VITE_APPCHECK_SITE_KEY`, and `FIREBASE_SERVICE_ACCOUNT_CODENAME_DG`. That service account needs the Firebase Rules Admin role or the rules step fails. For the Functions step it also needs Cloud Functions Developer, Service Account User and Artifact Registry Reader. If a deploy fails with a permission error, the error names the missing permission. Add the matching role in Cloud console → IAM. The `firebase-tools` version and the hosting action are pinned and have to be bumped by hand. Dependabot does the other Actions.
 
-Cloud Functions (`functions/`) are not in the workflow. Deploy them by hand with `firebase deploy --only functions`, before pushing any app change that calls a new Function. Otherwise the app goes out first and the call fails.
+Functions deploy before Hosting, so a new build never calls a Function that isn't live yet. The deploy runs `--non-interactive` without `--force`: a Function deleted from the code fails the deploy instead of being removed. Delete it by hand with `firebase functions:delete`. Deploying by hand with `firebase deploy --only functions` still works.
 
 | Function | Region | Does |
 | --- | --- | --- |
@@ -117,7 +117,7 @@ Firestore triggers have to run in `us-central1`, because the database is in `nam
 - `discordChannels/{channelId}`: which game a Discord channel plays.
 - `discordClaims/{gameId}_{userId}`: which Agent a Discord user plays.
 
-The Functions build bundles `src/rules` and `src/model` with esbuild, so `/dg roll` uses the live sheet's own math. `DISCORD_PUBLIC_KEY` is asked for on the first deploy and saved in `functions/.env.codename-dg`. It's a public key, so it's safe to commit. To register or update the `/dg` commands, run this and paste the Application ID and bot token when asked:
+The Functions build bundles `src/rules` and `src/model` with esbuild, so `/dg roll` uses the live sheet's own math. The catch: the bot keeps the copy it was deployed with. The workflow redeploys Functions whenever `src/rules` or `src/model` change, so Discord keeps up with the site. Before that, it once showed stale chances after custom professions and Handler adjustments. `DISCORD_PUBLIC_KEY` is asked for on the first deploy and saved in `functions/.env.codename-dg`. It's a public key, so it's safe to commit. To register or update the `/dg` commands, run this and paste the Application ID and bot token when asked:
 
 ```bash
 npm --prefix functions run discord:register

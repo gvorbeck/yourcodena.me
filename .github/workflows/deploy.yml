@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with: { fetch-depth: 0 } # full history, so the Functions check below can diff against the previous push
       - uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm, cache-dependency-path: '**/package-lock.json' }
       - run: npm ci
@@ -36,6 +37,31 @@ jobs:
         run: |
           printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@15.34.1 deploy --only firestore:rules --project codename-dg
+          rm -f "$RUNNER_TEMP/sa.json"
+      # The bot bundles src/rules and src/model at deploy time, so it must redeploy when they change or Discord shows
+      # stale chances. Manual runs and pushes with no usable "before" commit always deploy.
+      - name: Check whether Functions changed
+        id: functions
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" != push ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BEFORE" HEAD -- src/rules src/model functions; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+      # Before Hosting, so a new build never calls a Function that isn't live yet. No --force: a Function missing from
+      # the code fails the deploy instead of being deleted. The service account needs the roles listed in the README.
+      - name: Deploy Functions
+        if: steps.functions.outputs.deploy == 'true'
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CODENAME_DG }}
+        run: |
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@15.34.1 deploy --only functions --project codename-dg --non-interactive
           rm -f "$RUNNER_TEMP/sa.json"
       - uses: FirebaseExtended/action-hosting-deploy@500ac625ca2dd40cbd15f7659af953801858032a # v0
         with:
