@@ -339,7 +339,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         <div className="row noprint">
           <Btn onPress={endSession} disabled={l.checked.length === 0}>End session: advance {l.checked.length} checked</Btn>
         </div>
-        <SkillTable c={c} onRoll={rollSkill} filter={find} advance={l.advance} checked={l.checked} />
+        <SkillTable c={c} onRoll={rollSkill} filter={find} advance={l.advance} checked={l.checked} onUncheck={(k) => setL((p) => play.uncheckSkill(p, k))} />
       </Win>
       <Win className="live-notes-win" title="NOTES">
         <textarea aria-label="Notes" rows={6} maxLength={MAX_NOTES} className="live-notes" value={l.notes} onChange={(e) => set('notes', e.target.value)} />

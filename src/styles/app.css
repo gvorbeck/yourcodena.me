@@ -39,6 +39,7 @@ html { scroll-padding-top: 4rem; } /* keeps focused controls clear of the sticky
 .rollable { all: unset; cursor: pointer; display: inline-block; padding: .2rem .25rem; margin: -.2rem -.25rem; border-bottom: 1px solid transparent; }
 .rollable:hover { border-bottom-style: dotted; border-bottom-color: currentColor; } /* dotted underline marks the one thing under the pointer; row rules in the live sheet are solid */
 .rollable:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; } /* keyboard focus needs a ring, not just a hairline */
+button.mark { all: unset; cursor: pointer; padding: .6rem .8ch; margin: -.6rem -.8ch; } button.mark:hover { text-decoration: line-through; } button.mark:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 .skillname { display: flex; align-items: center; gap: .6ch; } .skillname .mark { flex: none; }
 .live-note { margin-bottom: 1.5rem; }
 .live-notes { width: 100%; }

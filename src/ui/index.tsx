@@ -108,7 +108,7 @@ export function SkillPicker({ label, value, onChange }: { label: string; value: 
 /** Typed skills break after the family ("Foreign Language" / "(Mandarin)") so a long name is two short lines, not one that wraps unpredictably. */
 const skillName = (key: string) => (typeOf(key) ? <>{familyOf(key)}<small className="skilltype">({typeOf(key)})</small></> : key);
 
-export function SkillTable({ c, onlyTouched, onRoll, filter = '', advance, checked = [] }: { c: Character; onlyTouched?: boolean; onRoll?: (label: string, chance: number) => void; filter?: string; advance?: Record<string, number>; checked?: string[] }) {
+export function SkillTable({ c, onlyTouched, onRoll, filter = '', advance, checked = [], onUncheck }: { c: Character; onlyTouched?: boolean; onRoll?: (label: string, chance: number) => void; filter?: string; advance?: Record<string, number>; checked?: string[]; onUncheck?: (key: string) => void }) {
   const q = filter.trim();
   const rows = filterSkills(skillsOf(c, advance).filter((s) => (onlyTouched ? s.professional !== null || s.bonus || s.veteran || s.adjust : s.total > 0)), q);
   return (
@@ -122,7 +122,9 @@ export function SkillTable({ c, onlyTouched, onRoll, filter = '', advance, check
                 {onRoll ? <button className="rollable" onClick={() => onRoll(s.key, s.total)}>{skillName(s.key)}</button> : <span>{s.key}</span>}
                 {s.professional !== null && <span className="mark" title="Professional skill"><span aria-hidden>▪</span><span className="sr-only">professional skill</span></span>}
                 {s.adjust !== 0 && <span className="mark" title="Handler adjustment"><span aria-hidden>±</span><span className="sr-only">adjusted by the Handler</span></span>}
-                {checked.includes(s.key) && <span className="mark" title="Failed this session"><span aria-hidden>✓</span><span className="sr-only">failed this session, will advance</span></span>}
+                {checked.includes(s.key) && (onUncheck
+                  ? <button className="mark noprint" title="Failed this session: tap to uncheck" aria-label="Failed this session, will advance. Uncheck" onClick={() => onUncheck(s.key)}><span aria-hidden>✓</span></button>
+                  : <span className="mark" title="Failed this session"><span aria-hidden>✓</span><span className="sr-only">failed this session, will advance</span></span>)}
               </span>
             </td>
             <td className="num">{s.total}%</td>

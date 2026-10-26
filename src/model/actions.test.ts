@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { newCharacter } from './character';
-import { adapted, addDisorder, adjustStatLoss, applyInjury, burnout, checkSkill, exhaust, heal, lowestD10, planSanLoss, project, recuperate, repress, sleep, spendInjuryTest, spendWillpower, strain } from './actions';
+import { adapted, addDisorder, adjustStatLoss, applyInjury, burnout, checkSkill, uncheckSkill, exhaust, heal, lowestD10, planSanLoss, project, recuperate, repress, sleep, spendInjuryTest, spendWillpower, strain } from './actions';
 import { freshLive } from './live';
 
 const c = (() => { const x = newCharacter(); x.professionId = 'police-officer'; return x; })(); // all stats 10: HP 10, WP 10, Bonds 10
@@ -111,5 +111,8 @@ describe('mind and skills', () => {
   });
   it('a failed skill is checked once', () => {
     expect(checkSkill(checkSkill(live(), 'Law'), 'Law').checked).toEqual(['Law']);
+  });
+  it('unchecking removes only that skill', () => {
+    expect(uncheckSkill(live({ checked: ['Law', 'Art'] }), 'Law').checked).toEqual(['Art']);
   });
 });
