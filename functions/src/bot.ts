@@ -53,9 +53,17 @@ async function myAgent(gameId: string, user: string): Promise<{ id: string; agen
   return doc.exists ? { id, agent: agentOf(doc.data()!) } : null;
 }
 
+/** Short forms registered in commands.ts: `/dg r t: m:` is `/dg roll test: modifier:`. */
+const ALIASES: Record<string, { name: string; options: Record<string, string> }> = { r: { name: 'roll', options: { t: 'test', m: 'modifier' } } };
+const expand = (o: Option): Option => {
+  const a = ALIASES[o.name];
+  return a ? { ...o, name: a.name, options: o.options?.map((x) => ({ ...x, name: a.options[x.name] ?? x.name })) } : o;
+};
+
 export async function handle(i: Interaction, now = Date.now()): Promise<object> {
   if (i.type === 1) return { type: 1 };
-  const sub = i.data?.options?.[0];
+  const raw = i.data?.options?.[0];
+  const sub = raw && expand(raw);
   const user = i.member?.user.id;
   if (!sub || !user || !i.guild_id || !i.channel_id) return reply('Use /dg in a server channel.', true);
   const opt = (name: string) => sub.options?.find((o) => o.name === name);

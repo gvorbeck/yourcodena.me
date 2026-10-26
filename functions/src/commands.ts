@@ -8,6 +8,10 @@ export const DG = {
       { type: 3, name: 'test', description: 'Stat, Luck, SAN or skill', required: true, autocomplete: true },
       { type: 4, name: 'modifier', description: '-20 for a penalty, 20 for a bonus', min_value: -100, max_value: 100 },
     ] },
+    { type: 1, name: 'r', description: 'Short for /dg roll', options: [
+      { type: 3, name: 't', description: 'Test: stat, Luck, SAN or skill', required: true, autocomplete: true },
+      { type: 4, name: 'm', description: 'Modifier: -20 for a penalty, 20 for a bonus', min_value: -100, max_value: 100 },
+    ] },
     { type: 1, name: 'sheet', description: "Your Agent's HP, WP, SAN and BP (only you see it)" },
     { type: 1, name: 'claim', description: 'Play an Agent from the linked game', options: [
       { type: 3, name: 'agent', description: 'Agent', required: true, autocomplete: true },

@@ -12,6 +12,10 @@ describe('handle', () => {
 });
 
 describe('commands', () => {
+  it('give every alias option a long-form twin', () => {
+    const opts = (n: string) => DG.options.find((o) => o.name === n)!.options!.map((o) => [o.type, o.required ?? false]);
+    expect(opts('r')).toEqual(opts('roll'));
+  });
   it('fit Discord limits', () => {
     for (const o of DG.options) {
       expect(o.name).toMatch(/^[a-z]{1,32}$/);
