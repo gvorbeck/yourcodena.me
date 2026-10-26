@@ -13,7 +13,7 @@ import { STEPS } from './steps';
 
 const STEP_KEY = 'dg.step';
 
-interface EditorProps { agentId: string; c: Character; issues: ReturnType<typeof validate>; setC: Dispatch<SetStateAction<Character>>; gameId: string; failed: boolean; onLive: () => void }
+interface EditorProps { agentId: string; c: Character; issues: ReturnType<typeof validate>; setC: Dispatch<SetStateAction<Character>>; gameId: string; failed: string; onLive: () => void }
 
 export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: EditorProps) {
   // Remembers the last agent's step only (one key, not one per agent), so a reload returns to where you were and a new agent starts at step 1.
@@ -70,7 +70,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
       status={<>
         <span>Agent: {c.details.name || 'UNNAMED'}</span>
         <span className={open ? 'warn' : 'ok'}>{open ? `${open} open item${open === 1 ? '' : 's'}` : 'All steps complete'}</span>
-        {failed ? <span className="warn" role="alert">Not saved: check your connection and reload</span> : <span className="dim">Autosaved to game {gameId} · Source: Agent's Handbook</span>}
+        {failed ? <span className="warn" role="alert">{failed}</span> : <span className="dim">Autosaved to game {gameId} · Source: Agent's Handbook</span>}
         <span className="cursor" aria-hidden />
       </>}
     >

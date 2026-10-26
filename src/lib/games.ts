@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, runTransaction, type DocumentData, type Unsubscribe } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, runTransaction, type DocumentData, type Unsubscribe } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { db } from './firebase';
 
@@ -16,6 +16,7 @@ export const SCHEMA_VERSION = 1;
 export const gameRef = (g: string) => doc(db, 'games', g);
 export const agentsCol = (g: string) => collection(db, 'games', g, 'agents');
 export const agentRef = (g: string, a: string) => doc(db, 'games', g, 'agents', a);
+export const deleteAgent = (g: string, a: string) => deleteDoc(agentRef(g, a));
 export const rollsCol = (g: string) => collection(db, 'games', g, 'rolls');
 
 /** Rejects with Error('taken') when the ID is in use. */

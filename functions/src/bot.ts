@@ -57,7 +57,9 @@ async function myAgent(gameId: string, user: string): Promise<{ id: string; agen
   const id = (await claimRef(gameId, user).get()).get('agentId') as string | undefined;
   if (!id) return null;
   const doc = await db().doc(`games/${gameId}/agents/${id}`).get();
-  return doc.exists ? { id, agent: agentOf(doc.data()!) } : null;
+  if (doc.exists) return { id, agent: agentOf(doc.data()!) };
+  await claimRef(gameId, user).delete(); // the agent was deleted from the game: drop the stale claim
+  return null;
 }
 
 /** Short forms registered in commands.ts: `/dg r t: m:` is `/dg roll test: modifier:`. */

@@ -47,8 +47,13 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
   // One flag per kind of write, so one succeeding never hides another still failing. A roll is never retried,
   // so its warning stays until a later roll is logged.
   const [fails, setFails] = useState({ c: false, live: false, roll: false });
-  const report = (k: keyof typeof fails) => (ok: boolean) => setFails((f) => (f[k] === !ok ? f : { ...f, [k]: !ok }));
-  const failed = fails.c || fails.live || fails.roll;
+  const [gone, setGone] = useState(false); // someone deleted this agent from the game while it was open
+  const report = (k: keyof typeof fails) => (ok: boolean, e?: unknown) => {
+    setFails((f) => (f[k] === !ok ? f : { ...f, [k]: !ok }));
+    if ((e as { code?: string } | undefined)?.code === 'not-found') setGone(true);
+  };
+  const failed = gone ? 'Not saved: this agent was deleted from the game.'
+    : fails.c || fails.live || fails.roll ? 'Not saved: check your connection and reload.' : '';
   const issues = validate(c);
   const complete = blocking(issues).length === 0;
   // The live sheet exists as soon as creation is complete, so the game page shows the agent's vitals without anyone pressing a button.

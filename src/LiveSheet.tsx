@@ -41,7 +41,8 @@ const RollLine = ({ r }: { r: Roll }) => (
 /** Present when the sheet belongs to an agent in a game: saves go to Firestore and rolls to the game's log instead of the URL. */
 export interface GameLink {
   gameId: string;
-  failed: boolean;
+  /** Why the last save failed, or '' when saved. */
+  failed: string;
   back: () => void;
   onChange: (l: Live) => void;
   onRoll: (r: Omit<Roll, 'id'>) => void;
@@ -212,7 +213,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
           <Btn className="phone-only" onPress={() => jump('.live-skills', '.skill-find')}>Skills ↓</Btn>
         </div>
         <p className="noprint live-note"><small>{!game ? "Saved in this page's link: bookmark it to resume. A copied link is a snapshot."
-          : game.failed ? <span className="warn" role="alert">Not saved: check your connection and reload.</span> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
+          : game.failed ? <span className="warn" role="alert">{game.failed}</span> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
         {fumble && (
           <div className="alerts noprint">
             <p>Fumble on {fumble.label} (p. 44). The Handler picks a cost:</p>

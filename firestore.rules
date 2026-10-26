@@ -3,8 +3,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // No auth: a game is gated by its hard-to-guess ID. Anyone with the ID can
-    // read and write that game, but cannot list games or delete anything
-    // (cleanup goes through admin scripts). Writes are shape-checked: only the
+    // read and write that game and delete its agents, but cannot list games or
+    // delete anything else (cleanup goes through admin scripts). Writes are shape-checked: only the
     // fields below, with bounded strings, so a document can't be stuffed with
     // arbitrary keys, and numbers stay in range so the roll log can't be
     // stuffed with impossible results. Rules can't count children or measure
@@ -57,7 +57,8 @@ service cloud.firestore {
                   && request.resource.data.live.bonds.size() <= 20))
           && request.resource.data.createdAt is number
           && request.resource.data.updatedAt is number;
-        allow delete: if false;
+        // Anyone with the ID can already overwrite an agent, so deleting adds no new power.
+        allow delete: if true;
       }
 
       // Append-only roll log.
