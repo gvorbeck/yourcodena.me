@@ -21,7 +21,7 @@ export function ProfessionStep({ c, up }: StepProps) {
       <li key={s.id}>{altLabel(s.alts[0])}{typeInput(s.id, s.alts[0])}</li>
     ) : (
       <li key={s.id}>
-        <RadioGroup aria-label="Either/or" value={String(c.orPicks[s.id] ?? 0)} onChange={(v) => up((d) => { d.orPicks[s.id] = Number(v); d.picks = d.picks.filter((id) => !duplicatesKit(d, kit!.options.find((o) => o.id === id)!)); })}>
+        <RadioGroup aria-label={s.alts.map(altLabel).join(' or ')} value={String(c.orPicks[s.id] ?? 0)} onChange={(v) => up((d) => { d.orPicks[s.id] = Number(v); d.picks = d.picks.filter((id) => { const o = kit!.options.find((x) => x.id === id); return o && !duplicatesKit(d, o); }); })}>
           {s.alts.map((a, i) => <Choice key={i} value={String(i)}>{altLabel(a)}</Choice>)}
         </RadioGroup>
         {typeInput(s.id, s.alts[c.orPicks[s.id] ?? 0])}

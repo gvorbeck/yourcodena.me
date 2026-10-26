@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { ErrorBoundary } from './ErrorBoundary';
 
 // Each page is its own chunk, so the landing page doesn't download the sheet editor (and react-aria) it never shows.
 const Home = lazy(() => import('./pages/Home'));
@@ -19,13 +20,18 @@ const Root = () => {
   return hash.startsWith('#sheet=') ? <Shared hash={hash} /> : <Home />;
 };
 
-export const App = () => (
-  <Suspense fallback={<p className="dim page" role="status">Loading…</p>}>
-    <Routes>
-      <Route path="/" element={<Root />} />
-      <Route path="/g/:gameId" element={<Game />} />
-      <Route path="/g/:gameId/a/:agentId" element={<Agent />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  </Suspense>
-);
+export const App = () => {
+  const { pathname } = useLocation();
+  return (
+    <ErrorBoundary key={pathname}>
+      <Suspense fallback={<p className="dim page" role="status">Loading…</p>}>
+        <Routes>
+          <Route path="/" element={<Root />} />
+          <Route path="/g/:gameId" element={<Game />} />
+          <Route path="/g/:gameId/a/:agentId" element={<Agent />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
+  );
+};

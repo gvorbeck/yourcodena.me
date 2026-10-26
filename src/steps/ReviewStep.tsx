@@ -1,13 +1,13 @@
 import { copyLabel, copyNote, useCopy } from '../lib/useCopy';
 import { STATS, STAT_NAMES } from '../rules/data/creation';
-import { bondCount, derived, disorderOf, featureOf, professionOf, validate, veteranOf, blocking } from '../rules';
+import { bondCount, derived, disorderOf, featureOf, professionOf, veteranOf, blocking, type Issue } from '../rules';
 import { asciiSheet } from '../model/sheet';
 import { exportJson } from '../model/character';
 import { Btn, SkillTable, Rule, type StepProps } from '../ui';
 
-export function ReviewStep({ c, onLive }: StepProps & { onLive: () => void }) {
+export function ReviewStep({ c, issues, onLive }: StepProps & { issues: Issue[]; onLive: () => void }) {
   const [copied, copy] = useCopy();
-  const issues = validate(c);
+  const done = blocking(issues).length === 0;
   const d = derived(c);
   const p = professionOf(c);
   const det = c.details;
@@ -18,14 +18,14 @@ export function ReviewStep({ c, onLive }: StepProps & { onLive: () => void }) {
         <Btn onPress={() => exportJson(c)}>Export JSON</Btn>
         <Btn onPress={() => copy(asciiSheet(c))}>{copyLabel(copied, 'Copy Text', 'Copied ✓')}</Btn>
         <span className="sr-only" role="status">{copyNote(copied)}</span>
-        <Btn disabled={blocking(issues).length > 0} onPress={onLive}>Live Sheet</Btn>
+        <Btn disabled={!done} onPress={onLive}>Live Sheet</Btn>
       </div>
       {issues.length > 0 && (
         <ul className="issues noprint">{issues.map((i, n) => <li key={n}>[{i.step}] {i.msg}</li>)}</ul>
       )}
       <div className="dossier">
         <Rule />
-        <h2>Personnel file {blocking(issues).length ? <span className="stamp">Incomplete</span> : <span className="ok">Cleared</span>}</h2>
+        <h2>Personnel file {done ? <span className="ok">Cleared</span> : <span className="stamp">Incomplete</span>}</h2>
         <div className="cols">
           <p>Name: {det.name || '—'}{det.codename && ` (codename ${det.codename})`}</p>
           <p>Profession: {p?.name ?? '—'}</p>

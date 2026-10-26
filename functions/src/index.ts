@@ -8,6 +8,7 @@ import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { overBudget, type BudgetAlert } from './budget.js';
 import { handle, type Interaction } from './bot.js';
+import { isGameId } from '../../src/lib/gameId';
 import { formatRoll, isWebhookUrl, postWebhook, verifyDiscord, webhookName, type Roll } from './discord.js';
 
 // Cost caps for every Function in this project (docs/discord-plan.md, phase 0).
@@ -47,7 +48,7 @@ const secretRef = (gameId: string) => db.doc(`gameSecrets/${gameId}`);
  */
 export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>(async (req) => {
   const { gameId, url } = req.data ?? {};
-  if (typeof gameId !== 'string' || !/^[a-z0-9-]{1,100}$/.test(gameId)) throw new HttpsError('invalid-argument', 'Bad game ID.');
+  if (typeof gameId !== 'string' || !isGameId(gameId)) throw new HttpsError('invalid-argument', 'Bad game ID.');
   if (!(await db.doc(`games/${gameId}`).get()).exists) throw new HttpsError('not-found', 'No such game.');
 
   if (url === undefined) {

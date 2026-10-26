@@ -1,6 +1,7 @@
 // Discord-side play: the same tests, chances and outcomes as the live sheet (src/LiveSheet.tsx), built from the app's own rules.
 import { parseCharacter, type Character } from '../../src/model/character';
 import { effStat, freshLive, maxSanOf, parseLive, permStats, type Live } from '../../src/model/live';
+import { agentLabel } from '../../src/model/names';
 import { derived, liveOutcome, skillsOf } from '../../src/rules';
 import { STATS, STAT_NAMES } from '../../src/rules/data/creation';
 
@@ -10,7 +11,7 @@ export interface Agent { name: string; c: Character; l: Live; hasLive: boolean }
 /** An agent document as stored at games/{gameId}/agents/{agentId}. Before the live sheet is first opened, play state is the fresh one. */
 export function agentOf(d: { character?: unknown; live?: unknown }): Agent {
   const c = parseCharacter(d.character);
-  return { name: c.details.codename.trim() || c.details.name.trim() || 'Unnamed agent', c, l: d.live ? parseLive(d.live) : freshLive(c), hasLive: Boolean(d.live) };
+  return { name: agentLabel(c.details.codename, c.details.name), c, l: d.live ? parseLive(d.live) : freshLive(c), hasLive: Boolean(d.live) };
 }
 
 /** Everything rollable on the live sheet, with the labels the roll log already uses. */

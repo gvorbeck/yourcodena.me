@@ -27,7 +27,7 @@
     ],
     "rewrites": [
       {
-        "source": "**",
+        "source": "/g/**",
         "destination": "/index.html"
       }
     ],
@@ -62,6 +62,15 @@
           {
             "key": "Cross-Origin-Opener-Policy",
             "value": "same-origin"
+          }
+        ]
+      },
+      {
+        "source": "/g/**",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex"
           }
         ]
       },

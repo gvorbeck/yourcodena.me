@@ -16,3 +16,9 @@ export function diffPaths(prev: unknown, next: unknown, path: string[] = []): Ch
   }
   return JSON.stringify(prev) === JSON.stringify(next) ? [] : [[path, next]];
 }
+
+/** For an array used as a set: what was added and removed, so a write can leave other writers' additions in place. */
+export function setDelta(prev: unknown, next: unknown) {
+  const a = Array.isArray(prev) ? prev : [], b = Array.isArray(next) ? next : [];
+  return { add: b.filter((x) => !a.includes(x)), remove: a.filter((x) => !b.includes(x)) };
+}

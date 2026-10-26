@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
 import { bondCount, derived, isSuccess, liveOutcome, outcomeClass, professionOf, rollD100, type Outcome } from './rules';
+import { d100Text, testText } from './rules/outcome';
 import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, effStat, encodeSheet, loseSan, maxSanOf, permStats, refreshSpent, setUnnatural, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
 import type { Character } from './model/character';
 import { Btn, ConfirmDialog, SkillTable, Win } from './ui';
+import { useFocusMain } from './ui/Win';
+import { useTitle } from './pages/Page';
 import { copyLabel, copyNote, useCopy } from './lib/useCopy';
 import * as play from './model/actions';
 
@@ -31,7 +34,7 @@ const Pips = ({ label, n }: { label: string; n: number }) => (
 interface Roll { id: number; label: string; chance: number; pen: number; roll: number; outcome: Outcome }
 
 const RollLine = ({ r }: { r: Roll }) => (
-  <>{r.label} {r.chance}%{r.pen ? ` (−${r.pen})` : ''}: <b>{String(r.roll).padStart(2, '0')}</b>{' '}
+  <>{testText(r.label, r.chance, r.pen)}: <b>{d100Text(r.roll)}</b>{' '}
     <span className={outcomeClass(r.outcome)}>{r.outcome.toUpperCase()}</span></>
 );
 
@@ -69,7 +72,8 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   // Runs on state changes only: `game` is a fresh object every render and must not re-send the same state.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (l !== sent.current) { sent.current = l; game?.onChange(l); } }, [l]);
-  useEffect(() => { document.title = `Live: ${c.details.name.trim() || 'Unnamed agent'} // YOURCODENA.ME`; }, [c.details.name]);
+  useTitle(`Live: ${c.details.name.trim() || 'Unnamed agent'}`);
+  useFocusMain();
   const [copied, copy] = useCopy();
   const [leaving, setLeaving] = useState(false);
   const [rolls, setRolls] = useState<Roll[]>([]);

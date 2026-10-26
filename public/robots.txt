@@ -1,5 +1,4 @@
 User-agent: *
 Allow: /
-Disallow: /g/
 
 Sitemap: https://yourcodena.me/sitemap.xml

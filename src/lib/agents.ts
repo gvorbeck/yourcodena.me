@@ -1,8 +1,9 @@
-import { FieldPath, deleteField, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { FieldPath, arrayRemove, arrayUnion, deleteField, doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
 import { newCharacter, parseCharacter, type Character } from '../model/character';
 import { parseLive, type Live } from '../model/live';
 import { professionOf } from '../rules';
-import { REMOVED, diffPaths } from './diff';
+import { REMOVED, diffPaths, setDelta } from './diff';
+import { db } from './firebase';
 import { agentRef, agentsCol } from './games';
 
 // Kept apart from games.ts so the game page only loads the sheet model (and its rules) when an agent is created or opened.
@@ -27,24 +28,45 @@ export const createAgent = (g: string, c: Character = newCharacter()) => {
 const known = new Map<string, unknown>();
 const slot = (g: string, a: string, field: string) => `${g}/${a}/${field}`;
 
+// Arrays that other writers also add to (the Discord bot checks failed skills): saved as additions and removals, not replaced.
+const SETS = ['live.checked'];
+const at = (v: unknown, path: string[]) => path.reduce<unknown>((o, k) => (o as Record<string, unknown> | null)?.[k], v);
+type Pairs = (string | FieldPath | unknown)[];
+
 function saveField(g: string, a: string, field: 'character' | 'live', value: unknown, extra: Record<string, unknown> = {}) {
   const k = slot(g, a, field);
   const before = known.has(k) ? known.get(k) : undefined;
   const leaves = before === undefined ? [[[], value] as [string[], unknown]] : diffPaths(before, value);
-  const flat = leaves.flatMap(([path, v]) => [new FieldPath(field, ...path), v === REMOVED ? deleteField() : v]);
-  const [first, ...rest] = [...flat, 'updatedAt', Date.now(), ...Object.entries(extra).flat()] as [string | FieldPath, unknown, ...unknown[]];
-  return updateDoc(agentRef(g, a), first, rest[0], ...rest.slice(1)).then(() => { known.set(k, value); });
+  const main: Pairs = [], removals: Pairs = [];
+  for (const [path, v] of leaves) {
+    const fp = new FieldPath(field, ...path);
+    if (v !== REMOVED && SETS.includes([field, ...path].join('.'))) {
+      // Union and remove can't touch one field in one update, so removals go in a second write of the same batch.
+      const { add, remove } = setDelta(at(before, path), v);
+      if (add.length) main.push(fp, arrayUnion(...add));
+      if (remove.length) removals.push(fp, arrayRemove(...remove));
+    } else main.push(fp, v === REMOVED ? deleteField() : v);
+  }
+  const batch = writeBatch(db);
+  const update = (p: Pairs) => { const [f, v, ...rest] = p as [string | FieldPath, unknown, ...unknown[]]; batch.update(agentRef(g, a), f, v, ...rest); };
+  if (removals.length) update(removals);
+  update([...main, 'updatedAt', Date.now(), ...Object.entries(extra).flat()]);
+  return batch.commit().then(() => { known.set(k, value); });
 }
 
 export const saveCharacter = (g: string, a: string, c: Character) => saveField(g, a, 'character', c, summary(c));
 export const saveLive = (g: string, a: string, live: Live) => saveField(g, a, 'live', live);
+
+/** The stored agent doesn't match the sheet's shape, so reloading won't help. */
+export class DamagedAgent extends Error {}
 
 /** One read, not a subscription: the open page is the source of truth while editing, so a snapshot echo can't clobber typing. */
 export const loadAgent = async (g: string, a: string): Promise<{ c: Character; live: Live | null } | null> => {
   const snap = await getDoc(agentRef(g, a));
   if (!snap.exists()) return null;
   const d = snap.data();
-  const c = parseCharacter(d.character), live = d.live ? parseLive(d.live) : null;
+  let c: Character, live: Live | null;
+  try { c = parseCharacter(d.character); live = d.live ? parseLive(d.live) : null; } catch { throw new DamagedAgent(); }
   known.set(slot(g, a, 'character'), c);
   known.set(slot(g, a, 'live'), live);
   return { c, live };

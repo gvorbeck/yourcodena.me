@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REMOVED, diffPaths } from './diff';
+import { REMOVED, diffPaths, setDelta } from './diff';
 
 describe('diffPaths', () => {
   it('returns nothing for equal values', () => {
@@ -17,5 +17,14 @@ describe('diffPaths', () => {
   it('sets the whole value when the old one is missing or not an object', () => {
     expect(diffPaths(null, { hp: 1 }, ['live'])).toEqual([[['live'], { hp: 1 }]]);
     expect(diffPaths(undefined, { hp: 1 })).toEqual([[[], { hp: 1 }]]);
+  });
+});
+
+describe('setDelta', () => {
+  it('lists only what this writer added and removed', () => {
+    expect(setDelta(['Law', 'Dodge'], ['Dodge', 'HUMINT'])).toEqual({ add: ['HUMINT'], remove: ['Law'] });
+  });
+  it('treats a missing old value as empty', () => {
+    expect(setDelta(undefined, ['Law'])).toEqual({ add: ['Law'], remove: [] });
   });
 });

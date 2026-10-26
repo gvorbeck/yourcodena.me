@@ -1,6 +1,8 @@
 // /dg command handling. Discord sends each command (and each autocomplete keystroke) here; the reply goes back in the HTTP response.
 import { randomInt } from 'node:crypto';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { isGameId } from '../../src/lib/gameId';
+import { agentLabel } from '../../src/model/names';
 import { isSuccess } from '../../src/rules';
 import { agentOf, choicesFor, findTest, rollTest, sheetLines, type Agent } from './dg.js';
 import { formatRoll, plain } from './discord.js';
@@ -42,7 +44,7 @@ async function agentsOf(gameId: string) {
   const hit = agentCache.get(gameId);
   if (hit && Date.now() - hit.at < AGENTS_TTL_MS) return hit.list;
   const snap = await db().collection(`games/${gameId}/agents`).select('name', 'codename').get();
-  const list = snap.docs.map((d) => ({ id: d.id, label: String(d.get('codename') || d.get('name') || 'Unnamed agent') }));
+  const list = snap.docs.map((d) => ({ id: d.id, label: agentLabel(d.get('codename'), d.get('name')) }));
   if (agentCache.size >= 100) agentCache.clear();
   agentCache.set(gameId, { at: Date.now(), list });
   return list;
@@ -90,7 +92,7 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
   if (sub.name === 'link') {
     if (!manage) return reply('Linking needs the Manage Channels permission.', true);
     const id = String(opt('game')?.value ?? '').trim().toLowerCase().replace(/^.*\/g\//, '').replace(/\/.*$/, '');
-    if (!/^[a-z0-9-]{1,100}$/.test(id) || !(await db().doc(`games/${id}`).get()).exists) return reply('No game has that ID. Copy it from the game page address: yourcodena.me/g/<game ID>.', true);
+    if (!isGameId(id) || !(await db().doc(`games/${id}`).get()).exists) return reply('No game has that ID. Copy it from the game page address: yourcodena.me/g/<game ID>.', true);
     await guildRef(i.guild_id).set({ gameId: id, linkedBy: user, linkedAt: now });
     await linkRef(i.channel_id).delete(); // a stale per-channel link here would otherwise win
     return reply(`This server now plays game \`${id}\`. Players: \`/dg claim\` your Agent, then \`/dg roll\` in any channel.`);

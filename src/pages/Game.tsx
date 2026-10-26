@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { outcomeClass } from '../rules/outcome';
-import { isStaleChunk, reloadForNewBuild } from '../lib/staleBuild';
+import { d100Text, outcomeClass, testText } from '../rules/outcome';
+import { agentLabel } from '../model/names';
+import { useRun } from '../lib/useRun';
 import { copyLabel, copyNote, useCopy } from '../lib/useCopy';
 import { createGame, useAgents, useGameExists, useRolls } from '../lib/games';
-import { hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } from '../lib/gameId';
+import { forgetSavedAgent, hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
 import { DiscordPanel } from '../DiscordPanel';
 import { Page } from './Page';
@@ -17,21 +18,17 @@ export default function Game() {
   const exists = useGameExists(gameId);
   const agents = useAgents(gameId);
   const rolls = useRolls(gameId);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
+  const { busy, err, run } = useRun('Something went wrong. Check your connection and try again.');
   const [copied, copy] = useCopy();
   const link = `${location.origin}/g/${gameId}`; // no query or hash the visitor arrived with
   useEffect(() => { if (exists.data) rememberGame(gameId); }, [exists.data, gameId]);
 
-  const run = async (fn: () => Promise<void>) => {
-    setBusy(true); setErr('');
-    try { await fn(); } catch (e) { if (!(isStaleChunk(e) && reloadForNewBuild())) setErr('Something went wrong. Check your connection and try again.'); }
-    setBusy(false);
-  };
   // The sheet model is loaded on demand so this page stays small.
   const addAgent = (fromSaved: boolean) => run(async () => {
     const [{ createAgent }, { loadCharacter }] = await Promise.all([import('../lib/agents'), import('../model/character')]);
-    nav(`/g/${gameId}/a/${createAgent(gameId, fromSaved ? loadCharacter() : undefined)}`);
+    const id = createAgent(gameId, fromSaved ? loadCharacter() : undefined);
+    if (fromSaved) forgetSavedAgent();
+    nav(`/g/${gameId}/a/${id}`);
   });
 
   if (exists.error) return <Page title={gameId}><Win title="CANNOT REACH GAME"><p className="warn">Could not load game {gameId}. Check your connection and reload.</p></Win></Page>;
@@ -67,7 +64,7 @@ export default function Game() {
           <ul className="agents">
             {agents.data.map((a) => (
               <li key={a.id}>
-                <Link to={`/g/${gameId}/a/${a.id}`}>{a.codename || a.name || 'Unnamed agent'}</Link>
+                <Link to={`/g/${gameId}/a/${a.id}`}>{agentLabel(a.codename, a.name)}</Link>
                 <span className="dim">{[a.codename && a.name, a.profession].filter(Boolean).join(' · ') || 'Not started'}</span>
                 {a.vitals ? <span>HP {a.vitals.hp} · WP {a.vitals.wp} · SAN {a.vitals.san}</span> : <span className="dim">Creation incomplete</span>}
               </li>
@@ -91,8 +88,8 @@ export default function Game() {
                   <tr key={r.id}>
                     <td className="dim">{when(r.createdAt)}</td>
                     <td><Link to={`/g/${gameId}/a/${r.agentId}`}>{r.agentName}</Link></td>
-                    <td>{r.label} {r.chance}%{r.penalty ? ` (−${r.penalty})` : ''}</td>
-                    <td className="num"><b>{String(r.roll).padStart(2, '0')}</b></td>
+                    <td>{testText(r.label, r.chance, r.penalty)}</td>
+                    <td className="num"><b>{d100Text(r.roll)}</b></td>
                     <td className={outcomeClass(r.outcome)}>{r.outcome.toUpperCase()}</td>
                   </tr>
                 ))}

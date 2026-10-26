@@ -247,3 +247,4 @@ code.link { font: inherit; overflow-wrap: anywhere; }
 }
 
 .row.adjust { align-items: flex-end; flex-wrap: wrap; } .row.adjust > span { flex: 0 1 min(18rem, 100%); min-width: 0; padding-bottom: .4rem; } .row.adjust .field { flex: 0 1 min(14rem, 100%); }
+.intro { font-size: 1.25rem; }

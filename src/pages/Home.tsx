@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { isStaleChunk, reloadForNewBuild } from '../lib/staleBuild';
+import { useRun } from '../lib/useRun';
 import { MIN_ID, newGameId, recentGames, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
 import { Page } from './Page';
@@ -8,25 +8,21 @@ import { Page } from './Page';
 export default function Home() {
   const nav = useNavigate();
   const [raw, setRaw] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
+  const { busy, err, run } = useRun('Could not create a game. Check your connection and try again.');
+  const inputId = useId();
   const slug = slugifyGameId(raw);
   const recent = recentGames();
 
   const open = (e: FormEvent) => { e.preventDefault(); if (slug.length >= MIN_ID) nav(`/g/${slug}`); };
-  const generate = async () => {
-    setBusy(true); setErr('');
-    const id = newGameId();
-    // Firestore loads on click, not with the landing page.
-    try { await (await import('../lib/games')).createGame(id); nav(`/g/${id}`); } catch (e) { if (!(isStaleChunk(e) && reloadForNewBuild())) setErr('Could not create a game. Check your connection and try again.'); }
-    setBusy(false);
-  };
+  // Firestore loads on click, not with the landing page.
+  const generate = () => run(async () => { const id = newGameId(); await (await import('../lib/games')).createGame(id); nav(`/g/${id}`); });
 
   return (
-    <Page>
+    <Page heading={<h1 className="intro">Delta Green agent creator and shared roll log</h1>}>
       <Win title="OPEN A GAME">
+        <label className="lbl" htmlFor={inputId}>Game ID</label>
         <form className="idform" onSubmit={open}>
-          <input aria-label="Game ID" placeholder="game id" value={raw} onChange={(e) => setRaw(e.target.value)} autoCapitalize="none" autoComplete="off" spellCheck={false} />
+          <input id={inputId} placeholder="game id" value={raw} onChange={(e) => setRaw(e.target.value)} autoCapitalize="none" autoComplete="off" spellCheck={false} />
           <button className="btn" disabled={slug.length < MIN_ID}>Open</button>
         </form>
         <p className="dim"><small>{slug && slug !== raw ? `Opens ${slug}. ` : ''}Letters, numbers and dashes, at least {MIN_ID}. An ID nobody has used yet offers to create that game.</small></p>

@@ -1,4 +1,5 @@
 import { createPublicKey, verify } from 'node:crypto';
+import { d100Text, testText } from '../../src/rules/outcome';
 
 /** A roll as stored at games/{gameId}/rolls/{rollId} (see src/lib/games.ts). `chance` is already after the penalty. */
 export interface Roll { agentName: string; label: string; chance: number; penalty: number; roll: number; outcome: string }
@@ -17,8 +18,7 @@ const OUTCOME: Record<string, string> = { 'critical success': '**CRITICAL SUCCES
 
 /** Same facts as the game page's roll log: `**Agent Smith** · Firearms 45% (−20) → 23 · Success` */
 export function formatRoll(r: Roll): string {
-  const pen = r.penalty ? ` (−${r.penalty})` : '';
-  return `**${plain(r.agentName) || 'Unnamed agent'}** · ${plain(r.label)} ${r.chance}%${pen} → ${String(r.roll).padStart(2, '0')} · ${OUTCOME[r.outcome] ?? plain(r.outcome)}`;
+  return `**${plain(r.agentName) || 'Unnamed agent'}** · ${testText(plain(r.label), r.chance, r.penalty)} → ${d100Text(r.roll)} · ${OUTCOME[r.outcome] ?? plain(r.outcome)}`;
 }
 
 /** Posts one message. Returns Discord's HTTP status: 204 sent, 404 webhook deleted, 429 rate limited. */
