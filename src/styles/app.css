@@ -194,8 +194,10 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; } a.btn:is
 .idform { display: flex; gap: .75rem; flex-wrap: wrap; } .idform input { flex: 1 1 16ch; width: auto; }
 .page .row { margin: .75rem 0; }
 .agents { list-style: none; margin: 0; padding: 0; }
-.agents li { display: flex; gap: .25rem 1.5rem; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px dotted var(--dim); }
-.agents li > :first-child { flex: 1 1 16ch; }
+.agents li { display: flex; align-items: center; gap: 1rem; padding: .4rem 0; border-bottom: 1px dotted var(--dim); }
+/* The details wrap among themselves; the Delete button keeps its own column. */
+.agents .info { flex: 1; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; }
+.agents .info > :first-child { flex: 1 1 16ch; }
 .log { max-height: 24rem; overflow-y: auto; }
 
 /* Confirm dialog */

@@ -83,9 +83,11 @@ export default function Game() {
           <ul className="agents">
             {agents.data.map((a) => (
               <li key={a.id}>
-                <Link to={`/g/${gameId}/a/${a.id}`}>{agentLabel(a.codename, a.name)}</Link>
-                <span className="dim">{[a.codename && a.name, a.profession].filter(Boolean).join(' · ') || 'Not started'}</span>
-                {a.vitals ? <span>HP {a.vitals.hp} · WP {a.vitals.wp} · SAN {a.vitals.san}</span> : <span className="dim">Creation incomplete</span>}
+                <div className="info">
+                  <Link to={`/g/${gameId}/a/${a.id}`}>{agentLabel(a.codename, a.name)}</Link>
+                  <span className="dim">{[a.codename && a.name, a.profession].filter(Boolean).join(' · ') || 'Not started'}</span>
+                  {a.vitals ? <span>HP {a.vitals.hp} · WP {a.vitals.wp} · SAN {a.vitals.san}</span> : <span className="dim">Creation incomplete</span>}
+                </div>
                 <button className="btn" onClick={() => run(async () => { await import('../ui'); setDoomed(a); })} disabled={busy} aria-label={`Delete ${agentLabel(a.codename, a.name)}`}>Delete</button>
               </li>
             ))}
