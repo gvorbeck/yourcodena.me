@@ -23,8 +23,13 @@ const reply = (content: string, ephemeral = false) =>
   ({ type: 4, data: { content, flags: ephemeral ? 64 : 0, allowed_mentions: { parse: [] } } });
 const choices = (list: { name: string; value: string }[]) => ({ type: 8, data: { choices: list } });
 
-/** discordChannels/{channelId}: { gameId, guildId, linkedBy, linkedAt }. discordClaims/{gameId}_{userId}: { gameId, userId, agentId, claimedAt }. */
+/**
+ * discordGuilds/{guildId}: { gameId, linkedBy, linkedAt }, so /dg works in every channel of the server.
+ * discordChannels/{channelId}: the older per-channel link, still honoured and checked first. discordClaims/{gameId}_{userId}: { gameId, userId, agentId, claimedAt }. */
 const linkRef = (channel: string) => db().doc(`discordChannels/${channel}`);
+const guildRef = (guild: string) => db().doc(`discordGuilds/${guild}`);
+const gameOf = async (channel: string, guild: string) =>
+  ((await linkRef(channel).get()).get('gameId') ?? (await guildRef(guild).get()).get('gameId')) as string | undefined;
 const claimRef = (gameId: string, user: string) => db().doc(`discordClaims/${gameId}_${user}`);
 const claimsQuery = (gameId: string, agentId: string) =>
   db().collection('discordClaims').where('gameId', '==', gameId).where('agentId', '==', agentId);
@@ -68,7 +73,7 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
   if (!sub || !user || !i.guild_id || !i.channel_id) return reply('Use /dg in a server channel.', true);
   const opt = (name: string) => sub.options?.find((o) => o.name === name);
   const manage = (BigInt(i.member?.permissions ?? '0') & MANAGE_CHANNELS) !== 0n;
-  const gameId = (await linkRef(i.channel_id).get()).get('gameId') as string | undefined;
+  const gameId = await gameOf(i.channel_id, i.guild_id);
 
   if (i.type === 4) {
     const typed = String(sub.options?.find((o) => o.focused)?.value ?? '');
@@ -83,18 +88,19 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
   lastCommand.set(user, now);
 
   if (sub.name === 'link') {
-    if (!manage) return reply('Linking a channel needs the Manage Channels permission.', true);
+    if (!manage) return reply('Linking needs the Manage Channels permission.', true);
     const id = String(opt('game')?.value ?? '').trim().toLowerCase().replace(/^.*\/g\//, '').replace(/\/.*$/, '');
     if (!/^[a-z0-9-]{1,100}$/.test(id) || !(await db().doc(`games/${id}`).get()).exists) return reply('No game has that ID. Copy it from the game page address: yourcodena.me/g/<game ID>.', true);
-    await linkRef(i.channel_id).set({ gameId: id, guildId: i.guild_id, linkedBy: user, linkedAt: now });
-    return reply(`This channel now plays game \`${id}\`. Players: \`/dg claim\` your Agent, then \`/dg roll\`.`);
+    await guildRef(i.guild_id).set({ gameId: id, linkedBy: user, linkedAt: now });
+    await linkRef(i.channel_id).delete(); // a stale per-channel link here would otherwise win
+    return reply(`This server now plays game \`${id}\`. Players: \`/dg claim\` your Agent, then \`/dg roll\` in any channel.`);
   }
   if (sub.name === 'unlink') {
     if (!manage) return reply('Unlinking needs the Manage Channels permission.', true);
-    await linkRef(i.channel_id).delete();
-    return reply('This channel is no longer linked to a game.');
+    await Promise.all([guildRef(i.guild_id).delete(), linkRef(i.channel_id).delete()]);
+    return reply('This server is no longer linked to a game.');
   }
-  if (!gameId) return reply('This channel isn\'t linked to a game. Someone with Manage Channels can run `/dg link`.', true);
+  if (!gameId) return reply('This server isn\'t linked to a game. Someone with Manage Channels can run `/dg link`.', true);
 
   if (sub.name === 'claim') {
     const a = await findAgent(gameId, String(opt('agent')?.value ?? ''));
@@ -134,11 +140,15 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     const r = rollTest(me.agent, t, randomInt(1, 101), Number(opt('modifier')?.value ?? 0));
     // Same as the live sheet: a failed skill earns a check toward end-of-session advancement (p. 28).
     const check = t.skill && !isSuccess(r.outcome) && me.agent.hasLive && !me.agent.l.checked.includes(t.label);
+    // With a webhook, the roll goes to its channel (rollToDiscord) and the player gets a private copy where they typed.
+    // Without one, the bot answers in the channel and marks the roll so rollToDiscord leaves it alone.
+    const viaWebhook = Boolean((await db().doc(`gameSecrets/${gameId}`).get()).get('webhookUrl'));
     const batch = db().batch();
-    batch.create(db().collection(`games/${gameId}/rolls`).doc(), { ...r, agentId: me.id, agentName: me.agent.name, createdAt: now, source: 'discord' });
+    batch.create(db().collection(`games/${gameId}/rolls`).doc(), { ...r, agentId: me.id, agentName: me.agent.name, createdAt: now, source: 'discord', ...(viaWebhook ? {} : { answered: true }) });
     if (check) batch.update(db().doc(`games/${gameId}/agents/${me.id}`), { 'live.checked': FieldValue.arrayUnion(t.label), updatedAt: now });
     await batch.commit();
-    return reply(formatRoll({ ...r, agentName: me.agent.name }) + (check ? ' · marked for improvement' : ''));
+    const text = formatRoll({ ...r, agentName: me.agent.name }) + (check ? ' · marked for improvement' : '');
+    return viaWebhook ? reply(`${text}\n-# Posted to the game's dice channel.`, true) : reply(text);
   }
   return reply('Unknown command.', true);
 }

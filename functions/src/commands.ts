@@ -19,9 +19,9 @@ export const DG = {
     { type: 1, name: 'unclaim', description: "Release your Agent (or, with Manage Channels, anyone's)", options: [
       { type: 3, name: 'agent', description: 'Agent to release (leave empty for your own)', autocomplete: true },
     ] },
-    { type: 1, name: 'link', description: 'Link this channel to a yourcodena.me game (needs Manage Channels)', options: [
+    { type: 1, name: 'link', description: 'Link this server to a yourcodena.me game (needs Manage Channels)', options: [
       { type: 3, name: 'game', description: 'Game ID, as in yourcodena.me/g/<game ID>', required: true },
     ] },
-    { type: 1, name: 'unlink', description: 'Unlink this channel from its game (needs Manage Channels)' },
+    { type: 1, name: 'unlink', description: 'Unlink this server from its game (needs Manage Channels)' },
   ],
 };

@@ -92,11 +92,11 @@ All commands sit under `/dg`, so they don't clash with Dice Maiden's `/roll`.
 
 - [x] **Me:** `discordBot` Function receives every command. It rejects requests without Discord's signature, and allows each user one command every 2 seconds.
 - [x] **Me:** commands:
-    - `/dg link game`: link this channel to a game. Needs Discord's *Manage Channels* permission. There's no link code: one would protect nothing beyond the game link itself.
+    - `/dg link game`: link this server to a game, so `/dg` works in every channel. Needs Discord's *Manage Channels* permission. There's no link code: one would protect nothing beyond the game link itself.
     - `/dg unlink`: same permission.
     - `/dg claim agent`: play an Agent; names autocomplete. A claimed Agent can only be taken by someone with *Manage Channels*.
     - `/dg unclaim [agent]`: release your own Agent, or (with *Manage Channels*) anyone's.
-    - `/dg roll test [modifier]`: stats, Luck, SAN and skills autocomplete with current %. Same math as the live sheet (WP, exhaustion, penalty). Rolled on the server, saved to the roll log, and a failed skill is ticked for improvement.
+    - `/dg roll test [modifier]`: stats, Luck, SAN and skills autocomplete with current %. With a webhook connected, the result posts to the webhook's channel and the player gets a private copy where they typed. Same math as the live sheet (WP, exhaustion, penalty). Rolled on the server, saved to the roll log, and a failed skill is ticked for improvement.
     - `/dg r t: [m:]`: short form of `/dg roll test: [modifier:]`.
     - `/dg sheet`: HP, WP, SAN and BP, shown only to you.
 - [x] **Me:** the bot reuses `src/rules` and `src/model`, bundled into the Functions build.

@@ -20,6 +20,9 @@ service cloud.firestore {
     match /discordChannels/{channelId} {
       allow read, write: if false;
     }
+    match /discordGuilds/{guildId} {
+      allow read, write: if false;
+    }
     match /discordClaims/{claimId} {
       allow read, write: if false;
     }

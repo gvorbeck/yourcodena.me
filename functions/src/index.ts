@@ -72,8 +72,8 @@ export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>(async 
 
 /** Posts each new roll to the game's Discord channel, if it has one. Never retries: the in-app log is the record. */
 export const rollToDiscord = onDocumentCreated('games/{gameId}/rolls/{rollId}', async (event) => {
-  const roll = event.data?.data() as (Roll & { source?: string }) | undefined;
-  if (!roll || roll.source === 'discord') return; // the bot already answered in its channel
+  const roll = event.data?.data() as (Roll & { answered?: boolean }) | undefined;
+  if (!roll || roll.answered) return; // /dg rolls with no webhook: the bot already answered in its channel
   const ref = secretRef(event.params.gameId);
   const url = (await ref.get()).get('webhookUrl') as string | undefined;
   if (!url) return;

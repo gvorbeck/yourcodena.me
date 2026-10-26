@@ -108,13 +108,14 @@ Functions deploy before Hosting, so a new build never calls a Function that isn'
 | --- | --- | --- |
 | `budgetKillSwitch` | us-east1 | Turns billing off at the $5 budget (next section) |
 | `discordWebhook` | us-central1 | Game page Discord panel: connect, disconnect, status |
-| `rollToDiscord` | us-central1 | Posts each new roll to the game's Discord webhook (skips rolls made with `/dg`) |
+| `rollToDiscord` | us-central1 | Posts each new roll to the game's Discord webhook, `/dg` rolls included (skips them only when there's no webhook and the bot answered in the channel) |
 | `discordBot` | us-central1 | Discord's Interactions Endpoint for `/dg` (link, claim, roll, sheet) |
 
 Firestore triggers have to run in `us-central1`, because the database is in `nam5`. Three collections are Functions-only, and the rules deny browsers entirely:
 
 - `gameSecrets/{gameId}`: the game's webhook URL.
-- `discordChannels/{channelId}`: which game a Discord channel plays.
+- `discordGuilds/{guildId}`: which game a Discord server plays (`/dg link`).
+- `discordChannels/{channelId}`: older per-channel links, still honoured and checked first.
 - `discordClaims/{gameId}_{userId}`: which Agent a Discord user plays.
 
 The Functions build bundles `src/rules` and `src/model` with esbuild, so `/dg roll` uses the live sheet's own math. The catch: the bot keeps the copy it was deployed with. The workflow redeploys Functions whenever `src/rules` or `src/model` change, so Discord keeps up with the site. Before that, it once showed stale chances after custom professions and Handler adjustments. `DISCORD_PUBLIC_KEY` is asked for on the first deploy and saved in `functions/.env.codename-dg`. It's a public key, so it's safe to commit. To register or update the `/dg` commands, run this and paste the Application ID and bot token when asked:
