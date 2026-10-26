@@ -1,9 +1,12 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "outDir": "lib",
+    // esbuild bundles (see package.json build); tsc only typechecks. Bundler resolution lets the bot import ../src/rules and ../src/model.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    // DOM only because shared src/model code mentions localStorage and File; Functions never call those parts.
+    "lib": ["ES2022", "DOM"],
+    "noEmit": true,
     "strict": true,
     "noUnusedLocals": true,
     "skipLibCheck": true

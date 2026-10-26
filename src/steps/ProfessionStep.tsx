@@ -1,8 +1,8 @@
 import { PROFESSIONS, GROUP_LABEL, POSTINGS, type Group } from '../rules/data/professions';
 import { PACKAGES } from '../rules/data/creation';
-import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPE_SUGGESTIONS } from '../rules/data/skills';
-import { duplicatesKit, professionOf, slotsOf, type Alt, type Slot } from '../rules';
-import { Choice, Pick, RadioGroup, Label, Rule, SkillPicker, SkillTable, TypeInput, type StepProps } from '../ui';
+import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPE_SUGGESTIONS, baseRating } from '../rules/data/skills';
+import { CUSTOM_ID, CUSTOM_MAX_RATING, customBudget, duplicatesKit, professionOf, slotsOf, type Alt, type Slot } from '../rules';
+import { Choice, Num, Pick, RadioGroup, Label, Rule, SkillPicker, SkillTable, Text, TypeInput, type StepProps } from '../ui';
 
 const altLabel = (a: Alt) => `${a.family}${a.type ? `(${a.type})` : a.askType ? ' (type)' : ''} ${a.rating}%`;
 
@@ -26,7 +26,8 @@ export function ProfessionStep({ c, up }: StepProps) {
       </li>
     );
 
-  const postings = POSTINGS.filter((x) => p && x.professions.includes(p.id));
+  const budget = customBudget(c.custom.bonds), left = budget - c.custom.points.reduce((a, b) => a + b, 0);
+  const postings =POSTINGS.filter((x) => p && x.professions.includes(p.id));
 
   return (
     <>
@@ -47,11 +48,34 @@ export function ProfessionStep({ c, up }: StepProps) {
                 ))}
               </div>
             ))}
+            <div>
+              <h3>Your own</h3>
+              <Choice value={CUSTOM_ID}>Build a new profession <span className="dim">· p. 26</span></Choice>
+            </div>
           </div>
         </RadioGroup>
 
         <div>
-          {!p || !kit ? <p className="dim">Select a profession.</p> : (
+          {c.professionId === CUSTOM_ID ? (
+            <>
+              <h3>New profession</h3>
+              <Text label="Name" value={c.custom.name} max={100} onChange={(v) => up((d) => { d.custom.name = v; })} />
+              <div className="row mt-s">
+                <label className="lbl" htmlFor="cp-bonds">Bonds</label>
+                <select id="cp-bonds" className="auto-width" value={c.custom.bonds} onChange={(e) => up((d) => { d.custom.bonds = Number(e.target.value); })}>
+                  {[1, 2, 3, 4].map((n) => <option key={n}>{n}</option>)}
+                </select>
+                <span className="dim">{budget} points · <span className={left === 0 ? 'ok' : 'warn'}>{left} left</span> · max {CUSTOM_MAX_RATING}% each</span>
+              </div>
+              {c.custom.skills.map((k, i) => (
+                <div key={i} className="row nowrap">
+                  <SkillPicker label={`Skill ${i + 1}`} value={k} onChange={(v) => up((d) => { d.custom.skills[i] = v; })} />
+                  <Num label={`Points ${i + 1}`} value={c.custom.points[i]} min={0} max={CUSTOM_MAX_RATING} onChange={(v) => up((d) => { d.custom.points[i] = v; })} />
+                  {k && <span className="dim">→ {baseRating(k) + c.custom.points[i]}%</span>}
+                </div>
+              ))}
+            </>
+          ) : !p || !kit ? <p className="dim">Select a profession.</p> : (
             <>
               <h3>{p.name}</h3>
               <p className="dim">{p.page}{p.stats.length ? ` · recommended ${p.stats.join(', ')} ≥ 10` : ''} · {p.bonds} bond{p.bonds === 1 ? '' : 's'}</p>

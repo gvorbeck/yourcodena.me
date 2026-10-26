@@ -11,12 +11,20 @@ const prose = z.string().max(5000).default('');
 const skill = z.string().max(120); // "Family(Type)"; the type input stops at 100. Also the roll label cap in firestore.rules.
 const stat = z.number().int().min(3).max(18);
 
+/** "Building a New Profession" (Handbook p. 26): ten skills sharing a point budget; selected with professionId 'custom'. */
+export const CUSTOM_SKILLS = 10;
+const emptyCustom = () => ({ name: '', bonds: 3, skills: Array<string>(CUSTOM_SKILLS).fill(''), points: Array<number>(CUSTOM_SKILLS).fill(0) });
+
 export const characterSchema = z.object({
   version: z.literal(CHARACTER_VERSION),
   stats: z.object(Object.fromEntries(STATS.map((s) => [s, stat])) as Record<(typeof STATS)[number], typeof stat>),
   statMethod: z.enum(['roll', 'points', 'set']).default('roll'),
   statSet: line,
   professionId: line,
+  custom: z.object({
+    name, bonds: z.number().int().min(1).max(4),
+    skills: z.array(skill).length(CUSTOM_SKILLS), points: z.array(z.number().int().min(0).max(100)).length(CUSTOM_SKILLS),
+  }).default(emptyCustom),
   orPicks: z.record(z.number().int()).default({}),
   picks: z.array(z.string().max(20)).max(30).default([]),
   types: z.record(z.string().max(100)).default({}),
@@ -39,7 +47,7 @@ export type Character = z.infer<typeof characterSchema>;
 export const newCharacter = (): Character => ({
   version: CHARACTER_VERSION,
   stats: { STR: 10, DEX: 10, CON: 10, INT: 10, POW: 10, CHA: 10 },
-  statMethod: 'roll', statSet: '', professionId: '', orPicks: {}, picks: [], types: {},
+  statMethod: 'roll', statSet: '', professionId: '', custom: emptyCustom(), orPicks: {}, picks: [], types: {},
   bonusPackage: '', bonus: Array(8).fill(''), bonds: [], veteran: '', veteranSkills: [], disorder: '', motivations: [],
   details: { name: '', codename: '', age: '', sex: '', nationality: '', employer: '', rank: '', education: '', appearance: '', personality: '', admires: '', dislikes: '', trust: '', helps: '' },
 });

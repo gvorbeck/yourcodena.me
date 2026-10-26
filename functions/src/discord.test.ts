@@ -46,3 +46,21 @@ describe('postWebhook', () => {
     expect(sent.allowed_mentions).toEqual({ parse: [] });
   });
 });
+
+describe('verifyDiscord', () => {
+  it('accepts only bodies signed with the app key', async () => {
+    const { generateKeyPairSync, sign } = await import('node:crypto');
+    const { verifyDiscord } = await import('./discord.js');
+    const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+    const hex = (publicKey.export({ format: 'der', type: 'spki' }) as Buffer).subarray(12).toString('hex');
+    const body = Buffer.from('{"type":1}'), ts = '1700000000';
+    const sig = sign(null, Buffer.concat([Buffer.from(ts), body]), privateKey).toString('hex');
+    const now = 1700000000_000;
+    expect(verifyDiscord(hex, sig, ts, body, now)).toBe(true);
+    expect(verifyDiscord(hex, sig, ts, Buffer.from('{"type":2}'), now)).toBe(false);
+    expect(verifyDiscord(hex, sig, '1700000001', body, now)).toBe(false);
+    expect(verifyDiscord(hex, 'zz', ts, body, now)).toBe(false);
+    expect(verifyDiscord(hex, sig, ts, body, now + 6 * 60_000)).toBe(false); // replayed later
+    expect(verifyDiscord(hex, sig, ts, body, now - 6 * 60_000)).toBe(false);
+  });
+});

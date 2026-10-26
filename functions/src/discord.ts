@@ -1,3 +1,5 @@
+import { createPublicKey, verify } from 'node:crypto';
+
 /** A roll as stored at games/{gameId}/rolls/{rollId} (see src/lib/games.ts). `chance` is already after the penalty. */
 export interface Roll { agentName: string; label: string; chance: number; penalty: number; roll: number; outcome: string }
 
@@ -36,4 +38,15 @@ export async function webhookName(url: string, f: typeof fetch = fetch): Promise
   if (!res.ok) return null;
   const body = (await res.json()) as { name?: unknown };
   return typeof body.name === 'string' ? body.name : '';
+}
+
+const MAX_SKEW_MS = 5 * 60 * 1000;
+const ED25519_SPKI = Buffer.from('302a300506032b6570032100', 'hex'); // DER prefix that turns Discord's raw 32-byte key into a key Node accepts
+
+/** Discord signs every interaction with the app's key (Developer Portal → General Information → Public Key). Anything unsigned is rejected. */
+export function verifyDiscord(publicKeyHex: string, signatureHex: string, timestamp: string, body: Buffer, now = Date.now()): boolean {
+  if (!/^[0-9a-f]{64}$/i.test(publicKeyHex) || !/^[0-9a-f]{128}$/i.test(signatureHex) || !/^\d{1,12}$/.test(timestamp)) return false;
+  if (Math.abs(now - Number(timestamp) * 1000) > MAX_SKEW_MS) return false; // a captured request can't be replayed later
+  const key = createPublicKey({ key: Buffer.concat([ED25519_SPKI, Buffer.from(publicKeyHex, 'hex')]), format: 'der', type: 'spki' });
+  return verify(null, Buffer.concat([Buffer.from(timestamp), body]), key, Buffer.from(signatureHex, 'hex'));
 }

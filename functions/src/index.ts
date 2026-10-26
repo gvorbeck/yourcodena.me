@@ -1,14 +1,14 @@
-import { CloudBillingClient } from '@google-cloud/billing';
 import { initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
-import { projectID } from 'firebase-functions/params';
+import { defineString, projectID } from 'firebase-functions/params';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
-import { HttpsError, onCall } from 'firebase-functions/v2/https';
+import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { overBudget, type BudgetAlert } from './budget.js';
-import { formatRoll, isWebhookUrl, postWebhook, webhookName, type Roll } from './discord.js';
+import { handle, type Interaction } from './bot.js';
+import { formatRoll, isWebhookUrl, postWebhook, verifyDiscord, webhookName, type Roll } from './discord.js';
 
 // Cost caps for every Function in this project (docs/discord-plan.md, phase 0).
 // us-central1 because Firestore triggers must sit with the database, which is in nam5.
@@ -16,7 +16,6 @@ setGlobalOptions({ region: 'us-central1', maxInstances: 5, timeoutSeconds: 10, m
 
 initializeApp();
 const db = getFirestore();
-const billing = new CloudBillingClient();
 
 /**
  * Kill switch: the $5 budget publishes to `budget-alerts`. Once actual cost reaches the budget,
@@ -27,6 +26,9 @@ export const budgetKillSwitch = onMessagePublished<BudgetAlert>({ topic: 'budget
   const alert = event.data.message.json;
   if (!overBudget(alert)) return;
 
+  // Loaded here, not at the top, so other Functions' cold starts don't pay for it (the bot has 3 seconds to answer).
+  const { CloudBillingClient } = await import('@google-cloud/billing');
+  const billing = new CloudBillingClient();
   const name = `projects/${projectID.value()}`;
   const [info] = await billing.getProjectBillingInfo({ name });
   if (!info.billingEnabled) return; // already off; Google keeps sending alerts for the rest of the month
@@ -70,8 +72,8 @@ export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>(async 
 
 /** Posts each new roll to the game's Discord channel, if it has one. Never retries: the in-app log is the record. */
 export const rollToDiscord = onDocumentCreated('games/{gameId}/rolls/{rollId}', async (event) => {
-  const roll = event.data?.data() as Roll | undefined;
-  if (!roll) return;
+  const roll = event.data?.data() as (Roll & { source?: string }) | undefined;
+  if (!roll || roll.source === 'discord') return; // the bot already answered in its channel
   const ref = secretRef(event.params.gameId);
   const url = (await ref.get()).get('webhookUrl') as string | undefined;
   if (!url) return;
@@ -79,4 +81,21 @@ export const rollToDiscord = onDocumentCreated('games/{gameId}/rolls/{rollId}', 
   const status = await postWebhook(url, formatRoll(roll));
   if (status === 404) await ref.update({ webhookUrl: FieldValue.delete() }); // deleted in Discord: stop trying
   else if (status !== 204) logger.warn('Discord did not take a roll', { gameId: event.params.gameId, status });
+});
+
+const discordPublicKey = defineString('DISCORD_PUBLIC_KEY', { description: 'Discord app public key (Developer Portal → General Information → Public Key)' });
+
+/** Discord's Interactions Endpoint for /dg (functions/src/bot.ts). Only requests signed with the app's key get through. */
+export const discordBot = onRequest({ invoker: 'public' }, async (req, res) => {
+  if (req.method !== 'POST') { res.status(405).end(); return; }
+  if (!verifyDiscord(discordPublicKey.value(), req.get('X-Signature-Ed25519') ?? '', req.get('X-Signature-Timestamp') ?? '', req.rawBody)) {
+    res.status(401).send('Bad signature');
+    return;
+  }
+  try {
+    res.json(await handle(req.body as Interaction));
+  } catch (e) {
+    logger.error('discordBot failed', e);
+    res.json({ type: 4, data: { content: 'Something went wrong. Try again.', flags: 64 } });
+  }
 });

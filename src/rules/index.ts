@@ -1,7 +1,7 @@
 import type { Character } from '../model/character';
 import { STATS, STAT_SETS, POINT_BUY_TOTAL, VETERANS, FEATURES, type Stat } from './data/creation';
 import { PROFESSIONS, type ProfessionDef } from './data/professions';
-import { BASE_RATINGS, BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, MAX_SKILL, TYPED_SKILLS, baseRating, makeKey } from './data/skills';
+import { BASE_RATINGS, BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, MAX_SKILL, TYPED_SKILLS, baseRating, familyOf, makeKey, typeOf } from './data/skills';
 
 // ---- Statistics (pp. 14, 18–19)
 export const roll4d6dl = (rng = Math.random) => {
@@ -60,7 +60,22 @@ export function featureOf(stat: Stat, score: number): string | null {
 export const veteranOf = (c: Character) => VETERANS.find((v) => v.id === c.veteran);
 /** The disorder only counts while its veteran option is selected (imports can carry a stale one). */
 export const disorderOf = (c: Character) => (c.veteran === 'unnatural' ? c.disorder.trim() : '');
-export const professionOf = (c: Character) => PROFESSIONS.find((p) => p.id === c.professionId);
+export const CUSTOM_ID = 'custom';
+export const CUSTOM_MAX_RATING = 60;
+/** p. 26: 400 points at 3 Bonds; ±50 per Bond removed/added. */
+export const customBudget = (bonds: number) => 400 + (3 - bonds) * 50;
+// Types are stripped of the characters the kit DSL uses so a typed name can't break parseSlot.
+const customKey = (k: string) => makeKey(familyOf(k), typeOf(k).replace(/[()*|]/g, '').trim());
+const customRating = (c: Character, i: number) => baseRating(c.custom.skills[i]) + c.custom.points[i];
+
+export function professionOf(c: Character): ProfessionDef | undefined {
+  if (c.professionId !== CUSTOM_ID) return PROFESSIONS.find((p) => p.id === c.professionId);
+  const { name, bonds, skills } = c.custom;
+  return {
+    id: CUSTOM_ID, name: name.trim() || 'Custom profession', group: 'additional', page: 'p. 26', bonds, stats: [],
+    fixed: skills.flatMap((k, i) => (k ? [`${customKey(k)} ${customRating(c, i)}`] : [])),
+  };
+}
 
 /** Derived attributes (p. 18) with Damaged Veteran adjustments (p. 38) applied. SAN starts at the pre-veteran POW × 5. */
 export function derived(c: Character) {
@@ -192,6 +207,15 @@ export function validate(c: Character): Issue[] {
     if (kit.some((k) => k.missingType)) add('profession', 'Name the type for each typed skill (language, science, craft…).');
     const dupes = [...new Set(kit.map((k) => k.key).filter((k, i, a) => a.indexOf(k) !== i))];
     if (dupes.length) add('profession', `${dupes.join(', ')} appears twice in the professional skills — change one of the picks.`);
+    if (c.professionId === CUSTOM_ID) {
+      const { name, bonds, skills, points } = c.custom;
+      if (!name.trim()) add('profession', 'Name the new profession.');
+      if (skills.some((k) => !k)) add('profession', `Pick all ${skills.length} professional skills.`);
+      if (skills.some((k) => k && TYPED_SKILLS.includes(customKey(k)))) add('profession', 'Name the type for each typed professional skill.');
+      const left = customBudget(bonds) - points.reduce((a, b) => a + b, 0);
+      if (left) add('profession', `Spend exactly ${customBudget(bonds)} professional skill points (${left > 0 ? `${left} left` : `${-left} over`}).`);
+      for (const [i, k] of skills.entries()) if (k && customRating(c, i) > CUSTOM_MAX_RATING) add('profession', `${k} is over ${CUSTOM_MAX_RATING}% — no professional skill may be higher.`);
+    }
   }
 
   if (c.bonus.some((k) => !k)) add('profession', `Pick all ${BONUS_PICKS} bonus skills.`);

@@ -48,6 +48,8 @@ html { scroll-padding-top: 4rem; } /* keeps focused controls clear of the sticky
 .win { border: 2px solid var(--line); background: var(--panel); }
 .win > header { background: var(--inv-bg); color: var(--inv-fg); padding: 0 .5rem; display: flex; justify-content: space-between; }
 .win > header h2 { margin: 0; font: inherit; }
+.win-toggle { all: unset; cursor: pointer; } .win-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.badge-ok { background: var(--ok); color: var(--panel); padding: 0 .4rem; margin: .15rem 0; align-self: center; }
 .win > .body { padding: var(--gap); }
 
 .steps { list-style: none; margin: 0; padding: 0; }

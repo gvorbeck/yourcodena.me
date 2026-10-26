@@ -6,7 +6,7 @@ Add server code (Firebase Cloud Functions), then build on it in order. Today the
 
 0. **Cost guardrails**, so you can't get a surprise bill
 1. **Rolls post to Discord**
-2. **Sign-in and game passwords**
+2. **Game passwords** (2a dropped, 2b optional)
 3. **Admin login**
 4. **Discord bot** with slash commands
 
@@ -22,7 +22,7 @@ Every phase must leave today's experience unchanged. Nobody signs up, nobody typ
 - **Untouched:** open games, `/#sheet=` links, the recent-games list, offline play and the roll log.
 - **CSP:** domains are only ever added.
 
-End state: browsers only touch game data (`games`, `agents`, `rolls`, `members`), and only as the rules allow. Secrets and links (`gameSecrets`, `discordChannels`, `discordUsers`) can only be reached by Functions, which use the Admin SDK.
+End state: browsers only touch game data (`games`, `agents`, `rolls`, `members`), and only as the rules allow. Secrets and links (`gameSecrets`, `discordChannels`, `discordClaims`) can only be reached by Functions, which use the Admin SDK.
 
 ## Phase 0: Cost guardrails
 
@@ -39,7 +39,7 @@ End state: browsers only touch game data (`games`, `agents`, `rolls`, `members`)
 
 **Done when:** going over $5 shuts billing off and emails you. Wiring verified 2026-10-25: a test 50% alert and Google's own alerts (every ~20 min) reach the kill switch and are ignored. This is the one exception to "current users notice nothing": a site that's down beats a surprise bill.
 
-Normal play stays in the free tier. Spam is the risk, and phases 2a and 4 add per-user limits for it. Skipped: extra debouncing (autosave already waits 0.6 s), and having users bring their own Firebase (too much setup for players).
+Normal play stays in the free tier. Spam is the risk: App Check enforcement and the bot's per-user limit cover it. Skipped: extra debouncing (autosave already waits 0.6 s), and having users bring their own Firebase (too much setup for players).
 
 ## Phase 1: Rolls post to Discord
 
@@ -49,23 +49,16 @@ Normal play stays in the free tier. Spam is the risk, and phases 2a and 4 add pe
 - [x] **Me:** Discord panel on the game page: paste URL, connect, disconnect.
 - [x] **Me:** tests for the message format, URL check and ping blocking. `gameSecrets` denial is a plain `if false` rule; no emulator test.
 - [x] **Me:** `npm --prefix functions run webhook:test` posts sample rolls from your terminal.
-- [ ] **You:** `firebase deploy --only functions,firestore:rules`, then push the app.
-- [ ] **You:** delete the "Captain Hook" webhook (its URL was pasted in chat), make a new one, paste it into the game page panel.
+- [x] **You:** `firebase deploy --only functions,firestore:rules`, then push the app.
+- [x] **You:** delete the "Captain Hook" webhook (its URL was pasted in chat), make a new one, paste it into the game page panel.
 
 **Done when:** a roll in the app shows up in Discord.
 
 Until 2b, anyone with the game link can replace the webhook. They still can't read it.
 
-## Phase 2a: Invisible sign-in and rate limits
+## Phase 2a: Invisible sign-in and rate limits (dropped 2026-10-25)
 
-Protects your bill. It doesn't need passwords.
-
-- [ ] **You:** turn on Anonymous sign-in in Firebase Auth.
-- [ ] **Me:** the app signs in invisibly in the background. It never blocks the page, and it still works offline. There's still no account screen.
-- [ ] **Me:** rules: a burst limit of 30 rolls per minute per browser. It isn't one per second, so fast clicking and offline rolls sent all at once on reconnect still go through.
-- [ ] **Me:** deploy the limit 2 weeks after the sign-in code ships. Until then, writes without sign-in still pass.
-
-**Done when:** a script can't log more than 30 rolls a minute, and normal play never hits the limit.
+A rules-based roll limit needs a per-browser counter kept in step with the server. Offline rolls sent at once on reconnect would trip it and be lost, which breaks the rule above. The kill switch caps the bill, and enforcing App Check blocks the scripts that would run it up. Nothing later depends on it: the bot has its own limit, and admin login uses Google sign-in.
 
 ## Phase 2b: Game passwords (optional)
 
@@ -93,22 +86,29 @@ Existing games stay open. Whoever sets the first password on one becomes its Han
 
 This replaces a master password. A master password would open everything if it leaked, and your Google account already has 2-step verification.
 
-## Phase 4: Discord bot
+## Phase 4: Discord bot (`/dg`)
 
-- [ ] **You:** create an app in the Discord Developer Portal.
-- [ ] **You:** store its public key and bot token with `firebase functions:secrets:set`. They never go in the repo or the chat.
-- [ ] **Me:** one Function receives every command. It rejects unsigned requests and allows each user one command every 2 seconds.
-- [ ] **Me:** commands:
-    - `/link game code`: link the channel to a game (the game password, or a code copied from the game page if 2b is skipped)
-    - `/unlink`
-    - `/claim agent`: pick your Agent
-    - `/roll skill [modifier]`: rolled on the server, saved to the roll log
-    - `/sheet`: HP, WP, SAN, shown only to you
-- [ ] **Me:** a script that registers the commands.
-- [ ] **Me:** bot rolls skip the phase 1 webhook, so nothing posts twice.
-- [ ] **You:** paste the Function's URL into the portal and invite the bot to your server.
+All commands sit under `/dg`, so they don't clash with Dice Maiden's `/roll`.
 
-**Done when:** `/roll` in Discord shows up in the app's roll log.
+- [x] **Me:** `discordBot` Function receives every command. It rejects requests without Discord's signature, and allows each user one command every 2 seconds.
+- [x] **Me:** commands:
+    - `/dg link game`: link this channel to a game. Needs Discord's *Manage Channels* permission. There's no link code: one would protect nothing beyond the game link itself.
+    - `/dg unlink`: same permission.
+    - `/dg claim agent`: play an Agent; names autocomplete. A claimed Agent can only be taken by someone with *Manage Channels*.
+    - `/dg unclaim [agent]`: release your own Agent, or (with *Manage Channels*) anyone's.
+    - `/dg roll test [modifier]`: stats, Luck, SAN and skills autocomplete with current %. Same math as the live sheet (WP, exhaustion, penalty). Rolled on the server, saved to the roll log, and a failed skill is ticked for improvement.
+    - `/dg sheet`: HP, WP, SAN and BP, shown only to you.
+- [x] **Me:** the bot reuses `src/rules` and `src/model`, bundled into the Functions build.
+- [x] **Me:** `npm --prefix functions run discord:register` registers the commands. It asks for the bot token, so the token never goes in the repo, chat or Firebase.
+- [x] **Me:** bot rolls skip the phase 1 webhook, so nothing posts twice.
+- [ ] **You:** create an app in the Discord Developer Portal. Copy its Application ID and Public Key, and reset/copy the bot token.
+- [ ] **You:** deploy (it asks for the public key once), set the Interactions Endpoint URL in the portal, run the register script, and invite the app to the server.
+
+**Done when:** `/dg roll` in Discord shows up in the app's roll log.
+
+Known gaps:
+- A cold start can miss Discord's 3-second deadline ("The application did not respond"). Retry. Keeping an instance warm would cost about as much as the whole budget.
+- A skill ticked from Discord is lost if that Agent's sheet is open in a tab that then changes its own ticked skills before reloading.
 
 ## Decisions needed
 
@@ -116,4 +116,4 @@ This replaces a master password. A master password would open everything if it l
 - **Phase 2b:** build passwords now, or wait until someone needs them?
 - **Handler clears browser data:** give a recovery code, or allow an optional Google login?
 - **Locking an old open game:** does the first password win, or can only an admin lock it?
-- **`/claim`:** can anyone in the channel claim an Agent, or does the Handler approve?
+- ~~**`/claim`:**~~ decided 2026-10-25: anyone in a linked channel claims a free Agent; *Manage Channels* can take over or release any claim.

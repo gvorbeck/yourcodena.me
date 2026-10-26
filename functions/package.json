@@ -7,15 +7,18 @@
     "node": "22"
   },
   "scripts": {
-    "build": "tsc",
-    "webhook:test": "tsc && node lib/webhookTest.js"
+    "build": "rm -rf lib && tsc --noEmit && esbuild src/index.ts src/webhookTest.ts src/registerCommands.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outdir=lib --log-level=warning",
+    "webhook:test": "npm run build && node lib/webhookTest.js",
+    "discord:register": "npm run build && node lib/registerCommands.js"
   },
   "dependencies": {
     "@google-cloud/billing": "^6.2.0",
     "firebase-admin": "^14.5.0",
-    "firebase-functions": "^7.4.0"
+    "firebase-functions": "^7.4.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "typescript": "^5.6.3"
   }
 }

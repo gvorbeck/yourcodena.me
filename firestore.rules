@@ -16,6 +16,13 @@ service cloud.firestore {
     match /gameSecrets/{gameId} {
       allow read, write: if false;
     }
+    // Discord bot: which channel plays which game, and which Discord user plays which Agent. Functions only.
+    match /discordChannels/{channelId} {
+      allow read, write: if false;
+    }
+    match /discordClaims/{claimId} {
+      allow read, write: if false;
+    }
 
     match /games/{gameId} {
       allow get: if true;

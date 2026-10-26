@@ -108,9 +108,20 @@ Cloud Functions (`functions/`) are not in the workflow. Deploy them by hand with
 | --- | --- | --- |
 | `budgetKillSwitch` | us-east1 | Turns billing off at the $5 budget (next section) |
 | `discordWebhook` | us-central1 | Game page Discord panel: connect, disconnect, status |
-| `rollToDiscord` | us-central1 | Posts each new roll to the game's Discord webhook |
+| `rollToDiscord` | us-central1 | Posts each new roll to the game's Discord webhook (skips rolls made with `/dg`) |
+| `discordBot` | us-central1 | Discord's Interactions Endpoint for `/dg` (link, claim, roll, sheet) |
 
-Firestore triggers have to run in `us-central1`, because the database is in `nam5`. `gameSecrets/{gameId}` holds each game's webhook URL. The rules deny browsers entirely, so only Functions can read it.
+Firestore triggers have to run in `us-central1`, because the database is in `nam5`. Three collections are Functions-only, and the rules deny browsers entirely:
+
+- `gameSecrets/{gameId}`: the game's webhook URL.
+- `discordChannels/{channelId}`: which game a Discord channel plays.
+- `discordClaims/{gameId}_{userId}`: which Agent a Discord user plays.
+
+The Functions build bundles `src/rules` and `src/model` with esbuild, so `/dg roll` uses the live sheet's own math. `DISCORD_PUBLIC_KEY` is asked for on the first deploy and saved in `functions/.env.codename-dg`. It's a public key, so it's safe to commit. To register or update the `/dg` commands, run this and paste the Application ID and bot token when asked:
+
+```bash
+npm --prefix functions run discord:register
+```
 
 To see how roll messages look without the app, run this and paste a webhook URL when it asks:
 

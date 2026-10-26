@@ -234,3 +234,57 @@ describe('ascii sheet adapted boxes (p. 38)', () => {
     expect(adapted('captivity')).toEqual(['Adapted [ ]', 'Adapted [x]']);
   });
 });
+
+describe('building a new profession (p. 26)', () => {
+  const custom = () => {
+    const c = newCharacter();
+    c.professionId = 'custom';
+    c.details.name = 'X';
+    c.bonus = ['Alertness', 'Law', 'Occult', 'Stealth', 'Search', 'Drive', 'Persuade', 'First Aid'];
+    c.custom = { name: 'Gravedigger', bonds: 3, skills: ['Alertness', 'Craft(Mechanic)', 'Search', 'Stealth', 'Survival', 'Occult', 'Persuade', 'Drive', 'First Aid', 'Law'], points: Array(10).fill(40) };
+    return c;
+  };
+  const msgs = (c: ReturnType<typeof custom>) => blocking(validate(c)).map((i) => i.msg).join('|');
+  it('turns the budget into a kit', () => {
+    const c = custom();
+    expect(skillsOf(c).find((s) => s.key === 'Law')?.professional).toBe(40);
+    expect(bondCount(c)).toBe(3);
+  });
+  it('is complete at 400 points, 3 Bonds, every skill at most 60%', () => {
+    const c = custom();
+    c.bonds = [{ name: 'a', note: '' }, { name: 'b', note: '' }, { name: 'c', note: '' }];
+    expect(msgs(c)).toBe('');
+  });
+  it('trades 50 points per Bond', () => {
+    const c = custom();
+    c.custom.bonds = 4;
+    expect(bondCount(c)).toBe(4);
+    expect(msgs(c)).toContain('Spend exactly 350');
+    c.custom.bonds = 1;
+    expect(msgs(c)).toContain('Spend exactly 500');
+  });
+  it('caps a skill at 60% including its base rating', () => {
+    const c = custom();
+    c.custom.points[2] = 45; // Search starts above 15%
+    expect(msgs(c)).toContain('Search is over 60%');
+  });
+  it('needs a name, ten distinct skills and a type for typed ones', () => {
+    const c = custom();
+    c.custom.name = ' ';
+    c.custom.skills[0] = 'Law';
+    expect(msgs(c)).toContain('Name the new profession');
+    expect(msgs(c)).toContain('Law appears twice');
+    c.custom.skills[0] = '';
+    expect(msgs(c)).toContain('Pick all 10');
+  });
+  it('treats a type of only stripped characters as missing, and keeps the kit parseable', () => {
+    const c = custom();
+    for (const t of ['*', '()', '|', ' ']) {
+      c.custom.skills[1] = `Craft(${t})`;
+      expect(msgs(c), t).toContain('Name the type');
+      expect(() => kitOf(c)).not.toThrow();
+    }
+    c.custom.skills[1] = 'Craft(Elec)tric)';
+    expect(kitOf(c).map((k) => k.key)).toContain('Craft(Electric)');
+  });
+});

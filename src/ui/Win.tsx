@@ -1,14 +1,23 @@
-import { useId, type ReactNode, type Ref } from 'react';
+import { useId, useState, type ReactNode, type Ref } from 'react';
 
 // Apart from ui/index.tsx so pages that need no form controls don't pull in react-aria-components.
-interface WinProps { title: string; className?: string; right?: ReactNode; children: ReactNode; headingRef?: Ref<HTMLHeadingElement> }
+interface WinProps { title: string; className?: string; right?: ReactNode; children: ReactNode; headingRef?: Ref<HTMLHeadingElement>; collapsible?: boolean }
 
-export const Win = ({ title, right, children, headingRef, className }: WinProps) => {
+/** `collapsible`: the body starts hidden and the title toggles it. */
+export const Win = ({ title, right, children, headingRef, className, collapsible }: WinProps) => {
   const id = useId();
+  const [open, setOpen] = useState(!collapsible);
   return (
     <section className={className ? `win ${className}` : 'win'} aria-labelledby={id}>
-      <header><h2 id={id} tabIndex={headingRef ? -1 : undefined} ref={headingRef}>{title}</h2><span>{right}</span></header>
-      <div className="body">{children}</div>
+      <header>
+        <h2 id={id} tabIndex={headingRef ? -1 : undefined} ref={headingRef}>
+          {collapsible
+            ? <button className="win-toggle" aria-expanded={open} aria-controls={`${id}-b`} onClick={() => setOpen((o) => !o)}>{open ? '▾' : '▸'} {title}</button>
+            : title}
+        </h2>
+        <span>{right}</span>
+      </header>
+      <div className="body" id={`${id}-b`} hidden={!open}>{children}</div>
     </section>
   );
 };

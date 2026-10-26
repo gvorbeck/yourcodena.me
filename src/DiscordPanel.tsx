@@ -1,8 +1,11 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
-import { discordError, discordWebhook, type DiscordStatus } from './lib/discord';
 import { Win } from './ui/Win';
+import { discordError, discordWebhook, type DiscordStatus } from './lib/discord';
 
-/** Game page panel: connect a Discord webhook so the game's rolls post to a channel. The URL never comes back from the server. */
+/**
+ * Game page panel, collapsed until its title is clicked: connect a Discord webhook so the game's rolls post to a channel.
+ * The title shows CONNECTED when one is set. The URL never comes back from the server.
+ */
 export function DiscordPanel({ gameId }: { gameId: string }) {
   const id = useId();
   const [status, setStatus] = useState<DiscordStatus | 'error' | null>(null);
@@ -31,7 +34,7 @@ export function DiscordPanel({ gameId }: { gameId: string }) {
   const connected = typeof status === 'object' && status?.connected;
 
   return (
-    <Win title="DISCORD">
+    <Win title="DISCORD" collapsible right={connected && <span className="badge-ok">CONNECTED</span>}>
       {status === null ? <p className="dim" role="status">Checking…</p>
         : status === 'error' ? <p className="warn">Couldn't check the Discord connection. Reload to retry.</p>
         : connected ? (

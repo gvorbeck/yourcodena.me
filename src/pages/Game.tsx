@@ -81,8 +81,6 @@ export default function Game() {
         {err && <p className="warn" role="alert">{err}</p>}
       </Win>
 
-      <DiscordPanel gameId={gameId} />
-
       <Win title="ROLL LOG" right="latest 50">
         {rolls.error ? <p className="warn">Could not load the roll log. Reload to retry.</p> : rolls.data === undefined ? <p className="dim">Loading…</p> : rolls.data.length === 0 ? <p className="dim">No rolls yet. Rolls made on an agent's live sheet appear here for everyone.</p> : (
           <div className="log">
@@ -103,6 +101,8 @@ export default function Game() {
           </div>
         )}
       </Win>
+
+      <DiscordPanel gameId={gameId} />
     </Page>
   );
 }
