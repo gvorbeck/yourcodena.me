@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { STATS } from '../rules/data/creation';
 import { SAVED_AGENT_KEY as KEY } from '../lib/storageKeys';
+import { fromGreenAgent, isGreenAgent } from './greenagent';
 
 export const CHARACTER_VERSION = 1;
 
@@ -84,4 +85,7 @@ export const exportJson = (c: Character) => {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
 
-export const importJson = async (file: File): Promise<Character> => parseCharacter(JSON.parse(await file.text()));
+export const importJson = async (file: File): Promise<Character> => {
+  const raw = JSON.parse(await file.text());
+  return parseCharacter(isGreenAgent(raw) ? fromGreenAgent(raw) : raw);
+};

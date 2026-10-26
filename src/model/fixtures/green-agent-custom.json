@@ -1,0 +1,647 @@
+{
+  "notes": "",
+  "traumaticBackground": null,
+  "statGenerationMethod": "array",
+  "profChoiceSkillSelections": {},
+  "statArrayChoice": 1,
+  "disorder": null,
+  "rolledStatValues": [],
+  "statAssignments": {
+    "STR": 11,
+    "INT": 15,
+    "POW": 10,
+    "CHA": 14,
+    "CON": 10,
+    "DEX": 12
+  },
+  "traumaticBackgroundEffects": {},
+  "customProfessionBonds": 3,
+  "derivedAttributes": {
+    "HP": 11,
+    "WP": 10,
+    "SAN": 50,
+    "BP": 40
+  },
+  "customProfessionSkillPointBudget": 400,
+  "orSkillChoices": {},
+  "derivedCurrent": {
+    "HP": 0,
+    "SAN": 0,
+    "WP": 0,
+    "BP": 0
+  },
+  "id": "char_1793018535455_g3oxgoj",
+  "customProfessionSetupStage": "done",
+  "distinguishingFeatures": {},
+  "skillBoostsUsed": 8,
+  "basePOW": null,
+  "createdDate": null,
+  "personalInfo": {
+    "age": 36,
+    "employer": "Self employed",
+    "sex": "Male",
+    "nationality": "American",
+    "name": "Larry Stapler"
+  },
+  "customProfessionSelectedSkills": [
+    {
+      "key": "bureaucracy",
+      "points": 20,
+      "tempInstanceId": "bureaucracy_custom_0_17du40gsd",
+      "typeName": ""
+    },
+    {
+      "typeName": "",
+      "key": "computer_science",
+      "points": 45,
+      "tempInstanceId": "computer_science_custom_0_180mehwvd"
+    },
+    {
+      "points": 55,
+      "tempInstanceId": "craft_custom_0_18j28qu9a",
+      "key": "craft",
+      "typeName": "Lockpicking"
+    },
+    {
+      "tempInstanceId": "criminology_custom_0_1e5fgt0wb",
+      "typeName": "",
+      "points": 30,
+      "key": "criminology"
+    },
+    {
+      "points": 45,
+      "key": "disguise",
+      "typeName": "",
+      "tempInstanceId": "disguise_custom_0_1fkjrqrrj"
+    },
+    {
+      "tempInstanceId": "forensics_custom_0_1lj2ommmb",
+      "points": 35,
+      "key": "forensics",
+      "typeName": ""
+    },
+    {
+      "key": "humint",
+      "typeName": "",
+      "points": 35,
+      "tempInstanceId": "humint_custom_0_1o1aydygx"
+    },
+    {
+      "tempInstanceId": "law_custom_0_1om7tzp15",
+      "key": "law",
+      "typeName": "",
+      "points": 35
+    },
+    {
+      "tempInstanceId": "occult_custom_0_1sglowjs0",
+      "points": 5,
+      "key": "occult",
+      "typeName": ""
+    },
+    {
+      "tempInstanceId": "persuade_custom_0_1t0i0vypd",
+      "key": "persuade",
+      "typeName": "",
+      "points": 30
+    },
+    {
+      "typeName": "",
+      "key": "search",
+      "tempInstanceId": "search_custom_0_1x401ww6u",
+      "points": 25
+    },
+    {
+      "points": 30,
+      "typeName": "",
+      "key": "stealth",
+      "tempInstanceId": "stealth_custom_0_1zv1rg5r4"
+    },
+    {
+      "typeName": "",
+      "points": 10,
+      "key": "alertness",
+      "tempInstanceId": "alertness_custom_0_2q8i15du"
+    }
+  ],
+  "stats": {
+    "DEX": 12,
+    "CON": 10,
+    "INT": 15,
+    "STR": 11,
+    "CHA": 14,
+    "POW": 10
+  },
+  "skills": [
+    {
+      "increases": 0,
+      "baseValueFromProfession": 0,
+      "isChoiceSkill": false,
+      "typeName": null,
+      "isProfessional": false,
+      "value": 10,
+      "instanceId": "accounting_generic_o944qst9",
+      "key": "accounting",
+      "slotId": null
+    },
+    {
+      "value": 30,
+      "isProfessional": true,
+      "isChoiceSkill": false,
+      "slotId": null,
+      "key": "alertness",
+      "baseValueFromProfession": 10,
+      "increases": 0,
+      "typeName": null,
+      "instanceId": "alertness_generic_o94nwty5"
+    },
+    {
+      "isChoiceSkill": false,
+      "typeName": null,
+      "instanceId": "anthropology_generic_o94igzgl",
+      "isProfessional": false,
+      "baseValueFromProfession": 0,
+      "value": 0,
+      "increases": 0,
+      "key": "anthropology",
+      "slotId": null
+    },
+    {
+      "isChoiceSkill": false,
+      "isProfessional": false,
+      "slotId": null,
+      "typeName": null,
+      "baseValueFromProfession": 0,
+      "value": 0,
+      "instanceId": "archeology_generic_o94m2s9t",
+      "key": "archeology",
+      "increases": 0
+    },
+    {
+      "isProfessional": false,
+      "slotId": null,
+      "key": "art",
+      "increases": 0,
+      "value": 0,
+      "baseValueFromProfession": 0,
+      "instanceId": "art_generic_o94051pa",
+      "isChoiceSkill": false,
+      "typeName": ""
+    },
+    {
+      "isProfessional": false,
+      "increases": 0,
+      "key": "artillery",
+      "instanceId": "artillery_generic_o943z7ig",
+      "typeName": null,
+      "baseValueFromProfession": 0,
+      "isChoiceSkill": false,
+      "slotId": null,
+      "value": 0
+    },
+    {
+      "key": "athletics",
+      "increases": 0,
+      "instanceId": "athletics_generic_o94k9fiz",
+      "value": 30,
+      "typeName": null,
+      "slotId": null,
+      "isChoiceSkill": false,
+      "baseValueFromProfession": 0,
+      "isProfessional": false
+    },
+    {
+      "baseValueFromProfession": 20,
+      "isProfessional": true,
+      "instanceId": "bureaucracy_generic_o942yrvk",
+      "increases": 0,
+      "typeName": null,
+      "slotId": null,
+      "value": 30,
+      "isChoiceSkill": false,
+      "key": "bureaucracy"
+    },
+    {
+      "typeName": null,
+      "isChoiceSkill": false,
+      "isProfessional": true,
+      "baseValueFromProfession": 45,
+      "increases": 1,
+      "instanceId": "computer_science_generic_o94qyrqv",
+      "slotId": null,
+      "key": "computer_science",
+      "value": 75
+    },
+    {
+      "increases": 0,
+      "typeName": "",
+      "baseValueFromProfession": 0,
+      "value": 0,
+      "slotId": null,
+      "instanceId": "craft_generic_o9498h3u",
+      "key": "craft",
+      "isProfessional": false,
+      "isChoiceSkill": false
+    },
+    {
+      "typeName": null,
+      "isProfessional": true,
+      "value": 40,
+      "slotId": null,
+      "baseValueFromProfession": 30,
+      "key": "criminology",
+      "instanceId": "criminology_generic_o9435ib5",
+      "isChoiceSkill": false,
+      "increases": 0
+    },
+    {
+      "isProfessional": false,
+      "slotId": null,
+      "isChoiceSkill": false,
+      "typeName": null,
+      "key": "demolitions",
+      "baseValueFromProfession": 0,
+      "increases": 0,
+      "value": 0,
+      "instanceId": "demolitions_generic_o94llvpj"
+    },
+    {
+      "isProfessional": true,
+      "typeName": null,
+      "key": "disguise",
+      "instanceId": "disguise_generic_o94lhjkw",
+      "isChoiceSkill": false,
+      "slotId": null,
+      "value": 65,
+      "increases": 0,
+      "baseValueFromProfession": 45
+    },
+    {
+      "baseValueFromProfession": 0,
+      "typeName": null,
+      "instanceId": "dodge_generic_o94fyyox",
+      "slotId": null,
+      "key": "dodge",
+      "value": 30,
+      "isChoiceSkill": false,
+      "increases": 0,
+      "isProfessional": false
+    },
+    {
+      "instanceId": "drive_generic_o94u60uo",
+      "isChoiceSkill": false,
+      "slotId": null,
+      "value": 20,
+      "baseValueFromProfession": 0,
+      "isProfessional": false,
+      "typeName": null,
+      "key": "drive",
+      "increases": 0
+    },
+    {
+      "isProfessional": false,
+      "typeName": null,
+      "isChoiceSkill": false,
+      "slotId": null,
+      "instanceId": "firearms_generic_o948rmz7",
+      "baseValueFromProfession": 0,
+      "increases": 0,
+      "value": 20,
+      "key": "firearms"
+    },
+    {
+      "slotId": null,
+      "isProfessional": false,
+      "isChoiceSkill": false,
+      "baseValueFromProfession": 0,
+      "value": 10,
+      "typeName": null,
+      "key": "first_aid",
+      "increases": 0,
+      "instanceId": "first_aid_generic_o94bxsz8"
+    },
+    {
+      "baseValueFromProfession": 0,
+      "key": "foreign_language",
+      "increases": 0,
+      "slotId": null,
+      "typeName": "",
+      "instanceId": "foreign_language_generic_o947yk9q",
+      "value": 0,
+      "isProfessional": false,
+      "isChoiceSkill": false
+    },
+    {
+      "isProfessional": true,
+      "slotId": null,
+      "increases": 1,
+      "value": 55,
+      "key": "forensics",
+      "isChoiceSkill": false,
+      "instanceId": "forensics_generic_o94051lu",
+      "typeName": null,
+      "baseValueFromProfession": 35
+    },
+    {
+      "instanceId": "heavy_machinery_generic_o94h9xg7",
+      "increases": 0,
+      "typeName": null,
+      "value": 10,
+      "isChoiceSkill": false,
+      "isProfessional": false,
+      "slotId": null,
+      "baseValueFromProfession": 0,
+      "key": "heavy_machinery"
+    },
+    {
+      "baseValueFromProfession": 0,
+      "increases": 0,
+      "typeName": null,
+      "isProfessional": false,
+      "instanceId": "heavy_weapons_generic_o94300md",
+      "slotId": null,
+      "key": "heavy_weapons",
+      "isChoiceSkill": false,
+      "value": 0
+    },
+    {
+      "value": 10,
+      "key": "history",
+      "isProfessional": false,
+      "instanceId": "history_generic_o946rmgj",
+      "typeName": null,
+      "baseValueFromProfession": 0,
+      "isChoiceSkill": false,
+      "slotId": null,
+      "increases": 0
+    },
+    {
+      "isChoiceSkill": false,
+      "baseValueFromProfession": 35,
+      "slotId": null,
+      "typeName": null,
+      "isProfessional": true,
+      "key": "humint",
+      "increases": 0,
+      "instanceId": "humint_generic_o94n1n75",
+      "value": 45
+    },
+    {
+      "isChoiceSkill": false,
+      "baseValueFromProfession": 35,
+      "key": "law",
+      "isProfessional": true,
+      "instanceId": "law_generic_o9403112",
+      "slotId": null,
+      "value": 55,
+      "increases": 1,
+      "typeName": null
+    },
+    {
+      "increases": 0,
+      "baseValueFromProfession": 0,
+      "slotId": null,
+      "isChoiceSkill": false,
+      "typeName": null,
+      "isProfessional": false,
+      "instanceId": "medicine_generic_o945ekc6",
+      "value": 0,
+      "key": "medicine"
+    },
+    {
+      "isProfessional": false,
+      "slotId": null,
+      "typeName": null,
+      "key": "melee_weapons",
+      "instanceId": "melee_weapons_generic_o94jla11",
+      "baseValueFromProfession": 0,
+      "increases": 0,
+      "value": 30,
+      "isChoiceSkill": false
+    },
+    {
+      "increases": 0,
+      "instanceId": "military_science_generic_o948a388",
+      "key": "military_science",
+      "isChoiceSkill": false,
+      "slotId": null,
+      "typeName": "",
+      "value": 0,
+      "isProfessional": false,
+      "baseValueFromProfession": 0
+    },
+    {
+      "baseValueFromProfession": 0,
+      "value": 10,
+      "typeName": null,
+      "slotId": null,
+      "increases": 0,
+      "isProfessional": false,
+      "key": "navigate",
+      "instanceId": "navigate_generic_o94j7uqk",
+      "isChoiceSkill": false
+    },
+    {
+      "typeName": null,
+      "isProfessional": true,
+      "value": 15,
+      "slotId": null,
+      "increases": 0,
+      "isChoiceSkill": false,
+      "instanceId": "occult_generic_o94ncdat",
+      "key": "occult",
+      "baseValueFromProfession": 5
+    },
+    {
+      "instanceId": "persuade_generic_o94jtd6n",
+      "slotId": null,
+      "increases": 1,
+      "isChoiceSkill": false,
+      "key": "persuade",
+      "isProfessional": true,
+      "typeName": null,
+      "baseValueFromProfession": 30,
+      "value": 70
+    },
+    {
+      "typeName": null,
+      "isProfessional": false,
+      "key": "pharmacy",
+      "instanceId": "pharmacy_generic_o94orvux",
+      "increases": 0,
+      "isChoiceSkill": false,
+      "baseValueFromProfession": 0,
+      "value": 0,
+      "slotId": null
+    },
+    {
+      "typeName": "",
+      "instanceId": "pilot_generic_o94r1s2y",
+      "key": "pilot",
+      "slotId": null,
+      "value": 0,
+      "increases": 0,
+      "baseValueFromProfession": 0,
+      "isChoiceSkill": false,
+      "isProfessional": false
+    },
+    {
+      "increases": 0,
+      "value": 10,
+      "typeName": null,
+      "isProfessional": false,
+      "baseValueFromProfession": 0,
+      "key": "psychotherapy",
+      "slotId": null,
+      "instanceId": "psychotherapy_generic_o94dc5cp",
+      "isChoiceSkill": false
+    },
+    {
+      "baseValueFromProfession": 0,
+      "key": "ride",
+      "typeName": null,
+      "isProfessional": false,
+      "slotId": null,
+      "instanceId": "ride_generic_o94f6kwo",
+      "increases": 0,
+      "value": 10,
+      "isChoiceSkill": false
+    },
+    {
+      "baseValueFromProfession": 0,
+      "instanceId": "science_generic_o94cu6xw",
+      "isProfessional": false,
+      "key": "science",
+      "value": 0,
+      "isChoiceSkill": false,
+      "increases": 0,
+      "slotId": null,
+      "typeName": ""
+    },
+    {
+      "baseValueFromProfession": 25,
+      "isProfessional": true,
+      "value": 65,
+      "increases": 1,
+      "typeName": null,
+      "isChoiceSkill": false,
+      "slotId": null,
+      "key": "search",
+      "instanceId": "search_generic_o94tacfj"
+    },
+    {
+      "isProfessional": false,
+      "instanceId": "sigint_generic_o94zi6gj",
+      "typeName": null,
+      "increases": 0,
+      "isChoiceSkill": false,
+      "key": "sigint",
+      "value": 0,
+      "baseValueFromProfession": 0,
+      "slotId": null
+    },
+    {
+      "key": "stealth",
+      "slotId": null,
+      "isProfessional": true,
+      "typeName": null,
+      "isChoiceSkill": false,
+      "value": 60,
+      "instanceId": "stealth_generic_o94cpuna",
+      "increases": 1,
+      "baseValueFromProfession": 30
+    },
+    {
+      "increases": 0,
+      "isChoiceSkill": false,
+      "baseValueFromProfession": 0,
+      "instanceId": "surgery_generic_o94qzumm",
+      "value": 0,
+      "typeName": null,
+      "key": "surgery",
+      "slotId": null,
+      "isProfessional": false
+    },
+    {
+      "isProfessional": false,
+      "value": 10,
+      "instanceId": "survival_generic_o949dmr9",
+      "isChoiceSkill": false,
+      "key": "survival",
+      "typeName": null,
+      "increases": 0,
+      "slotId": null,
+      "baseValueFromProfession": 0
+    },
+    {
+      "isProfessional": false,
+      "baseValueFromProfession": 0,
+      "isChoiceSkill": false,
+      "instanceId": "swim_generic_o94f4saw",
+      "increases": 0,
+      "value": 20,
+      "key": "swim",
+      "slotId": null,
+      "typeName": null
+    },
+    {
+      "isChoiceSkill": false,
+      "typeName": null,
+      "isProfessional": false,
+      "key": "unarmed_combat",
+      "increases": 0,
+      "slotId": null,
+      "instanceId": "unarmed_combat_generic_o94qoe6a",
+      "value": 40,
+      "baseValueFromProfession": 0
+    },
+    {
+      "value": 0,
+      "key": "unnatural",
+      "slotId": null,
+      "typeName": null,
+      "instanceId": "unnatural_generic_o94ypuxx",
+      "isChoiceSkill": false,
+      "baseValueFromProfession": 0,
+      "isProfessional": false,
+      "increases": 0
+    },
+    {
+      "slotId": null,
+      "increases": 1,
+      "instanceId": "craft_lockpicking_19m49nces",
+      "isProfessional": true,
+      "isChoiceSkill": false,
+      "typeName": "Lockpicking",
+      "baseValueFromProfession": 55,
+      "key": "craft",
+      "value": 75
+    }
+  ],
+  "bonds": [
+    {
+      "score": 14,
+      "description": "Former bandmates, we still keep in touch."
+    },
+    {
+      "score": 14,
+      "description": "Rebecca, woman I've been dating. It's still new but I think there's a future here."
+    },
+    {
+      "score": 14,
+      "description": "My therapist."
+    }
+  ],
+  "professionKey": "custom_profession",
+  "motivations": [
+    "Never met a lock I couldn't break.",
+    "Privacy is your right unless it hurts someone else. That's where I come in.",
+    "Music gives voice to our soul.",
+    "People need protecting and the cops can't be relied on for this.",
+    "I am always careful not to overindulge with mind altering substances."
+  ],
+  "customProfessionName": "Private Investigator",
+  "isCustomProfession": true,
+  "adaptations": [],
+  "items": [],
+  "skillFailMarks": []
+}
