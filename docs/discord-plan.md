@@ -98,6 +98,7 @@ All commands sit under `/dg`, so they don't clash with Dice Maiden's `/roll`.
     - `/dg unclaim [agent]`: release your own Agent, or (with *Manage Channels*) anyone's.
     - `/dg roll test [modifier]`: stats, Luck, SAN and skills autocomplete with current %. With a webhook connected, the result posts to the webhook's channel and the player gets a private copy where they typed. Same math as the live sheet (WP, exhaustion, penalty). Rolled on the server, saved to the roll log, and a failed skill is ticked for improvement.
     - `/dg r t: [m:]`: short form of `/dg roll test: [modifier:]`.
+    - `/dg damage dice: [critical:] [label:]` (short: `/dg d d: c: l:`): `1D10`, `2D6+1`, `3`, or Lethality `L15`/`15%` (p. 57); a critical doubles damage (p. 52). Anyone can roll it, Handler included; posts like `/dg roll` but stays out of the roll log.
     - `/dg sheet`: HP, WP, SAN and BP, shown only to you.
 - [x] **Me:** the bot reuses `src/rules` and `src/model`, bundled into the Functions build.
 - [x] **Me:** `npm --prefix functions run discord:register` registers the commands. It asks for the bot token, so the token never goes in the repo, chat or Firebase.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from '../../src/model/character';
 import { freshLive } from '../../src/model/live';
-import { agentOf, choicesFor, findTest, rollTest, sheetLines, testsOf } from './dg';
+import { agentOf, choicesFor, findTest, rollDamage, rollTest, sheetLines, testsOf } from './dg';
 
 const agent = (live?: Partial<ReturnType<typeof freshLive>>) => {
   const c = newCharacter();
@@ -60,5 +60,33 @@ describe('sheetLines', () => {
     expect(lines[0]).toBe('Drew Rook');
     expect(lines[1]).toBe('HP 7/10 · WP 10/10 · SAN 50/99 · BP 40');
     expect(lines.slice(2)).toEqual(['Exhausted (−20%)', 'Marked for improvement: Alertness']);
+  });
+});
+
+describe('rollDamage', () => {
+  const fixed = (...faces: number[]) => { let i = 0; return () => faces[i++]; };
+  it('rolls dice plus a modifier', () => {
+    expect(rollDamage('2d6+1', false, fixed(4, 3))).toMatchObject({ kind: 'dice', expr: '2D6+1', dice: [4, 3], total: 8 });
+    expect(rollDamage('D10', false, fixed(7))).toMatchObject({ expr: '1D10', total: 7 });
+    expect(rollDamage('1d4-2', false, fixed(1))).toMatchObject({ expr: '1D4-2', total: 0 }); // never below 0
+    expect(rollDamage('3', true, fixed())).toMatchObject({ total: 6 });
+  });
+  it('doubles damage on a critical', () => {
+    expect(rollDamage('1d10', true, fixed(6))).toMatchObject({ total: 12, critical: true });
+  });
+  it('follows the Lethality example on p. 57: 15% rolls 80, so 8 + 10 = 18 HP', () => {
+    expect(rollDamage('L15', false, fixed(80))).toMatchObject({ kind: 'lethality', killed: false, dice: [8, 10], total: 18 });
+    expect(rollDamage('15%', false, fixed(12))).toMatchObject({ killed: true, total: 0 });
+  });
+  it('reads 00 and single digits as 10s', () => {
+    expect(rollDamage('L10', false, fixed(100))).toMatchObject({ dice: [10, 10], total: 20 });
+    expect(rollDamage('L5', false, fixed(7))).toMatchObject({ dice: [10, 7], total: 17 });
+  });
+  it('doubles the Lethality rating and the damage on a critical', () => {
+    expect(rollDamage('L15', true, fixed(25))).toMatchObject({ killed: true });
+    expect(rollDamage('L15', true, fixed(80))).toMatchObject({ killed: false, total: 36 });
+  });
+  it('rejects anything else', () => {
+    for (const bad of ['', 'fireball', '0d6', '99d6', 'L0', 'L101', '2d6+1000']) expect(rollDamage(bad, false, fixed(1))).toBeNull();
   });
 });

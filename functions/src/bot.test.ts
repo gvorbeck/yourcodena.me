@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { handle } from './bot';
+import { answer, handle, rollerName } from './bot';
 import { DG } from './commands';
 
 describe('handle', () => {
@@ -15,6 +15,7 @@ describe('commands', () => {
   it('give every alias option a long-form twin', () => {
     const opts = (n: string) => DG.options.find((o) => o.name === n)!.options!.map((o) => [o.type, o.required ?? false]);
     expect(opts('r')).toEqual(opts('roll'));
+    expect(opts('d')).toEqual(opts('damage'));
   });
   it('fit Discord limits', () => {
     for (const o of DG.options) {
@@ -22,5 +23,23 @@ describe('commands', () => {
       expect(o.description.length).toBeLessThanOrEqual(100);
       for (const p of o.options ?? []) expect(p.description.length).toBeLessThanOrEqual(100);
     }
+  });
+});
+
+describe('answer', () => {
+  it('replies privately when a webhook will post, publicly otherwise', () => {
+    expect(answer('x', true)).toMatchObject({ data: { flags: 64, content: "x\n-# Posted to the game's dice channel." } });
+    expect(answer('x', false)).toMatchObject({ data: { flags: 0, content: 'x' } });
+  });
+});
+
+describe('rollerName', () => {
+  const member = { user: { id: '1', username: 'dan', global_name: 'Daniel' }, nick: 'Drew Rook (Daniel)', permissions: '0' };
+  it('prefers the claimed Agent, then nickname, display name, username', () => {
+    expect(rollerName('Drew Rook', member)).toBe('Drew Rook');
+    expect(rollerName(null, member)).toBe('Drew Rook (Daniel)');
+    expect(rollerName(null, { ...member, nick: null })).toBe('Daniel');
+    expect(rollerName(null, { ...member, nick: null, user: { id: '1', username: 'dan', global_name: null } })).toBe('dan');
+    expect(rollerName(null)).toBe('Someone');
   });
 });

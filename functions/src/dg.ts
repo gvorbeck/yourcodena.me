@@ -2,7 +2,7 @@
 import { parseCharacter, type Character } from '../../src/model/character';
 import { effStat, freshLive, maxSanOf, parseLive, permStats, type Live } from '../../src/model/live';
 import { agentLabel } from '../../src/model/names';
-import { derived, liveOutcome, skillsOf } from '../../src/rules';
+import { derived, liveOutcome, parseDice, rollDice, skillsOf } from '../../src/rules';
 import { STATS, STAT_NAMES } from '../../src/rules/data/creation';
 
 export interface Test { id: string; label: string; name: string; chance: number; skill: boolean }
@@ -55,4 +55,39 @@ export function sheetLines({ name, c, l }: Agent): string[] {
     ...(notes.length ? [notes.join(' · ')] : []),
     ...(l.checked.length ? [`Marked for improvement: ${l.checked.join(', ')}`] : []),
   ];
+}
+
+// ---- Damage (Agent's Handbook pp. 56–57). Not a percentile test, so it never goes in the roll log.
+export type Damage =
+  | { kind: 'dice'; expr: string; dice: number[]; mod: number; total: number; critical: boolean }
+  | { kind: 'lethality'; rating: number; roll: number; killed: boolean; dice: [number, number]; total: number; critical: boolean };
+
+const LETHALITY = /^(?:l|lethality)\s*(\d{1,3})\s*%?$|^(\d{1,3})\s*%$/i;
+
+/** A modifier as written after dice: "+1", "-2", or nothing. */
+export const modText = (mod: number) => (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : '');
+
+/**
+ * "1D10", "2D6+1", "3" (flat), or a Lethality rating "L15" / "15%". A critical attack doubles damage (p. 52); for Lethality
+ * it doubles the rating and, if the target survives, the damage (p. 57). `rand(n)` returns 1…n.
+ */
+export function rollDamage(input: string, critical: boolean, rand: (sides: number) => number): Damage | null {
+  const s = input.trim();
+  const l = LETHALITY.exec(s);
+  if (l) {
+    const rating = Number(l[1] ?? l[2]);
+    if (rating < 1 || rating > 100) return null;
+    const roll = rand(100);
+    // Failed Lethality: the two percentile dice added as d10s, 0 counting as 10 (so 80 is 8 + 10).
+    const dice: [number, number] = [Math.floor((roll % 100) / 10) || 10, roll % 10 || 10];
+    const killed = roll <= (critical ? rating * 2 : rating);
+    const sum = dice[0] + dice[1];
+    return { kind: 'lethality', rating, roll, killed, dice, total: killed ? 0 : critical ? sum * 2 : sum, critical };
+  }
+  const p = parseDice(s);
+  if (!p) return null;
+  const dice = rollDice(p, rand);
+  const sum = (p.sides ? dice.reduce((a, b) => a + b, 0) : p.count) + p.mod;
+  const expr = p.sides ? `${p.count}D${p.sides}${modText(p.mod)}` : `${p.count}${modText(p.mod)}`;
+  return { kind: 'dice', expr, dice, mod: p.mod, total: Math.max(0, critical ? sum * 2 : sum), critical };
 }

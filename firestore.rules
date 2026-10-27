@@ -61,6 +61,11 @@ service cloud.firestore {
         allow delete: if true;
       }
 
+      // Bot posts waiting for the dice channel (functions/src/index.ts, postToDiscord). Functions only.
+      match /discordPosts/{postId} {
+        allow read, write: if false;
+      }
+
       // Append-only roll log.
       match /rolls/{rollId} {
         allow read: if true;

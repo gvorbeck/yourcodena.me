@@ -30,20 +30,34 @@ export function liveOutcome(roll: number, chance: number, wp: number, extra = 0)
   return { chance: eff, pen, outcome };
 }
 
-const DICE = /^(\d+)(?:D(\d+))?(?:\+(\d+))?$/i;
-/** "1D6", "1D6+2" or "3" → a total; null when it isn't dice notation. */
-export function rollExpr(expr: string, rng = Math.random): number | null {
+export interface Dice { count: number; sides: number; mod: number } // sides 0 = a flat number (count)
+const DICE = /^(\d{0,2})(?:D(\d{1,3}))?\s*(?:([+-])\s*(\d{1,3}))?$/i;
+/**
+ * "1D6", "D6", "1D6+2", "1D4-1" or a flat "3" → its parts; null when it isn't dice notation. Up to 50 dice of up to 100 sides.
+ * Shared by SAN loss, skill growth and the Discord bot's damage rolls so they all read dice the same way.
+ */
+export function parseDice(expr: string): Dice | null {
   const m = DICE.exec(expr.trim());
-  if (!m || Number(m[1]) > 50 || Number(m[2] ?? 0) > 100) return null;
-  let t = Number(m[3] ?? 0);
-  if (m[2]) for (let i = 0; i < Number(m[1]); i++) t += 1 + Math.floor(rng() * Number(m[2]));
-  else t += Number(m[1]);
-  return t;
+  if (!m || (!m[1] && m[2] === undefined)) return null;
+  const count = m[1] ? Number(m[1]) : 1, mod = m[3] ? (m[3] === '-' ? -1 : 1) * Number(m[4]) : 0;
+  if (count > 50) return null;
+  if (m[2] === undefined) return { count, sides: 0, mod };
+  const sides = Number(m[2]);
+  return count >= 1 && sides >= 1 && sides <= 100 ? { count, sides, mod } : null;
+}
+/** Rolls parsed dice with `face(sides)` → 1…sides, returning each die (empty for a flat number). */
+export const rollDice = (d: Dice, face: (sides: number) => number) => Array.from({ length: d.sides ? d.count : 0 }, () => face(d.sides));
+/** "1D6", "1D6+2" or "3" → a total (never below 0); null when it isn't dice notation. */
+export function rollExpr(expr: string, rng = Math.random): number | null {
+  const d = parseDice(expr);
+  if (!d) return null;
+  const dice = rollDice(d, (n) => 1 + Math.floor(rng() * n));
+  return Math.max(0, d.mod + (d.sides ? dice.reduce((a, b) => a + b, 0) : d.count));
 }
 /** A SAN loss roll: extra victims ("1D6+2") add to the die but never past its maximum (p. 67 footnote). */
 export function rollLoss(expr: string, rng = Math.random): number | null {
-  const v = rollExpr(expr, rng), m = DICE.exec(expr.trim());
-  return v !== null && m && m[2] && m[3] ? Math.min(v, Number(m[1]) * Number(m[2])) : v;
+  const v = rollExpr(expr, rng), d = parseDice(expr);
+  return v !== null && d && d.sides && d.mod > 0 ? Math.min(v, d.count * d.sides) : v;
 }
 /** SAN loss as printed in the book, "success/failure": "0/1D4". */
 export const parseLoss = (s: string) => {

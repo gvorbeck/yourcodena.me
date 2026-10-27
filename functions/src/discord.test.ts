@@ -64,3 +64,21 @@ describe('verifyDiscord', () => {
     expect(verifyDiscord(hex, sig, ts, body, now - 6 * 60_000)).toBe(false);
   });
 });
+
+describe('formatDamage', () => {
+  it('shows dice, total and label', async () => {
+    const { formatDamage } = await import('./discord.js');
+    expect(formatDamage('Drew Rook', 'Glock 17', { kind: 'dice', expr: '1D10+1', dice: [7], mod: 1, total: 8, critical: false }))
+      .toBe('**Drew Rook** · Glock 17 · 1D10+1 → **8** damage (7+1)');
+    expect(formatDamage('Drew Rook', '', { kind: 'lethality', rating: 15, roll: 80, killed: false, dice: [8, 10], total: 18, critical: false }))
+      .toBe('**Drew Rook** · Lethality 15% → 80 · **18** HP damage (8+10)');
+    expect(formatDamage('Drew Rook', '', { kind: 'lethality', rating: 15, roll: 25, killed: true, dice: [2, 5], total: 0, critical: true }))
+      .toBe('**Drew Rook** · Lethality 15% ×2 = 30% → 25 · **LETHAL**: a human target drops to 0 HP');
+    expect(formatDamage('Handler', '', { kind: 'dice', expr: '3', dice: [], mod: 3, total: 6, critical: true }))
+      .toBe('**Handler** · 3 → **6** damage (critical ×2)');
+    expect(formatDamage('Drew Rook', 'Knife', { kind: 'dice', expr: '1D4-1', dice: [3], mod: -1, total: 4, critical: true }))
+      .toBe('**Drew Rook** · Knife · 1D4-1 → **4** damage (3-1, critical ×2)');
+    expect(formatDamage('Drew Rook', '', { kind: 'lethality', rating: 10, roll: 100, killed: false, dice: [10, 10], total: 20, critical: false }))
+      .toBe('**Drew Rook** · Lethality 10% → 100 · **20** HP damage (10+10)');
+  });
+});

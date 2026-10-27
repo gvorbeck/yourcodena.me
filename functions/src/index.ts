@@ -71,17 +71,34 @@ export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>(async 
   return { connected: true, name };
 });
 
-/** Posts each new roll to the game's Discord channel, if it has one. Never retries: the in-app log is the record. */
+/**
+ * The one way anything reaches a game's dice channel: its webhook, if connected. Never retries (the bot already gave
+ * the player a private copy, and the roll log keeps d% results). A webhook deleted in Discord is forgotten.
+ */
+async function toDiceChannel(gameId: string, content: string) {
+  const ref = secretRef(gameId);
+  const url = (await ref.get()).get('webhookUrl') as string | undefined;
+  if (!url) return;
+  const status = await postWebhook(url, content);
+  if (status === 404) await ref.update({ webhookUrl: FieldValue.delete() });
+  else if (status !== 204) logger.warn('Discord did not take a post', { gameId, status });
+}
+
+/** Posts each new roll to the game's Discord channel. */
 export const rollToDiscord = onDocumentCreated('games/{gameId}/rolls/{rollId}', async (event) => {
   const roll = event.data?.data() as (Roll & { answered?: boolean }) | undefined;
   if (!roll || roll.answered) return; // /dg rolls with no webhook: the bot already answered in its channel
-  const ref = secretRef(event.params.gameId);
-  const url = (await ref.get()).get('webhookUrl') as string | undefined;
-  if (!url) return;
+  await toDiceChannel(event.params.gameId, formatRoll(roll));
+});
 
-  const status = await postWebhook(url, formatRoll(roll));
-  if (status === 404) await ref.update({ webhookUrl: FieldValue.delete() }); // deleted in Discord: stop trying
-  else if (status !== 204) logger.warn('Discord did not take a roll', { gameId: event.params.gameId, status });
+/**
+ * games/{gameId}/discordPosts/{postId}: { text, createdAt }, written by the bot for things that aren't d% rolls (damage).
+ * Posting here, after the bot has answered, keeps the webhook call outside Discord's 3-second reply window.
+ */
+export const postToDiscord = onDocumentCreated('games/{gameId}/discordPosts/{postId}', async (event) => {
+  const text = event.data?.get('text');
+  if (typeof text === 'string') await toDiceChannel(event.params.gameId, text);
+  await event.data?.ref.delete();
 });
 
 const discordPublicKey = defineString('DISCORD_PUBLIC_KEY', { description: 'Discord app public key (Developer Portal → General Information → Public Key)' });

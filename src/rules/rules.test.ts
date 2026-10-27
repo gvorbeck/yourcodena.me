@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
-import { blocking, filterSkills, liveOutcome, parseLoss, rollExpr, rollLoss, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
+import { blocking, filterSkills, liveOutcome, parseDice, parseLoss, rollExpr, rollLoss, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { asciiSheet } from '../model/sheet';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
@@ -156,6 +156,15 @@ describe('play-time modifiers', () => {
     expect(rollExpr('1D6+2', () => 0.99)).toBe(8);
     expect(rollExpr('3')).toBe(3);
     expect(rollExpr('x')).toBeNull();
+    expect(rollExpr('1D4-9', () => 0)).toBe(0); // a minus modifier never goes below 0
+    expect(rollExpr('0')).toBe(0); // the "0" in a "0/1D4" SAN loss
+  });
+  it('parses dice notation in one place', () => {
+    expect(parseDice('D6')).toEqual({ count: 1, sides: 6, mod: 0 });
+    expect(parseDice('2d6 + 1')).toEqual({ count: 2, sides: 6, mod: 1 });
+    expect(parseDice('1D4-1')).toEqual({ count: 1, sides: 4, mod: -1 });
+    expect(parseDice('3')).toEqual({ count: 3, sides: 0, mod: 0 });
+    for (const bad of ['', 'x', '0D6', '1D0', '51D6', '1D101', '2D6+1000']) expect(parseDice(bad)).toBeNull();
     expect(parseLoss('0/1D4')).toEqual(['0', '1D4']);
     expect(parseLoss('1D4')).toBeNull();
   });

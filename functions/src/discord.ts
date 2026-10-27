@@ -1,5 +1,6 @@
 import { createPublicKey, verify } from 'node:crypto';
 import { d100Text, testText } from '../../src/rules/outcome';
+import { modText, type Damage } from './dg.js';
 
 /** A roll as stored at games/{gameId}/rolls/{rollId} (see src/lib/games.ts). `chance` is already after the penalty. */
 export interface Roll { agentName: string; label: string; chance: number; penalty: number; roll: number; outcome: string }
@@ -49,4 +50,17 @@ export function verifyDiscord(publicKeyHex: string, signatureHex: string, timest
   if (Math.abs(now - Number(timestamp) * 1000) > MAX_SKEW_MS) return false; // a captured request can't be replayed later
   const key = createPublicKey({ key: Buffer.concat([ED25519_SPKI, Buffer.from(publicKeyHex, 'hex')]), format: 'der', type: 'spki' });
   return verify(null, Buffer.concat([Buffer.from(timestamp), body]), key, Buffer.from(signatureHex, 'hex'));
+}
+
+/** `**Drew Rook** · Glock 17 · 1D10+1 → **8** (7+1)`, or for Lethality `… · Lethality 15% → 80 · **18** HP damage (8+10)`. */
+export function formatDamage(name: string, label: string, d: Damage): string {
+  const who = `**${plain(name) || 'Someone'}**${label.trim() ? ` · ${plain(label, 60)}` : ''}`;
+  const crit = d.critical ? ', critical ×2' : '';
+  if (d.kind === 'lethality') {
+    const rating = d.critical ? `${d.rating}% ×2 = ${Math.min(100, d.rating * 2)}%` : `${d.rating}%`;
+    const result = d.killed ? '**LETHAL**: a human target drops to 0 HP' : `**${d.total}** HP damage (${d.dice.join('+')}${crit})`;
+    return `${who} · Lethality ${rating} → ${d100Text(d.roll)} · ${result}`;
+  }
+  const detail = d.dice.length ? ` (${d.dice.join('+')}${modText(d.mod)}${crit})` : d.critical ? ' (critical ×2)' : '';
+  return `${who} · ${d.expr} → **${d.total}** damage${detail}`;
 }

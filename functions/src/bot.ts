@@ -4,15 +4,15 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { isGameId } from '../../src/lib/gameId';
 import { agentLabel } from '../../src/model/names';
 import { isSuccess } from '../../src/rules';
-import { agentOf, choicesFor, findTest, rollTest, sheetLines, type Agent } from './dg.js';
-import { formatRoll, plain } from './discord.js';
+import { agentOf, choicesFor, findTest, rollDamage, rollTest, sheetLines, type Agent } from './dg.js';
+import { formatDamage, formatRoll, plain } from './discord.js';
 
-interface Option { name: string; type: number; value?: string | number; focused?: boolean; options?: Option[] }
+interface Option { name: string; type: number; value?: string | number | boolean; focused?: boolean; options?: Option[] }
 export interface Interaction {
   type: number; // 1 ping, 2 command, 4 autocomplete
   data?: { name: string; options?: Option[] };
   guild_id?: string; channel_id?: string;
-  member?: { user: { id: string }; permissions: string };
+  member?: { user: { id: string; username?: string; global_name?: string | null }; nick?: string | null; permissions: string };
 }
 
 const MANAGE_CHANNELS = 1n << 4n;
@@ -62,8 +62,30 @@ async function myAgent(gameId: string, user: string): Promise<{ id: string; agen
   return null;
 }
 
-/** Short forms registered in commands.ts: `/dg r t: m:` is `/dg roll test: modifier:`. */
-const ALIASES: Record<string, { name: string; options: Record<string, string> }> = { r: { name: 'roll', options: { t: 'test', m: 'modifier' } } };
+/** Claimed Agent's display name from the agent doc's summary fields, so a sheet that won't parse can't block it. */
+async function claimedName(gameId: string, user: string): Promise<string | null> {
+  const id = (await claimRef(gameId, user).get()).get('agentId') as string | undefined;
+  if (!id) return null;
+  const doc = await db().doc(`games/${gameId}/agents/${id}`).get();
+  return doc.exists ? agentLabel(doc.get('codename'), doc.get('name')) : null;
+}
+/** Who rolled: the claimed Agent, else the player's server nickname, display name or username. */
+export const rollerName = (agent: string | null, m?: Interaction['member']) =>
+  agent ?? m?.nick ?? m?.user.global_name ?? m?.user.username ?? 'Someone';
+
+const hasWebhook = async (gameId: string) => Boolean((await db().doc(`gameSecrets/${gameId}`).get()).get('webhookUrl'));
+/**
+ * With a webhook, a trigger posts the result to its channel and the player gets a private copy where they typed.
+ * Without one, the bot answers in the channel.
+ */
+export const answer = (text: string, viaWebhook: boolean) =>
+  (viaWebhook ? reply(`${text}\n-# Posted to the game's dice channel.`, true) : reply(text));
+
+/** Short forms registered in commands.ts: `/dg r t: m:` is `/dg roll test: modifier:`, `/dg d d: c: l:` is `/dg damage dice: critical: label:`. */
+const ALIASES: Record<string, { name: string; options: Record<string, string> }> = {
+  r: { name: 'roll', options: { t: 'test', m: 'modifier' } },
+  d: { name: 'damage', options: { d: 'dice', c: 'critical', l: 'label' } },
+};
 const expand = (o: Option): Option => {
   const a = ALIASES[o.name];
   return a ? { ...o, name: a.name, options: o.options?.map((x) => ({ ...x, name: a.options[x.name] ?? x.name })) } : o;
@@ -131,6 +153,17 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     return reply(`**${plain(a.label)}** is free to claim.`);
   }
 
+  if (sub.name === 'damage') {
+    const d = rollDamage(String(opt('dice')?.value ?? ''), opt('critical')?.value === true, (n) => randomInt(1, n + 1));
+    if (!d) return reply('Use dice like `1D10`, `2D6+1` or `3`, or a Lethality rating like `L15` or `15%`.', true);
+    // Anyone can roll damage (the Handler for NPCs too); a claimed Agent's name is used when there is one.
+    const [agent, viaWebhook] = await Promise.all([claimedName(gameId, user), hasWebhook(gameId)]);
+    const text = formatDamage(rollerName(agent, i.member), String(opt('label')?.value ?? ''), d);
+    // Not a d% roll, so no roll-log entry: postToDiscord picks this up after the reply has gone back.
+    if (viaWebhook) await db().collection(`games/${gameId}/discordPosts`).add({ text, createdAt: now });
+    return answer(text, viaWebhook);
+  }
+
   const me = await myAgent(gameId, user);
   if (!me) return reply('You haven\'t claimed an Agent in this game. Use `/dg claim` first.', true);
 
@@ -144,15 +177,14 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     const r = rollTest(me.agent, t, randomInt(1, 101), Number(opt('modifier')?.value ?? 0));
     // Same as the live sheet: a failed skill earns a check toward end-of-session advancement (p. 28).
     const check = t.skill && !isSuccess(r.outcome) && me.agent.hasLive && !me.agent.l.checked.includes(t.label);
-    // With a webhook, the roll goes to its channel (rollToDiscord) and the player gets a private copy where they typed.
-    // Without one, the bot answers in the channel and marks the roll so rollToDiscord leaves it alone.
-    const viaWebhook = Boolean((await db().doc(`gameSecrets/${gameId}`).get()).get('webhookUrl'));
+    // rollToDiscord posts it when there's a webhook; otherwise `answered` tells it the bot already replied in the channel.
+    const viaWebhook = await hasWebhook(gameId);
     const batch = db().batch();
     batch.create(db().collection(`games/${gameId}/rolls`).doc(), { ...r, agentId: me.id, agentName: me.agent.name, createdAt: now, source: 'discord', ...(viaWebhook ? {} : { answered: true }) });
     if (check) batch.update(db().doc(`games/${gameId}/agents/${me.id}`), { 'live.checked': FieldValue.arrayUnion(t.label), updatedAt: now });
     await batch.commit();
     const text = formatRoll({ ...r, agentName: me.agent.name }) + (check ? ' · marked for improvement' : '');
-    return viaWebhook ? reply(`${text}\n-# Posted to the game's dice channel.`, true) : reply(text);
+    return answer(text, viaWebhook);
   }
   return reply('Unknown command.', true);
 }
