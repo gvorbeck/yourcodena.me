@@ -66,7 +66,7 @@ export function watchLive(g: string, a: string, onRemote: (remote: Live, base: L
     if (snap.metadata.hasPendingWrites || !snap.exists() || !base) return; // no base yet: nothing to merge against
     let remote: Live;
     try { remote = parseLive(snap.get('live')); } catch { return; } // missing or unreadable: keep what's on screen
-    if (JSON.stringify(remote) === JSON.stringify(base)) return;
+    if (!diffPaths(base, remote).length) return; // nothing new (key order doesn't matter)
     known.set(k, remote);
     onRemote(remote, base);
   }, () => {}); // offline or denied: the page keeps working from its own state

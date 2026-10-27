@@ -4,7 +4,7 @@ import { capsOf, freshLive, loseSan, maxSanOf, parseLive, sheetPenalty, testsOf 
 import { planSanLoss, projectRolled } from '../../src/model/actions';
 import { diffPaths, type Change } from '../../src/lib/diff';
 import { agentLabel } from '../../src/model/names';
-import { activeBonds, diceText, diceTotal, isSuccess, liveOutcome, parseDice, parseLoss, rollDice, rollLoss, testOutcome } from '../../src/rules';
+import { activeBonds, matches, sameText, diceText, diceTotal, isSuccess, liveOutcome, parseDice, parseLoss, rollDice, rollLoss, testOutcome } from '../../src/rules';
 import { hurtNote, type DiceEntry, type LossEntry, type LossStat, type TestEntry } from '../../src/rules/outcome';
 
 export type { Test };
@@ -21,16 +21,15 @@ export const testsOf = (a: Agent): Test[] => sheetTests(a).filter((t) => t.id.le
 
 /** Autocomplete: up to 25 matches for what the player has typed so far. */
 export const choicesFor = (a: Agent, typed: string) => {
-  const q = typed.trim().toLowerCase();
-  return testsOf(a).filter((t) => t.name.toLowerCase().includes(q)).slice(0, 25).map((t) => ({ name: `${t.name} ${t.chance}%`, value: t.id }));
+  return testsOf(a).filter((t) => matches(t.name, typed)).slice(0, 25).map((t) => ({ name: `${t.name} ${t.chance}%`, value: t.id }));
 };
 
 /** A picked choice, or typed text that names exactly one test. */
 export function findTest(a: Agent, value: string): Test | null {
-  const tests = testsOf(a), q = value.trim().toLowerCase();
-  const exact = tests.find((t) => t.id === value || t.name.toLowerCase() === q || t.label.toLowerCase() === q);
+  const tests = testsOf(a);
+  const exact = tests.find((t) => t.id === value || sameText(t.name, value) || sameText(t.label, value));
   if (exact) return exact;
-  const some = tests.filter((t) => t.name.toLowerCase().includes(q));
+  const some = tests.filter((t) => matches(t.name, value));
   return some.length === 1 ? some[0] : null;
 }
 

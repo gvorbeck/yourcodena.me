@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Win } from './ui/Win';
-import { Alert } from './ui/bits';
+import { Alert, Hint } from './ui/bits';
 import { useLoad } from './lib/useSub';
 import { useRun } from './lib/useRun';
 import { discordError, discordWebhook, type DiscordStatus } from './lib/discord';
@@ -44,7 +44,7 @@ export function DiscordPanel({ gameId }: { gameId: string }) {
           <button className="btn" type="submit" disabled={busy || !url.trim()}>{busy ? 'Checking…' : 'Connect'}</button>
         </form>
       )}
-      <p className="dim"><small>In Discord: channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL. It's stored on the server and never shown here again. Anyone with the game link can change it.</small></p>
+      <Hint>In Discord: channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL. It's stored on the server and never shown here again. Anyone with the game link can change it.</Hint>
       <p className="ok" role="status">{note}</p>
       <Alert>{err}</Alert>
     </Win>

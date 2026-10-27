@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
-import { activeBonds, clamp, isSuccess, liveOutcome, motivationsOf, outcomeClass, professionOf, rollD100, type Outcome } from './rules';
+import { activeBonds, clamp, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, type Outcome } from './rules';
 import { d100Text, testText } from './rules/outcome';
-import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, loseSan, maxSanOf, refreshSpent, setUnnatural, sheetPenalty, coreTests, SAN_LOSS, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
+import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, loseSan, maxSanOf, refreshSpent, setUnnatural, sheetPenalty, coreTests, SAN_KINDS, SAN_KIND_LABEL, SAN_LOSS, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
 import { nameOf, type Character } from './model/character';
 import { Btn, ConfirmDialog, SkillTable, Win } from './ui';
 import { useFocusMain } from './ui/Win';
 import { useTitle } from './pages/Page';
-import { Alert, CopyButton } from './ui/bits';
+import { Alert, CopyButton, Hint, OutcomeText } from './ui/bits';
 import { gameUrl } from './lib/paths';
 import * as play from './model/actions';
 
@@ -32,11 +32,11 @@ const Pips = ({ label, n }: { label: string; n: number }) => (
   </div>
 );
 
-interface Roll { id: number; label: string; chance: number; pen: number; roll: number; outcome: Outcome }
+/** A d% test as the roll log stores it (rules/outcome.ts TestEntry), plus a local id. `chance` is after the penalty. */
+interface Roll { id: number; label: string; chance: number; penalty: number; roll: number; outcome: Outcome }
 
 const RollLine = ({ r }: { r: Roll }) => (
-  <>{testText(r.label, r.chance, r.pen)}: <b>{d100Text(r.roll)}</b>{' '}
-    <span className={outcomeClass(r.outcome)}>{r.outcome.toUpperCase()}</span></>
+  <>{testText(r.label, r.chance, r.penalty)}: <b>{d100Text(r.roll)}</b> <OutcomeText o={r.outcome} /></>
 );
 
 /** A merge to apply to the live sheet's own state; a new object each time someone else saves (pages/Agent.tsx). */
@@ -61,18 +61,18 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const [stack] = useState(() => new UndoStack());
   const [undoLabel, setUndoLabel] = useState<string | null>(null); // what Undo would revert; null = nothing
   /** Every change goes through here; the stack decides whether it earns an undo step. */
+  /** Show `next` as the newest state, with the undo stack as it now stands. */
+  const show = (next: Live) => { latest.current = next; setUndoLabel(stack.label); setLive(next); };
+  /** Every change goes through here; the stack decides whether it earns an undo step. */
   const setL = (u: Live | ((p: Live) => Live)) => {
     const next = refreshSpent(typeof u === 'function' ? u(latest.current) : u); // once HP is back above 2, the next drop is a new injury event
-    if (stack.record(latest.current, next, c.bonds.map((b) => b.name))) setUndoLabel(stack.label);
-    latest.current = next;
-    setLive(next);
+    stack.record(latest.current, next, c.bonds.map((b) => b.name));
+    show(next);
   };
   const undo = () => {
     const prev = stack.undo(latest.current);
     if (!prev) return;
-    latest.current = prev;
-    setUndoLabel(stack.label);
-    setLive(prev);
+    show(prev);
     setPending(null); // a half-resolved SAN loss was priced against the state just reverted
   };
   // Someone else saved (Discord damage, another device): merge it in without an undo step, and drop older undo steps
@@ -80,11 +80,9 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const remote = game?.remote;
   useEffect(() => {
     if (!remote) return;
-    const next = refreshSpent(remote.merge(latest.current));
     stack.clear();
-    setUndoLabel(null);
-    latest.current = next;
-    setLive(next);
+    show(refreshSpent(remote.merge(latest.current)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `show` only touches refs, the stack and state setters
   }, [remote, stack]);
   const sent = useRef(init); // last state handed to game.onChange
   // Runs on state changes only: `game` is a fresh object every render and must not re-send the same state.
@@ -110,10 +108,11 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const act = (fn: (cur: Live) => play.Result) => { const r = fn(latest.current); setL(r.live); say(...r.notes); };
   const test = (label: string, base: number, wp = l.wp) => {
     const r = rollD100();
-    const { chance, pen, outcome } = liveOutcome(r, base, wp, sheetPenalty(l) + once);
+    const { chance, pen: penalty, outcome } = liveOutcome(r, base, wp, sheetPenalty(l) + once);
     setOnce(0);
-    setRolls((p) => [{ id: nextId.current++, label, chance, pen, roll: r, outcome }, ...p].slice(0, 10));
-    game?.onRoll({ label, chance, pen, roll: r, outcome });
+    const entry = { label, chance, penalty, roll: r, outcome };
+    setRolls((p) => [{ ...entry, id: nextId.current++ }, ...p].slice(0, 10));
+    game?.onRoll(entry);
     return { outcome, roll: r, chance, ok: isSuccess(outcome) };
   };
   const roll = (label: string, chance: number) => { test(label, chance); };
@@ -273,7 +272,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
           {(l.spent.rest || l.spent.sleep) && <Btn onPress={() => setL((p) => ({ ...p, spent: { ...p.spent, rest: false, sleep: false } }))}>New day</Btn>}
         </div>
         {(!canHeal(l) || l.spent.rest || l.spent.sleep) && (
-          <p className="noprint dim"><small>{[!canHeal(l) && 'Heal is first aid: again after you take more damage.', (l.spent.rest || l.spent.sleep) && 'Rest and sleep are once a day: press New day.'].filter(Boolean).join(' ')}</small></p>
+          <Hint className="noprint">{[!canHeal(l) && 'Heal is first aid: again after you take more damage.', (l.spent.rest || l.spent.sleep) && 'Rest and sleep are once a day: press New day.'].filter(Boolean).join(' ')}</Hint>
         )}
         {injury !== null && (
           <div className="row noprint">
@@ -301,7 +300,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
             <tr><td><button className="rollable" onClick={() => rollId('luck')}>Luck</button></td><td /><td className="num">{tests.get('luck')!.chance}%</td><td className="noprint" /></tr>
           </tbody>
         </table>
-        <p className="noprint dim"><small>Tap a stat or Luck to roll d%. “Lost” is temporary stat loss.</small></p>
+        <Hint className="noprint">Tap a stat or Luck to roll d%. “Lost” is temporary stat loss.</Hint>
 
         <h3>Sanity</h3>
         <Counter label="SAN" value={l.san} max={maxSan} onChange={(v) => set('san', v)} onRoll={() => rollId('san')} />
@@ -310,12 +309,12 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         {l.san <= l.bp && <p className="warn">SAN at or below breaking point.</p>}
         <div className="row noprint">
           <select aria-label="Trauma type" value={san.kind} onChange={(e) => setSan({ ...san, kind: e.target.value as SanKind })}>
-            <option value="violence">Violence</option><option value="helplessness">Helplessness</option><option value="unnatural">The Unnatural</option>
+            {SAN_KINDS.map((k) => <option key={k} value={k}>{SAN_KIND_LABEL[k]}</option>)}
           </select>
           <input className="san-loss" aria-label="SAN loss as success/failure, like 0/1D4" title="Success/failure loss as printed in the book (pp. 67–68). Add extra victims to the failure die, like 1D6+2 (the total never exceeds the die's maximum)." value={san.loss} onChange={(e) => setSan({ ...san, loss: e.target.value })} />
           <Btn onPress={sanRoll}>Roll SAN loss</Btn>
         </div>
-        <p className="noprint dim"><small>Loss is success/failure, like 0/1D4. Extra victims go on the failure die: 1D6+2, capped at 6. Tap “SAN” above for a plain SAN test.</small></p>
+        <Hint className="noprint">Loss is success/failure, like 0/1D4. Extra victims go on the failure die: 1D6+2, capped at 6. Tap “SAN” above for a plain SAN test.</Hint>
         <div role="status" className="noprint">
         {pending && (
           <div className="alerts">
@@ -339,7 +338,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         <Pips label="Helplessness" n={l.adapt.h} />
 
         <h3>Mind</h3>
-        <p className="noprint dim"><small>Each time the Breaking Point is reached, a disorder replaces one motivation (pp. 38, 69).</small></p>
+        <Hint className="noprint">Each time the Breaking Point is reached, a disorder replaces one motivation (pp. 38, 69).</Hint>
         <p>Motivations: {motivations.length ? motivations.join(' · ') : <span className="dim">none left</span>}</p>
         <p>Disorders: {l.disorders.length ? l.disorders.join(' · ') : <span className="dim">none</span>}</p>
         <div className="row noprint">

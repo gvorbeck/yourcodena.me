@@ -4,7 +4,7 @@ import { useRun } from '../lib/useRun';
 import { MIN_ID, newGameId, recentGames, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
 import { Page } from './Page';
-import { Alert } from '../ui/bits';
+import { Alert, Hint } from '../ui/bits';
 import { gameUrl } from '../lib/paths';
 
 export default function Home() {
@@ -27,11 +27,11 @@ export default function Home() {
           <input id={inputId} placeholder="game id" value={raw} onChange={(e) => setRaw(e.target.value)} autoCapitalize="none" autoComplete="off" spellCheck={false} />
           <button className="btn" disabled={slug.length < MIN_ID}>Open</button>
         </form>
-        <p className="dim"><small>{slug && slug !== raw ? `Opens ${slug}. ` : ''}Letters, numbers and dashes, at least {MIN_ID}. An ID nobody has used yet offers to create that game.</small></p>
+        <Hint>{slug && slug !== raw ? `Opens ${slug}. ` : ''}Letters, numbers and dashes, at least {MIN_ID}. An ID nobody has used yet offers to create that game.</Hint>
         {recent.length > 0 && (
           <>
             <h3>Recent</h3>
-            <p className="dim"><small>Games you opened in this browser.</small></p>
+            <Hint>Games you opened in this browser.</Hint>
             <ul className="agents">{recent.map((id) => <li key={id}><Link to={gameUrl(id)}>{id}</Link></li>)}</ul>
           </>
         )}

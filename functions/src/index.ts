@@ -7,8 +7,8 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { overBudget, type BudgetAlert } from './budget.js';
-import { handle, reply, type Interaction } from './bot.js';
-import { gamePath } from '../../src/lib/paths';
+import { handle, privately, type Interaction } from './bot.js';
+import { gamePath, secretPath } from '../../src/lib/paths';
 import { isGameId } from '../../src/lib/gameId';
 import { formatEntry, isWebhookUrl, postWebhook, verifyDiscord, webhookName, type Roll } from './discord.js';
 
@@ -40,7 +40,7 @@ export const budgetKillSwitch = onMessagePublished<BudgetAlert>({ topic: 'budget
 });
 
 /** gameSecrets/{gameId}: { webhookUrl, webhookName, updatedAt }. Rules deny all browser access; only Functions read it. */
-const secretRef = (gameId: string) => db.doc(`gameSecrets/${gameId}`);
+const secretRef = (gameId: string) => db.doc(secretPath(gameId));
 
 /**
  * The game page's Discord panel. `url` omitted: report status. `url: ''`: disconnect.
@@ -105,6 +105,6 @@ export const discordBot = onRequest({ invoker: 'public' }, async (req, res) => {
     res.json(await handle(req.body as Interaction));
   } catch (e) {
     logger.error('discordBot failed', e);
-    res.json(reply('Something went wrong. Try again.', true));
+    res.json(privately('Something went wrong. Try again.'));
   }
 });

@@ -78,7 +78,7 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
     return (
       <LiveSheet c={c} init={live} game={{
         gameId, failed, back: () => setMode('edit'), onChange: setLive, remote,
-        onRoll: ({ pen, ...r }) => logRoll(gameId, { ...r, penalty: pen, agentId, agentName: agentLabel(c.details.codename, c.details.name) }).then(() => report('roll')(true), () => report('roll')(false)),
+        onRoll: (r) => logRoll(gameId, { ...r, agentId, agentName: agentLabel(c.details.codename, c.details.name) }).then(() => report('roll')(true), () => report('roll')(false)),
       }} />
     );
   }

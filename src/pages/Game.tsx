@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { asLoss, d100Text, diceLabel, outcomeClass, testText } from '../rules/outcome';
+import { asLoss, d100Text, diceLabel, testText } from '../rules/outcome';
 import { agentLabel } from '../model/names';
 import { useRun } from '../lib/useRun';
 import { createGame, deleteAgent, useAgents, type AgentCard, useGameExists, useRolls, type RollDoc } from '../lib/games';
@@ -8,7 +8,7 @@ import { forgetSavedAgent, hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } 
 import { Win } from '../ui/Win';
 import { DiscordPanel } from '../DiscordPanel';
 import { Notice, Page } from './Page';
-import { Alert, CopyButton, Loading, SubList } from '../ui/bits';
+import { Alert, CopyButton, Hint, Loading, OutcomeText, SubList } from '../ui/bits';
 import { agentUrl, gameUrl } from '../lib/paths';
 
 // Lazy: ui/index brings in the rules and react-aria, which this page otherwise doesn't load. Delete loads it through run() first, so a failed load shows an inline error instead of crashing the page.
@@ -19,7 +19,7 @@ function EntryCells({ r }: { r: RollDoc }) {
   if (!r.kind) return (<>
     <td>{testText(r.label, r.chance, r.penalty)}</td>
     <td className="num"><b>{d100Text(r.roll)}</b></td>
-    <td className={outcomeClass(r.outcome)}>{r.outcome.toUpperCase()}</td>
+    <td><OutcomeText o={r.outcome} /></td>
   </>);
   const dice = diceLabel(r.label, r.dice, r.mod);
   if (r.kind === 'dice') return <><td>{dice}</td><td className="num"><b>{r.roll}</b></td><td className="dim">DICE</td></>;
@@ -78,7 +78,7 @@ export default function Game() {
             <button className="btn" onClick={() => run(() => createGame(gameId))} disabled={busy || !valid}>Create game {gameId}</button>
             <Link className="btn" to="/">Back</Link>
           </div>
-          {!valid && <p className="dim"><small>IDs use lowercase letters, numbers and dashes, at least {MIN_ID} characters.</small></p>}
+          {!valid && <Hint>IDs use lowercase letters, numbers and dashes, at least {MIN_ID} characters.</Hint>}
           <Alert>{err}</Alert>
       </Notice>
     );

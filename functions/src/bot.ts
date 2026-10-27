@@ -5,11 +5,11 @@ import { REMOVED, type Change } from '../../src/lib/diff';
 import { SAN_KINDS, type SanKind } from '../../src/model/live';
 import { isGameId } from '../../src/lib/gameId';
 import { agentLabel } from '../../src/model/names';
-import { diceText, isSuccess, parseDice } from '../../src/rules';
+import { diceText, isSuccess, matches, parseDice, sameText } from '../../src/rules';
 import { agentOf, applyHit, bondsOf, canProject, choicesFor, diceEntry, findTest, finishSan, isDice, planSan, rollAgainst, rollExpression, rollTest, sheetLines, type Agent, type Loss, type SanStake } from './dg.js';
-import { formatEntry, formatRoll, plain, type Roll } from './discord.js';
+import { bold, formatEntry, formatRoll, plain, type Roll } from './discord.js';
 import { ALIASES } from './commands.js';
-import { agentPath, agentsPath, gamePath, rollsPath } from '../../src/lib/paths';
+import { agentPath, agentsPath, gamePath, rollsPath, secretPath } from '../../src/lib/paths';
 
 interface Option { name: string; type: number; value?: string | number; focused?: boolean; options?: Option[] }
 export interface Interaction {
@@ -26,45 +26,64 @@ const lastCommand = new Map<string, number>();
 
 const db = () => getFirestore();
 const NO_PINGS = { allowed_mentions: { parse: [] } };
-/** A message in answer to a command; `ephemeral` only the player sees. */
-export const reply = (content: string, ephemeral = false) => ({ type: 4, data: { content, flags: ephemeral ? 64 : 0, ...NO_PINGS } });
+const message = (content: string, flags: number, components?: unknown[]) => ({ type: 4, data: { content, flags, ...(components && { components }), ...NO_PINGS } });
+/** A message in answer to a command, for everyone in the channel. */
+export const reply = (content: string) => message(content, 0);
+/** A message only the player sees, optionally with buttons. */
+export const privately = (content: string, components?: unknown[]) => message(content, 64, components);
 const choices = (list: { name: string; value: string }[]) => ({ type: 8, data: { choices: list } });
-/** A private message with its own content and buttons. */
-const privately = (data: { content: string; components?: unknown[] }) => ({ type: 4, data: { ...data, flags: 64, ...NO_PINGS } });
 /** Replace the message whose button was pressed (no buttons unless given). */
 const updateTo = (content: string, components: unknown[] = []) => ({ type: 7, data: { content, components, ...NO_PINGS } });
 const SETTLED = 'This SAN loss is already settled.';
-const gone = () => reply('Your claimed Agent is no longer in this game. Use `/dg claim` again.', true);
+const NO_SUCH_AGENT = 'No Agent by that name in this game.';
+const POSTED = "\n-# Posted to the game's dice channel.";
+const gone = () => privately('Your claimed Agent is no longer in this game. Use `/dg claim` again.');
 const canManage = (m: Interaction['member']) => (BigInt(m?.permissions ?? '0') & MANAGE_CHANNELS) !== 0n;
 
 /**
  * discordGuilds/{guildId}: { gameId, linkedBy, linkedAt }, so /dg works in every channel of the server.
  * discordChannels/{channelId}: the older per-channel link, still honoured and checked first. discordClaims/{gameId}_{userId}: { gameId, userId, agentId, claimedAt }. */
+const caches = new Set<() => void>();
+/**
+ * `load` with its answers remembered per key for `ms`, for reads repeated on every autocomplete keystroke and command.
+ * A failed load isn't remembered. Per instance: only cache what may be a moment stale (see each use).
+ */
+export function cached<T>(load: (key: string) => Promise<T>, ms = 5000) {
+  const memo = new Map<string, { at: number; v: Promise<T> }>();
+  const get = (key: string) => {
+    const hit = memo.get(key);
+    if (hit && Date.now() - hit.at < ms) return hit.v;
+    if (memo.size >= 100) memo.clear();
+    const v = load(key);
+    memo.set(key, { at: Date.now(), v });
+    v.catch(() => { if (memo.get(key)?.v === v) memo.delete(key); }); // a newer load may have replaced it
+    return v;
+  };
+  const clear = () => memo.clear();
+  caches.add(clear);
+  return Object.assign(get, { clear });
+}
+/** Forget everything every cache remembers (tests start from a clean slate). */
+export const clearCaches = () => caches.forEach((c) => c());
+
 const linkRef = (channel: string) => db().doc(`discordChannels/${channel}`);
 const guildRef = (guild: string) => db().doc(`discordGuilds/${guild}`);
-const gameOf = async (channel: string, guild: string) =>
-  ((await linkRef(channel).get()).get('gameId') ?? (await guildRef(guild).get()).get('gameId')) as string | undefined;
+// shortcut: after /dg link or unlink, other instances can use the old game for up to 2 s; store links in one doc per guild with a version if that ever bites.
+const linkedGame = cached(async (key) => {
+  const [channel, guild] = key.split(' ');
+  const [c, g] = await Promise.all([linkRef(channel).get(), guildRef(guild).get()]); // both at once: the channel link wins
+  return (c.get('gameId') ?? g.get('gameId')) as string | undefined;
+}, 2000);
+const gameOf = (channel: string, guild: string) => linkedGame(`${channel} ${guild}`);
 const claimRef = (gameId: string, user: string) => db().doc(`discordClaims/${gameId}_${user}`);
 const claimsQuery = (gameId: string, agentId: string) =>
   db().collection('discordClaims').where('gameId', '==', gameId).where('agentId', '==', agentId);
 const claimsOfAgent = (gameId: string, agentId: string) => claimsQuery(gameId, agentId).get();
 
-// Autocomplete asks on every keystroke; a few seconds of memory spares Firestore the repeat reads.
-const AGENTS_TTL_MS = 5000;
-const agentCache = new Map<string, { at: number; list: { id: string; label: string }[] }>();
-async function agentsOf(gameId: string) {
-  const hit = agentCache.get(gameId);
-  if (hit && Date.now() - hit.at < AGENTS_TTL_MS) return hit.list;
-  const snap = await db().collection(agentsPath(gameId)).select('name', 'codename').get();
-  const list = snap.docs.map((d) => ({ id: d.id, label: labelOf(d) }));
-  if (agentCache.size >= 100) agentCache.clear();
-  agentCache.set(gameId, { at: Date.now(), list });
-  return list;
-}
-const findAgent = async (gameId: string, value: string) => {
-  const q = value.trim().toLowerCase();
-  return (await agentsOf(gameId)).find((a) => a.id === value || a.label.toLowerCase() === q) ?? null;
-};
+const agentsOf = cached(async (gameId) =>
+  (await db().collection(agentsPath(gameId)).select('name', 'codename').get()).docs.map((d) => ({ id: d.id, label: labelOf(d) })));
+const findAgent = async (gameId: string, value: string) =>
+  (await agentsOf(gameId)).find((a) => a.id === value || sameText(a.label, value)) ?? null;
 /** An agent doc's list name, from its summary fields, so a sheet that won't parse still has one. */
 const labelOf = (d: { get: (f: string) => unknown }) => agentLabel(d.get('codename'), d.get('name'));
 const agentRef = (gameId: string, agentId: string) => db().doc(agentPath(gameId, agentId));
@@ -82,6 +101,8 @@ async function myAgent(gameId: string, user: string): Promise<{ id: string; agen
   await claimRef(gameId, user).delete(); // the agent was deleted from the game: drop the stale claim
   return null;
 }
+/** The claimed Agent for autocomplete only (key "gameId user"): a moment-old sheet is fine for suggesting tests; commands read it fresh. */
+const suggestAgent = cached((key) => { const [g, u] = key.split(' '); return myAgent(g, u); });
 /** Claimed Agent's id and name, so a sheet that won't parse can't block a dice roll. */
 async function claimed(gameId: string, user: string): Promise<{ id: string; name: string } | null> {
   const doc = await claimedDoc(gameId, user);
@@ -98,13 +119,14 @@ const TARGET = /^\d{1,3}$/;
 export const rollerName = (agent: string | null, m?: Interaction['member']) =>
   agent ?? m?.nick ?? m?.user.global_name ?? m?.user.username ?? 'Someone';
 
-const hasWebhook = async (gameId: string) => Boolean((await db().doc(`gameSecrets/${gameId}`).get()).get('webhookUrl'));
+// Read fresh every time: the game page and toDiceChannel change it, and a stale "yes" would post a roll nowhere.
+const hasWebhook = async (gameId: string) => Boolean((await db().doc(secretPath(gameId)).get()).get('webhookUrl'));
 /**
  * With a webhook, a trigger posts the result to its channel and the player gets a private copy where they typed.
  * Without one, the bot answers in the channel.
  */
 export const answer = (text: string, viaWebhook: boolean) =>
-  (viaWebhook ? reply(`${text}\n-# Posted to the game's dice channel.`, true) : reply(text));
+  (viaWebhook ? privately(text + POSTED) : reply(text));
 
 /** A roll-log entry as written; `answered` tells rollToDiscord the bot already posted it in the channel. */
 const logged = (e: Roll, agentId: string, viaWebhook: boolean, now: number) =>
@@ -147,7 +169,7 @@ const rows = (buttons: Button[]) => Array.from({ length: Math.ceil(buttons.lengt
 export function sanChoice(h: HeldSan, a: Agent, name: string) {
   const after = Math.max(0, a.l.san - h.amount);
   if (h.n === undefined) return {
-    content: `${h.testLine ? `${h.testLine}\n` : ''}**${plain(name)}** is about to lose **${h.amount} SAN** (${h.kind}) · SAN ${a.l.san} → ${after}.\n`
+    content: `${h.testLine ? `${h.testLine}\n` : ''}${bold(name)} is about to lose **${h.amount} SAN** (${h.kind}) · SAN ${a.l.san} → ${after}.\n`
       + `Project it onto a Bond? You spend 1D4 WP (you have ${a.l.wp}). If you keep at least 1 WP, the loss and one Bond both drop by that much (p. 74).`,
     components: rows([
       { type: 2, style: 1, label: 'Project onto a Bond (1D4 WP)', custom_id: `san:project:${h.agentId}` },
@@ -165,10 +187,10 @@ export function sanChoice(h: HeldSan, a: Agent, name: string) {
 /** The settled loss: privately where the buttons were (with a webhook, which posts it) or publicly as a new message. */
 function sanSettled(out: Loss | { error: string } | null, testLine: string, viaWebhook: boolean, fromButton: boolean) {
   if (!out) return gone();
-  if ('error' in out) return fromButton ? updateTo(out.error) : reply(out.error, true);
+  if ('error' in out) return fromButton ? updateTo(out.error) : privately(out.error);
   const text = formatEntry(out.entry);
   if (!viaWebhook) return reply(testLine ? `${testLine}\n${text}` : text); // nothing else will post the SAN test
-  return fromButton ? updateTo(`${text}\n-# Posted to the game's dice channel.`) : answer(text, true);
+  return fromButton ? updateTo(text + POSTED) : answer(text, true);
 }
 
 /**
@@ -188,7 +210,7 @@ async function sanButton(i: Interaction, now: number): Promise<object> {
   const [viaWebhook, claim, doc] = await Promise.all([
     hasWebhook(h.gameId), claimId(h.gameId, presser), agentRef(h.gameId, agentId).get(),
   ]);
-  if (!maySettle(h, presser, claim === agentId, manage)) return reply('Only the player of this Agent (or someone with Manage Channels) can decide this SAN loss.', true);
+  if (!maySettle(h, presser, claim === agentId, manage)) return privately('Only the player of this Agent (or someone with Manage Channels) can decide this SAN loss.');
   if (!doc.exists) { await ref.delete(); return updateTo('That Agent is no longer in the game.'); }
   const settle = async (projection: { bond: number; n: number } | null) => sanSettled(
     await commitLoss(h.gameId, agentId, viaWebhook, now, (d, name) => finishSan(agentOf(d), h, projection, name, rng), ref), h.testLine, viaWebhook, true);
@@ -225,8 +247,10 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
   const raw = i.data?.options?.[0];
   const sub = raw && expand(raw);
   const user = i.member?.user.id;
-  if (!sub || !user || !i.guild_id || !i.channel_id) return reply('Use /dg in a server channel.', true);
+  if (!sub || !user || !i.guild_id || !i.channel_id) return privately('Use /dg in a server channel.');
   const opt = (name: string) => sub.options?.find((o) => o.name === name);
+  const str = (name: string) => String(opt(name)?.value ?? '');
+  const num = (name: string) => Number(opt(name)?.value ?? 0);
   const manage = canManage(i.member);
   const gameId = await gameOf(i.channel_id, i.guild_id);
 
@@ -238,35 +262,36 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
       const p = parseDice(typed), n = TARGET.test(typed.trim()) ? Number(typed) : 0;
       const extra = p?.sides ? [{ name: `Roll ${diceText(p)}`, value: diceText(p) }] : n >= 1 && n <= 100 ? [{ name: `Roll d% against ${n}%`, value: String(n) }] : [];
       // A sheet that won't parse just means no tests to suggest; dice still work without one.
-      const me = await myAgent(gameId, user).catch(() => null);
+      const me = await suggestAgent(`${gameId} ${user}`).catch(() => null);
       return choices([...extra, ...(me ? choicesFor(me.agent, typed) : [])].slice(0, 25));
     }
-    const q = typed.trim().toLowerCase();
-    return choices((await agentsOf(gameId)).filter((a) => a.label.toLowerCase().includes(q)).slice(0, 25).map((a) => ({ name: a.label.slice(0, 100), value: a.id })));
+    return choices((await agentsOf(gameId)).filter((a) => matches(a.label, typed)).slice(0, 25).map((a) => ({ name: a.label.slice(0, 100), value: a.id })));
   }
 
-  if (now - (lastCommand.get(user) ?? 0) < COOLDOWN_MS) return reply('One command every 2 seconds, please.', true);
+  if (now - (lastCommand.get(user) ?? 0) < COOLDOWN_MS) return privately('One command every 2 seconds, please.');
   if (lastCommand.size >= 1000) for (const [u, t] of lastCommand) if (now - t >= COOLDOWN_MS) lastCommand.delete(u);
   lastCommand.set(user, now);
 
   if (sub.name === 'link') {
-    if (!manage) return reply('Linking needs the Manage Channels permission.', true);
-    const id = String(opt('game')?.value ?? '').trim().toLowerCase().replace(/^.*\/g\//, '').replace(/\/.*$/, '');
-    if (!isGameId(id) || !(await db().doc(gamePath(id)).get()).exists) return reply('No game has that ID. Copy it from the game page address: yourcodena.me/g/<game ID>.', true);
+    if (!manage) return privately('Linking needs the Manage Channels permission.');
+    const id = str('game').trim().toLowerCase().replace(/^.*\/g\//, '').replace(/\/.*$/, '');
+    if (!isGameId(id) || !(await db().doc(gamePath(id)).get()).exists) return privately('No game has that ID. Copy it from the game page address: yourcodena.me/g/<game ID>.');
     await guildRef(i.guild_id).set({ gameId: id, linkedBy: user, linkedAt: now });
     await linkRef(i.channel_id).delete(); // a stale per-channel link here would otherwise win
+    linkedGame.clear();
     return reply(`This server now plays game \`${id}\`. Players: \`/dg claim\` your Agent, then \`/dg roll\` in any channel.`);
   }
   if (sub.name === 'unlink') {
-    if (!manage) return reply('Unlinking needs the Manage Channels permission.', true);
+    if (!manage) return privately('Unlinking needs the Manage Channels permission.');
     await Promise.all([guildRef(i.guild_id).delete(), linkRef(i.channel_id).delete()]);
+    linkedGame.clear();
     return reply('This server is no longer linked to a game.');
   }
-  if (!gameId) return reply('This server isn\'t linked to a game. Someone with Manage Channels can run `/dg link`.', true);
+  if (!gameId) return privately('This server isn\'t linked to a game. Someone with Manage Channels can run `/dg link`.');
 
   if (sub.name === 'claim') {
-    const a = await findAgent(gameId, String(opt('agent')?.value ?? ''));
-    if (!a) return reply('No Agent by that name in this game.', true);
+    const a = await findAgent(gameId, str('agent'));
+    if (!a) return privately(NO_SUCH_AGENT);
     // A transaction, so two players claiming the same Agent at once can't both win.
     const holder = await db().runTransaction(async (tx) => {
       const others = (await tx.get(claimsQuery(gameId, a.id))).docs.filter((d) => d.get('userId') !== user);
@@ -275,55 +300,55 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
       tx.set(claimRef(gameId, user), { gameId, userId: user, agentId: a.id, claimedAt: now });
       return null;
     });
-    if (holder) return reply(`**${plain(a.label)}** is played by <@${holder}>. They can \`/dg unclaim\`, or someone with Manage Channels can take it over.`, true);
-    return reply(`<@${user}> now plays **${plain(a.label)}**.`);
+    if (holder) return privately(`${bold(a.label)} is played by <@${holder}>. They can \`/dg unclaim\`, or someone with Manage Channels can take it over.`);
+    return reply(`<@${user}> now plays ${bold(a.label)}.`);
   }
   if (sub.name === 'unclaim') {
     const value = opt('agent')?.value;
     if (value === undefined) { await claimRef(gameId, user).delete(); return reply(`<@${user}> no longer plays an Agent here.`); }
     const a = await findAgent(gameId, String(value));
-    if (!a) return reply('No Agent by that name in this game.', true);
+    if (!a) return privately(NO_SUCH_AGENT);
     const claims = (await claimsOfAgent(gameId, a.id)).docs;
-    if (claims.some((d) => d.get('userId') !== user) && !manage) return reply('Releasing someone else\'s Agent needs the Manage Channels permission.', true);
+    if (claims.some((d) => d.get('userId') !== user) && !manage) return privately('Releasing someone else\'s Agent needs the Manage Channels permission.');
     await Promise.all(claims.map((d) => d.ref.delete()));
-    return reply(`**${plain(a.label)}** is free to claim.`);
+    return reply(`${bold(a.label)} is free to claim.`);
   }
 
   const logEntry = (e: Roll, agentId: string, viaWebhook: boolean) => logged(e, agentId, viaWebhook, now);
 
   // `/dg roll test:2D6+1` (plain dice for anything rolled outward: damage dealt, a random table) and `/dg roll test:45`
   // (d% against a number). No claim needed, so the Handler can roll too.
-  const typed = String(opt('test')?.value ?? '').trim();
+  const typed = str('test').trim();
   if (sub.name === 'roll' && (isDice(typed) || TARGET.test(typed))) {
     const target = Number(typed);
-    if (!isDice(typed) && (target < 1 || target > 100)) return reply('A d% roll needs a number from 1 to 100.', true);
+    if (!isDice(typed) && (target < 1 || target > 100)) return privately('A d% roll needs a number from 1 to 100.');
     const [mine, viaWebhook] = await Promise.all([claimed(gameId, user), hasWebhook(gameId)]);
     const name = rollerName(mine?.name ?? null, i.member);
     const e: Roll = isDice(typed)
       ? diceEntry(rollExpression(typed, face)!, name)
-      : { ...rollAgainst(target, randomInt(1, 101), Number(opt('modifier')?.value ?? 0)), agentName: name };
+      : { ...rollAgainst(target, randomInt(1, 101), num('modifier')), agentName: name };
     await rollsOf(gameId).add(logEntry(e, mine?.id ?? '', viaWebhook));
     return answer(formatEntry(e), viaWebhook);
   }
 
-  const claimFirst = () => reply('Claim your Agent first (`/dg claim`), so it comes off the right sheet.', true);
+  const claimFirst = () => privately('Claim your Agent first (`/dg claim`), so it comes off the right sheet.');
 
   // `/dg damage dice:1D10`: your Agent gets hurt (HP never below 0, p. 55).
   if (sub.name === 'damage') {
-    const hit = rollExpression(String(opt('dice')?.value ?? ''), face);
-    if (!hit) return reply('Use dice like `1D10` or `2D6+1`, or a number like `7`.', true);
+    const hit = rollExpression(str('dice'), face);
+    if (!hit) return privately('Use dice like `1D10` or `2D6+1`, or a number like `7`.');
     const [agentId, viaWebhook] = await Promise.all([claimId(gameId, user), hasWebhook(gameId)]);
     if (!agentId) return claimFirst();
     const out = await commitLoss(gameId, agentId, viaWebhook, now, (d, name) => applyHit(d, hit, name));
     if (!out) return gone();
-    return 'error' in out ? reply(out.error, true) : answer(formatEntry(out.entry), viaWebhook);
+    return 'error' in out ? privately(out.error) : answer(formatEntry(out.entry), viaWebhook);
   }
 
   // `/dg san loss:0/1D6 kind:violence`: SAN test and loss with the live sheet's rules (pp. 66–74), holding the loss for
   // a private projection choice when projecting could reduce it (see sanChoice).
   if (sub.name === 'san') {
-    const kind = String(opt('kind')?.value ?? '') as SanKind;
-    if (!SAN_KINDS.includes(kind)) return reply('Pick violence, helplessness or unnatural.', true);
+    const kind = str('kind') as SanKind;
+    if (!SAN_KINDS.includes(kind)) return privately('Pick violence, helplessness or unnatural.');
     const [agentId, viaWebhook] = await Promise.all([claimId(gameId, user), hasWebhook(gameId)]);
     if (!agentId) return claimFirst();
     const [doc, held] = await Promise.all([agentRef(gameId, agentId).get(), heldRef(agentId).get()]);
@@ -332,10 +357,10 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     if (held.exists) {
       // One loss at a time: settle the waiting one first. Say so, so the new loss isn't mistaken for handled.
       const c = sanChoice(held.data() as HeldSan, a, name);
-      return privately({ ...c, content: `A SAN loss is already waiting for **${plain(name)}**. Settle it first; your new loss (\`${plain(String(opt('loss')?.value ?? ''), 20)}\`) wasn't rolled.\n\n${c.content}` });
+      return privately(`A SAN loss is already waiting for ${bold(name)}. Settle it first; your new loss (\`${plain(str('loss'), 20)}\`) wasn't rolled.\n\n${c.content}`, c.components);
     }
-    const plan = planSan(a, String(opt('loss')?.value ?? ''), kind, rng);
-    if ('error' in plan) return reply(plan.error, true);
+    const plan = planSan(a, str('loss'), kind, rng);
+    if ('error' in plan) return privately(plan.error);
     let testLine = '';
     if (plan.test) {
       const t: Roll = { ...plan.test, agentName: name };
@@ -347,20 +372,21 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     }
     const h: HeldSan = { ...plan.stake, gameId, agentId, userId: user, testLine, createdAt: now };
     await heldRef(agentId).set(h);
-    return privately(sanChoice(h, a, name));
+    const c = sanChoice(h, a, name);
+    return privately(c.content, c.components);
   }
 
   const me = await myAgent(gameId, user);
-  if (!me) return reply('You haven\'t claimed an Agent in this game. Use `/dg claim` first.', true);
+  if (!me) return privately('You haven\'t claimed an Agent in this game. Use `/dg claim` first.');
 
   if (sub.name === 'sheet') {
     const [name, ...rest] = sheetLines(me.agent);
-    return reply([`**${plain(name)}**`, ...rest.map((l) => plain(l, 1900))].join('\n'), true);
+    return privately([bold(name), ...rest.map((l) => plain(l, 1900))].join('\n'));
   }
   if (sub.name === 'roll') {
-    const t = findTest(me.agent, String(opt('test')?.value ?? ''));
-    if (!t) return reply('No stat, skill or test by that name. Pick one from the list.', true);
-    const r = rollTest(me.agent, t, randomInt(1, 101), Number(opt('modifier')?.value ?? 0));
+    const t = findTest(me.agent, str('test'));
+    if (!t) return privately('No stat, skill or test by that name. Pick one from the list.');
+    const r = rollTest(me.agent, t, randomInt(1, 101), num('modifier'));
     // Same as the live sheet: a failed skill earns a check toward end-of-session advancement (p. 28).
     const check = t.skill && !isSuccess(r.outcome) && me.agent.hasLive && !me.agent.l.checked.includes(t.label);
     // rollToDiscord posts it when there's a webhook; otherwise `answered` tells it the bot already replied in the channel.
@@ -372,5 +398,5 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     const text = formatRoll({ ...r, agentName: me.agent.name }) + (check ? ' · marked for improvement' : '');
     return answer(text, viaWebhook);
   }
-  return reply('Unknown command.', true);
+  return privately('Unknown command.');
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { copyLabel, copyNote, useCopy } from '../lib/useCopy';
+import { outcomeClass } from '../rules/outcome';
 
 // Small shared pieces with no react-aria, so the landing and game pages can use them without the form-control chunk.
 
@@ -8,6 +9,13 @@ export const Alert = ({ children, inline }: { children: ReactNode; inline?: bool
   children ? (inline ? <span className="warn" role="alert">{children}</span> : <p className="warn" role="alert">{children}</p>) : null;
 
 /** `quiet` for a placeholder inside a page that already announced its own loading. */
+/** A small dim note under a control. */
+export const Hint = ({ children, className }: { children: ReactNode; className?: string }) =>
+  <p className={className ? `dim ${className}` : 'dim'}><small>{children}</small></p>;
+
+/** A d% result in its colour: SUCCESS, FUMBLE… */
+export const OutcomeText = ({ o }: { o: string }) => <span className={outcomeClass(o)}>{o.toUpperCase()}</span>;
+
 export const Loading = ({ what, className = 'dim', quiet }: { what?: string; className?: string; quiet?: boolean }) =>
   <p className={className} role={quiet ? undefined : 'status'}>Loading{what && ` ${what}`}…</p>;
 

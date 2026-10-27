@@ -42,7 +42,7 @@ vi.mock('firebase-admin/firestore', () => {
   return { FieldPath, FieldValue: { delete: () => DELETE, arrayUnion: () => undefined }, getFirestore: () => db };
 });
 
-const { handle } = await import('./bot');
+const { clearCaches, handle } = await import('./bot');
 
 const DANIEL = '111', KYLE = '222';
 const press = (custom_id: string, user = DANIEL, permissions = '0') =>
@@ -52,6 +52,7 @@ const rolls = () => [...store.entries()].filter(([k]) => k.startsWith('games/g/r
 
 beforeEach(() => {
   store.clear();
+  clearCaches();
   const c = newCharacter();
   c.details.codename = 'Drew Rook';
   c.bonds = [{ name: 'Mom', note: '' }];

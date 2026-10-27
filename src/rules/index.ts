@@ -7,6 +7,10 @@ import { BASE_RATINGS, BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, MAX_SKILL,
 // ---- Small shared helpers
 export const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
 export const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+/** Whether `text` contains what was typed, ignoring case and surrounding spaces; empty matches everything. */
+export const matches = (text: string, typed: string) => text.toLowerCase().includes(typed.trim().toLowerCase());
+/** The same words, ignoring case and surrounding spaces. */
+export const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 /** "1 bond", "2 bonds". */
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -196,10 +200,7 @@ export function skillsOf(c: Character, advance: Record<string, number> = {}): Sk
 }
 
 /** Skill search: case-insensitive substring of the skill's full name, type included. */
-export const filterSkills = (lines: SkillLine[], query: string) => {
-  const q = query.trim().toLowerCase();
-  return q ? lines.filter((s) => s.key.toLowerCase().includes(q)) : lines;
-};
+export const filterSkills = (lines: SkillLine[], query: string) => (query.trim() ? lines.filter((s) => matches(s.key, query)) : lines);
 
 // ---- Validation
 export type StepId = 'stats' | 'profession' | 'bonds' | 'details';

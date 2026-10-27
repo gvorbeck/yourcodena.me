@@ -1,4 +1,4 @@
-import { SAN_KINDS } from '../../src/model/live';
+import { SAN_KINDS, SAN_KIND_LABEL } from '../../src/model/live';
 
 // The /dg command as registered with Discord (npm run discord:register). Option types: 1 subcommand, 3 string, 4 integer.
 const ROLL = { type: 1, name: 'roll', description: 'Roll a test for your Agent, or any dice', options: [
@@ -32,7 +32,7 @@ export const DG = {
     { type: 1, name: 'san', description: 'Your Agent loses SAN: SAN test and loss, with the sheet\'s rules', options: [
       { type: 3, name: 'loss', description: 'Success/failure like 0/1D6 (makes the SAN test), or 1D6 to just lose it', required: true, max_length: 20 },
       { type: 3, name: 'kind', description: 'What caused it (adaptation tracks violence and helplessness)', required: true,
-        choices: SAN_KINDS.map((k) => ({ name: k[0].toUpperCase() + k.slice(1), value: k })) },
+        choices: SAN_KINDS.map((k) => ({ name: SAN_KIND_LABEL[k], value: k })) },
     ] },
     { type: 1, name: 'sheet', description: "Your Agent's HP, WP, SAN and BP (only you see it)" },
     { type: 1, name: 'claim', description: 'Play an Agent from the linked game', options: [

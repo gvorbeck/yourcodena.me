@@ -18,7 +18,10 @@ h2::before, h3::before { content: '[ '; content: '[ ' / ''; } h2::after, h3::aft
 /* Bare buttons: no browser chrome, just a pointer; each rule below adds its own look. */
 .menubar button, .rollable, button.mark, .win-toggle, .steps button { all: unset; cursor: pointer; }
 
-.menubar { display: flex; gap: 1.5rem; padding: .25rem 1rem; background: var(--inv-bg); color: var(--inv-fg); flex-wrap: wrap; }
+/* Inverted colours: bars, the current step, selected choices and options (focused fields and hovered buttons below). */
+.menubar, .skip, .win > header, .statusbar kbd, .steps button[aria-current='step'], .choice[data-selected], .option:is([data-focused], [data-hovered]) { background: var(--inv-bg); color: var(--inv-fg); }
+
+.menubar { display: flex; gap: 1.5rem; padding: .25rem 1rem; flex-wrap: wrap; }
 .menubar .grow { flex: 1; text-align: right; }
 .menubar button:hover, .menubar button[data-focus-visible], .menubar a:hover, .menubar a:focus-visible { text-decoration: underline; }
 .menubar a { color: inherit; text-decoration: none; }
@@ -26,12 +29,11 @@ h2::before, h3::before { content: '[ '; content: '[ ' / ''; } h2::after, h3::aft
 .menubar :is(button, a) + button::before { content: "|" / ""; display: inline-block; margin: 0 .75ch; } /* inline-block keeps the hover underline off it */
 
 .shell { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--gap); padding: var(--gap); align-items: start; align-content: start; }
-@media (min-width: 801px) { .shell.live td { white-space: nowrap; } }
 .counter { flex-wrap: nowrap; margin-bottom: .5rem; } .counter.noted { flex-wrap: wrap; }
 .counter .note { flex: 1 1 14ch; min-width: 0; overflow-wrap: anywhere; } /* a Bond's relationship: beside the score when there's room, below it when not */
 .counter strong { flex: none; width: 13ch; overflow-wrap: anywhere; }
 .counter output { flex: none; width: 9ch; text-align: center; }
-.skip { position: absolute; left: .5rem; top: -4rem; z-index: 2; padding: .25rem .75rem; background: var(--inv-bg); color: var(--inv-fg); }
+.skip { position: absolute; left: .5rem; top: -4rem; z-index: 2; padding: .25rem .75rem; }
 .skip:focus { top: .5rem; }
 main:focus { outline: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -46,11 +48,9 @@ button.mark { padding: .6rem .8ch; margin: -.6rem -.8ch; } button.mark:hover { t
 .skillname { display: flex; align-items: center; gap: .6ch; } .skillname .mark { flex: none; }
 .live-note { margin-bottom: 1.5rem; }
 .live-notes { width: 100%; }
-@media (max-width: 800px) { .shell { grid-template-columns: minmax(0, 1fr); } }
-@media (min-width: 801px) { .shell > .win:first-child { position: sticky; top: var(--gap); } }
 
 .win { border: 2px solid var(--line); background: var(--panel); }
-.win > header { background: var(--inv-bg); color: var(--inv-fg); padding: 0 .5rem; display: flex; justify-content: space-between; }
+.win > header { padding: 0 .5rem; display: flex; justify-content: space-between; }
 .win > header h2 { margin: 0; font: inherit; }
 .win-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .badge-ok { background: var(--ok); color: var(--panel); padding: 0 .4rem; margin: .15rem 0; align-self: center; }
@@ -62,7 +62,6 @@ button.mark { padding: .6rem .8ch; margin: -.6rem -.8ch; } button.mark:hover { t
 .steps button[data-focus-visible], .choice[data-focus-visible], .menubar :is(a, button):focus-visible, .menubar button[data-focus-visible] { outline: 2px solid var(--fg); outline-offset: 1px; }
 .menubar :is(a, button):focus-visible { outline-color: var(--inv-fg); }
 .steps button[aria-current='step'][data-focus-visible] { outline-color: var(--inv-fg); outline-offset: -3px; }
-.steps button[aria-current='step'] { background: var(--inv-bg); color: var(--inv-fg); }
 .steps .n { flex: none; min-width: 2ch; } .steps .flag { margin-left: auto; }
 .steps button[aria-current='step'] .flag:not(:empty) { background: var(--panel); padding: 0 .5ch; } /* the green/red marks are unreadable straight on the inverted bar */
 
@@ -86,12 +85,10 @@ input:focus, textarea:focus, select:focus, input[data-focused], textarea[data-fo
 .popover { min-width: var(--trigger-width); border: 2px solid var(--line); background: var(--panel); color: var(--fg); }
 .listbox { max-height: 14rem; overflow: auto; outline: none; padding: .25rem 0; }
 .option { padding: 0 .5rem; cursor: pointer; outline: none; }
-.option[data-focused], .option[data-hovered] { background: var(--inv-bg); color: var(--inv-fg); }
 .row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
 
 .choice { position: relative; display: flex; gap: .5rem; padding: 0 .25rem; cursor: pointer; }
 .choice[data-hovered] { outline: 1px dashed var(--line); }
-.choice[data-selected] { background: var(--inv-bg); color: var(--inv-fg); }
 .choice[data-disabled] { opacity: .4; cursor: not-allowed; }
 .choice .mark::before { content: '[ ]'; content: '[ ]' / ''; } .choice[data-selected] .mark::before { content: '[X]'; content: '[X]' / ''; }
 .choice.radio .mark::before { content: '( )'; content: '( )' / ''; } .choice.radio[data-selected] .mark::before { content: '(•)'; content: '(•)' / ''; }
@@ -105,7 +102,7 @@ td.num, th.num { text-align: right; }
 .stamp { display: inline-block; border: 3px double var(--warn); color: var(--warn); padding: 0 .5rem; transform: rotate(-4deg); }
 .redact { background: var(--fg); color: var(--fg); user-select: none; }
 .statusbar { display: flex; gap: 1.5rem; padding: .25rem 1rem; border-top: 2px solid var(--line); flex-wrap: wrap; }
-.statusbar kbd { font: inherit; background: var(--inv-bg); color: var(--inv-fg); padding: 0 .25rem; margin-right: .25rem; }
+.statusbar kbd { font: inherit; padding: 0 .25rem; margin-right: .25rem; }
 
 .cursor::after { content: '█'; }
 @media (prefers-reduced-motion: no-preference) { .cursor::after { animation: blink 1.1s steps(1) infinite; } }
@@ -113,8 +110,11 @@ td.num, th.num { text-align: right; }
 .choice .mark { flex: none; white-space: pre; }
 
 .split { grid-template-columns: minmax(16rem, 1fr) minmax(18rem, 1.4fr); }
+.btn.phone-only { display: none; }
 @media (max-width: 800px) {
   html { font-size: 13px; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .btn.phone-only { display: inline-block; } .live-skills .btn.phone-only { margin-bottom: .5rem; }
   .split { grid-template-columns: minmax(0, 1fr); }
   .shell { padding: .5rem; gap: .5rem; }
   .win > .body { padding: .5rem; }
@@ -174,6 +174,8 @@ td.num, th.num { text-align: right; }
 
 /* Live sheet layout: phone stacks Status → Skills → Notes (DOM order); wider screens put Skills beside Status. */
 @media (min-width: 801px) {
+  .shell.live td { white-space: nowrap; }
+  .shell > .win:first-child { position: sticky; top: var(--gap); }
   .shell.live { grid-template-columns: minmax(0, 1fr) 24rem; grid-template-areas: "bar bar" "status skills" "notes skills"; }
   .live .rollbar { grid-area: bar; } .live-status { grid-area: status; } .live-skills { grid-area: skills; } .live-notes-win { grid-area: notes; }
   .live-skills { position: sticky; top: 4rem; max-height: calc(100vh - 5rem); display: flex; flex-direction: column; } /* stays in reach while Status scrolls; below the sticky roll bar */
@@ -185,8 +187,6 @@ td.num, th.num { text-align: right; }
 .live .win table :is(td, th) { border-bottom: 1px solid color-mix(in srgb, var(--dim) 60%, transparent); }
 .skilltype { display: block; font-size: inherit; color: var(--dim); } /* qualifier on its own line; the button shrinks to the wider line so the marker stays beside the text */
 
-.btn.phone-only { display: none; }
-@media (max-width: 800px) { .btn.phone-only { display: inline-block; } .live-skills .btn.phone-only { margin-bottom: .5rem; } }
 
 /* Landing, game and notice pages */
 .page { display: grid; gap: var(--gap); padding: var(--gap); align-content: start; width: 100%; max-width: 64rem; margin: 0 auto; }

@@ -4,7 +4,7 @@ import { REMOVED } from '../../src/lib/diff';
 import { newCharacter } from '../../src/model/character';
 import { freshLive } from '../../src/model/live';
 import { agentOf } from './dg';
-import { answer, handle, rollerName, sanChoice, toPairs } from './bot';
+import { answer, cached, handle, rollerName, sanChoice, toPairs } from './bot';
 import { DG } from './commands';
 
 describe('handle', () => {
@@ -80,5 +80,19 @@ describe('sanChoice', () => {
     const r = sanChoice({ ...held, n: 3 }, low, 'Drew Rook');
     expect(r.content).toContain('drops to 0');
     expect(r.components[0].components[0].label).toBe('Mom (2 → 0)');
+  });
+});
+
+describe('cached', () => {
+  it('remembers an answer for a while, forgets failures, and can be cleared', async () => {
+    let n = 0;
+    const get = cached(async (k) => { n++; if (k === 'bad') throw new Error('no'); return `${k}${n}`; }, 60_000);
+    expect(await get('a')).toBe('a1');
+    expect(await get('a')).toBe('a1');
+    await expect(get('bad')).rejects.toThrow();
+    await expect(get('bad')).rejects.toThrow(); // retried, not remembered
+    expect(n).toBe(3);
+    get.clear();
+    expect(await get('a')).toBe('a4');
   });
 });

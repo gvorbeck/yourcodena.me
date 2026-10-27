@@ -171,6 +171,8 @@ export function loseStat(c: Character, l: Live, s: Stat, amount: number): { live
 /** What caused a SAN loss; adaptation (p. 74) tracks violence and helplessness. */
 export const SAN_KINDS = ['violence', 'helplessness', 'unnatural'] as const;
 export type SanKind = (typeof SAN_KINDS)[number];
+/** How each kind is named on the sheet and in Discord. */
+export const SAN_KIND_LABEL: Record<SanKind, string> = { violence: 'Violence', helplessness: 'Helplessness', unnatural: 'The Unnatural' };
 
 /** p. 74: three SAN-losing hits of one kind in a row adapt the Agent; insanity or a Breaking Point resets the count. */
 export const adapt = (count: number, reset: boolean) => {

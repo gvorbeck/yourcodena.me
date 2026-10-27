@@ -14,11 +14,14 @@ export const isWebhookUrl = (url: string) => WEBHOOK.test(url);
 export const plain = (s: string, max = 100) =>
   s.replace(/\s+/g, ' ').trim().slice(0, max).replace(/([\\*_~`|>#[\]()-])/g, '\\$1').replace(/@/g, '@\u200b');
 
+/** A name in bold, made safe with `plain`; `or` when it comes out empty. */
+export const bold = (s: string, or = '') => `**${plain(s) || or}**`;
+
 const OUTCOME: Record<string, string> = { 'critical success': '**CRITICAL SUCCESS**', success: 'Success', failure: 'Failure', fumble: '**FUMBLE**' };
 
 /** Same facts as the game page's roll log: `**Agent Smith** · Firearms 45% (−20) → 23 · Success` */
 export function formatRoll(r: Omit<TestEntry, 'kind'>): string {
-  return `**${plain(r.agentName) || 'Unnamed agent'}** · ${testText(plain(r.label), r.chance, r.penalty)} → ${d100Text(r.roll)} · ${OUTCOME[r.outcome] ?? plain(r.outcome)}`;
+  return `${bold(r.agentName, 'Unnamed agent')} · ${testText(plain(r.label), r.chance, r.penalty)} → ${d100Text(r.roll)} · ${OUTCOME[r.outcome] ?? plain(r.outcome)}`;
 }
 
 /** Posts one message. Returns Discord's HTTP status: 204 sent, 404 webhook deleted, 429 rate limited. */
@@ -58,7 +61,7 @@ export function verifyDiscord(publicKeyHex: string, signatureHex: string, timest
  */
 export function formatEntry(r: Roll): string {
   if (!r.kind) return formatRoll(r);
-  const who = `**${plain(r.agentName) || 'Someone'}**`, dice = diceLabel(plain(r.label), r.dice, r.mod); // the detail is only digits and signs
+  const who = bold(r.agentName, 'Someone'), dice = diceLabel(plain(r.label), r.dice, r.mod); // the detail is only digits and signs
   if (r.kind === 'dice') return `${who} · ${dice} → **${r.roll}**`;
   const l = asLoss(r);
   const rolled = l.label === String(l.roll) ? '' : ` · ${dice}`; // a flat "7" would only repeat the amount
