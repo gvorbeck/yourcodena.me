@@ -1,14 +1,13 @@
 // Discord-side play: the same tests, chances and outcomes as the live sheet (src/LiveSheet.tsx), built from the app's own rules.
 import { parseCharacter, type Character } from '../../src/model/character';
-import { effStat, freshLive, loseSan, maxSanOf, parseLive, permStats, type Live, type SanKind } from '../../src/model/live';
+import { capsOf, freshLive, loseSan, maxSanOf, parseLive, sheetPenalty, testsOf as sheetTests, SAN_LOSS, type Live, type SanKind, type Test } from '../../src/model/live';
 import { planSanLoss, projectRolled } from '../../src/model/actions';
 import { diffPaths, type Change } from '../../src/lib/diff';
 import { agentLabel } from '../../src/model/names';
-import { bondCount, derived, diceText, isSuccess, liveOutcome, parseDice, parseLoss, rollDice, rollLoss, skillsOf, testOutcome } from '../../src/rules';
+import { activeBonds, diceText, diceTotal, isSuccess, liveOutcome, parseDice, parseLoss, rollDice, rollLoss, testOutcome } from '../../src/rules';
 import { hurtNote, type DiceEntry, type LossEntry, type LossStat, type TestEntry } from '../../src/rules/outcome';
-import { STATS, STAT_NAMES } from '../../src/rules/data/creation';
 
-export interface Test { id: string; label: string; name: string; chance: number; skill: boolean }
+export type { Test };
 export interface Agent { name: string; c: Character; l: Live; hasLive: boolean }
 
 /** An agent document as stored at games/{gameId}/agents/{agentId}. Before the live sheet is first opened, play state is the fresh one. */
@@ -17,15 +16,8 @@ export function agentOf(d: { character?: unknown; live?: unknown }): Agent {
   return { name: agentLabel(c.details.codename, c.details.name), c, l: d.live ? parseLive(d.live) : freshLive(c), hasLive: Boolean(d.live) };
 }
 
-/** Everything rollable on the live sheet, with the labels the roll log already uses. */
-export function testsOf({ c, l }: Agent): Test[] {
-  return [
-    ...STATS.map((s) => ({ id: `stat:${s}`, label: s, name: `${s} ${STAT_NAMES[s]}`, chance: effStat(c, l, s) * 5, skill: false })),
-    { id: 'luck', label: 'Luck', name: 'Luck', chance: 50, skill: false },
-    { id: 'san', label: 'SAN test', name: 'SAN', chance: l.san, skill: false },
-    ...skillsOf(c, l.advance).map((s) => ({ id: `skill:${s.key}`, label: s.key, name: s.key, chance: s.total, skill: true })),
-  ].filter((t) => t.id.length <= 100); // Discord's limit on a choice value
-}
+/** Everything rollable on the live sheet (model/live.ts), with the labels the roll log already uses. */
+export const testsOf = (a: Agent): Test[] => sheetTests(a).filter((t) => t.id.length <= 100); // Discord's limit on a choice value
 
 /** Autocomplete: up to 25 matches for what the player has typed so far. */
 export const choicesFor = (a: Agent, typed: string) => {
@@ -44,13 +36,13 @@ export function findTest(a: Agent, value: string): Test | null {
 
 /** Same as the live sheet's test(): WP penalty, the sheet's flat penalty and exhaustion, plus a signed modifier (−20 is a penalty). */
 export function rollTest({ l }: Agent, t: Test, roll: number, modifier = 0) {
-  const { chance, pen, outcome } = liveOutcome(roll, t.chance, l.wp, l.penalty + (l.exhausted ? 20 : 0) - modifier);
+  const { chance, pen, outcome } = liveOutcome(roll, t.chance, l.wp, sheetPenalty(l) - modifier);
   return { label: t.label, chance, penalty: Math.max(0, pen), roll, outcome };
 }
 
 /** /dg sheet: current and maximum values, the same ones the live sheet shows. */
 export function sheetLines({ name, c, l }: Agent): string[] {
-  const d = derived(permStats(c, l));
+  const d = capsOf(c, l);
   const notes = [l.exhausted && 'Exhausted (−20%)', l.penalty && `Penalty −${l.penalty}%`, l.wp > 0 && l.wp <= 2 && 'Low WP (−20%)', l.wp === 0 && 'WP 0: every test fails'].filter(Boolean);
   return [
     name,
@@ -68,7 +60,7 @@ export function rollExpression(input: string, rand: (sides: number) => number): 
   const p = parseDice(input);
   if (!p) return null;
   const dice = rollDice(p, rand);
-  return { expr: diceText(p), dice, mod: p.mod, total: Math.max(0, (p.sides ? dice.reduce((a, b) => a + b, 0) : p.count) + p.mod) };
+  return { expr: diceText(p), dice, mod: p.mod, total: diceTotal(p, dice) };
 }
 
 /** True for real dice ("2D6+1"), false for a flat number or anything else: a number typed into `test:` means d%. */
@@ -80,9 +72,11 @@ export function rollAgainst(target: number, roll: number, modifier = 0): Omit<Te
   return { label: 'd%', chance, penalty: Math.max(0, -modifier), roll, outcome: testOutcome(roll, chance) };
 }
 
+/** Placeholder test fields on entries that aren't d% tests (see DiceEntry in rules/outcome.ts). */
+const NOT_A_TEST = { chance: 0, penalty: 0, outcome: '' };
 /** The roll-log entry for plain dice. */
 export const diceEntry = (r: DiceRoll, agentName: string): DiceEntry =>
-  ({ kind: 'dice', label: r.expr, dice: r.dice, mod: r.mod, roll: r.total, agentName, chance: 0, penalty: 0, outcome: '' });
+  ({ kind: 'dice', label: r.expr, dice: r.dice, mod: r.mod, roll: r.total, agentName, ...NOT_A_TEST });
 
 // ---- Losing HP or SAN (/dg damage, /dg san). Both come off the claimed Agent's sheet the same way: the leaves of the
 // agent doc to write (paths from the doc root, so an open sheet can merge them) plus one roll-log entry.
@@ -94,7 +88,7 @@ export const liveLeaves = (before: Live, after: Live, hasLive: boolean): Change[
   hasLive ? diffPaths(before, after, ['live']) : [[['live'], after]];
 
 const lossEntry = (stat: LossStat, label: string, r: { dice: number[]; mod: number; total: number }, from: number, to: number, notes: string[], agentName: string, cause?: string): LossEntry =>
-  ({ kind: 'loss', stat, label, dice: r.dice, mod: r.mod, roll: r.total, from, to, notes, ...(cause ? { cause } : {}), agentName, chance: 0, penalty: 0, outcome: '' });
+  ({ kind: 'loss', stat, label, dice: r.dice, mod: r.mod, roll: r.total, from, to, notes, ...(cause ? { cause } : {}), agentName, ...NOT_A_TEST });
 
 /**
  * `/dg damage`: HP before and after (never below 0, p. 55) and what the hit means. Reads only `live.hp`, so a sheet
@@ -121,7 +115,7 @@ export function planSan(a: Agent, loss: string, kind: SanKind, rng: () => number
   const expr = loss.trim().toUpperCase().replace(/\s+/g, '');
   if (parseLoss(expr)) {
     let test: Omit<TestEntry, 'agentName'> | null = null;
-    const sanTest: Test = { id: 'san', label: 'SAN (loss)', name: 'SAN', chance: a.l.san, skill: false };
+    const sanTest: Test = { id: 'san', label: SAN_LOSS, name: 'SAN', chance: a.l.san, skill: false };
     const plan = planSanLoss(a.l, kind, expr, () => {
       test = rollTest(a, sanTest, 1 + Math.floor(rng() * 100));
       return { ok: isSuccess(test.outcome), roll: test.roll, chance: test.chance };
@@ -136,8 +130,8 @@ export function planSan(a: Agent, loss: string, kind: SanKind, rng: () => number
 export interface Bond { i: number; name: string; score: number }
 /** Bonds that can take a projection: named, with points left. */
 export function bondsOf({ c, l }: Agent): Bond[] {
-  const score = derived(permStats(c, l)).bondScore;
-  return c.bonds.slice(0, bondCount(c)).map((b, i) => ({ i, name: b.name.trim(), score: l.bonds[i] ?? score })).filter((b) => b.name && b.score > 0);
+  const score = capsOf(c, l).bondScore;
+  return activeBonds(c).map((b) => ({ i: b.i, name: b.name, score: l.bonds[b.i] ?? score })).filter((b) => b.score > 0);
 }
 /** Step 2's gate: projecting can only help with a loss to reduce, a Bond with points and at least 2 WP (1 must remain after spending 1D4, p. 74). */
 export const canProject = (a: Agent, amount: number) => amount > 0 && a.l.wp >= 2 && bondsOf(a).length > 0;

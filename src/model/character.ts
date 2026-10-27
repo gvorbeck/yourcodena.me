@@ -1,14 +1,16 @@
 import { z } from 'zod';
 import { STATS } from '../rules/data/creation';
-import { SAVED_AGENT_KEY as KEY } from '../lib/storageKeys';
+import { BONUS_PICKS } from '../rules/data/skills';
+import { SAVED_AGENT_BAK, SAVED_AGENT_KEY, store } from '../lib/storage';
 import { fromGreenAgent, isGreenAgent } from './greenagent';
 
 export const CHARACTER_VERSION = 1;
 
 // Limits keep an imported file or a pasted wall of text from outgrowing a Firestore document (1 MiB); the inputs enforce the same maxima.
-const line = z.string().max(200).default('');
-const name = z.string().max(100).default(''); // also the cap in firestore.rules
-const prose = z.string().max(5000).default('');
+export const MAX_LINE = 200, MAX_NAME = 100, MAX_PROSE = 5000; // MAX_NAME is also the cap in firestore.rules
+const line = z.string().max(MAX_LINE).default('');
+const name = z.string().max(MAX_NAME).default('');
+const prose = z.string().max(MAX_PROSE).default('');
 const skill = z.string().max(120); // "Family(Type)"; the type input stops at 100. Also the roll label cap in firestore.rules.
 const stat = z.number().int().min(3).max(18);
 
@@ -30,7 +32,7 @@ export const characterSchema = z.object({
   picks: z.array(z.string().max(20)).max(30).default([]),
   types: z.record(z.string().max(100)).default({}),
   bonusPackage: line,
-  bonus: z.array(skill).length(8),
+  bonus: z.array(skill).length(BONUS_PICKS),
   // Handler-approved per-skill fudge, added to the total. Capped like the other lists; Unnatural stays out because it sets max SAN.
   adjust: z.record(skill, z.number().int().min(-99).max(99)).refine((r) => Object.keys(r).length <= 30 && !('Unnatural' in r)).default({}),
   bonds: z.array(z.object({ name: line, note: line })).max(20).default([]),
@@ -47,13 +49,25 @@ export const characterSchema = z.object({
 
 export type Character = z.infer<typeof characterSchema>;
 
-export const newCharacter = (): Character => ({
-  version: CHARACTER_VERSION,
-  stats: { STR: 10, DEX: 10, CON: 10, INT: 10, POW: 10, CHA: 10 },
-  statMethod: 'roll', statSet: '', professionId: '', custom: emptyCustom(), orPicks: {}, picks: [], types: {},
-  bonusPackage: '', bonus: Array(8).fill(''), adjust: {}, bonds: [], veteran: '', veteranSkills: [], disorder: '', motivations: [],
-  details: { name: '', codename: '', age: '', sex: '', nationality: '', employer: '', rank: '', education: '', appearance: '', personality: '', admires: '', dislikes: '', trust: '', helps: '' },
+/** A blank Agent: every field the schema doesn't default is given here. */
+export const newCharacter = (): Character => characterSchema.parse({
+  version: CHARACTER_VERSION, stats: Object.fromEntries(STATS.map((s) => [s, 10])), bonus: Array(BONUS_PICKS).fill(''), details: {},
 });
+
+export type DetailKey = keyof Character['details'];
+/** The personal-detail fields in form order, with their labels and length caps (prose fields are text areas). */
+export const DETAIL_FIELDS: { key: DetailKey; label: string; max: number; prose?: true }[] = [
+  { key: 'name', label: 'Name', max: MAX_NAME }, { key: 'codename', label: 'Codename (optional)', max: MAX_NAME },
+  { key: 'age', label: 'Age / date of birth', max: MAX_LINE }, { key: 'sex', label: 'Sex', max: MAX_LINE },
+  { key: 'nationality', label: 'Nationality', max: MAX_LINE }, { key: 'employer', label: 'Employer', max: MAX_LINE },
+  { key: 'rank', label: 'Profession / rank', max: MAX_LINE },
+  { key: 'education', label: 'Education and occupational history', max: MAX_PROSE, prose: true }, { key: 'appearance', label: 'Physical description', max: MAX_PROSE, prose: true },
+  { key: 'personality', label: 'Personality', max: MAX_PROSE, prose: true }, { key: 'admires', label: 'Something admired', max: MAX_PROSE, prose: true },
+  { key: 'dislikes', label: 'Something disliked', max: MAX_PROSE, prose: true }, { key: 'trust', label: 'Why Delta Green trusts this Agent', max: MAX_PROSE, prose: true },
+  { key: 'helps', label: 'Why this Agent helps Delta Green', max: MAX_PROSE, prose: true },
+];
+/** The Agent's name for headings, or `fallback` when blank. */
+export const nameOf = (c: Character, fallback = 'Unnamed agent') => c.details.name.trim() || fallback;
 
 /** Bump CHARACTER_VERSION and add a step here when the schema changes shape. */
 type Raw = { version?: unknown };
@@ -66,13 +80,9 @@ export function parseCharacter(raw: unknown): Character {
 }
 
 export const loadCharacter = (): Character => {
-  let s: string | null = null;
-  try {
-    s = localStorage.getItem(KEY);
-    if (s) return parseCharacter(JSON.parse(s));
-  } catch {
-    // Unreadable save: keep the raw copy so the autosave of a blank Agent doesn't destroy it.
-    try { if (s) localStorage.setItem(`${KEY}.bak`, s); } catch { /* storage blocked */ }
+  const s = store.get(SAVED_AGENT_KEY);
+  if (s) {
+    try { return parseCharacter(JSON.parse(s)); } catch { store.set(SAVED_AGENT_BAK, s); } // unreadable: keep the raw copy
   }
   return newCharacter();
 };

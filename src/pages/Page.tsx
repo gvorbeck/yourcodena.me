@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { Legal } from '../ui/Legal';
 import { MenuBar } from '../ui/MenuBar';
-import { useFocusMain } from '../ui/Win';
+import { Win, useFocusMain } from '../ui/Win';
 
 export const useTitle = (title?: string) =>
   useEffect(() => { document.title = title ? `${title} // YOURCODENA.ME` : 'YOURCODENA.ME // Agent Intake'; }, [title]);
@@ -19,6 +19,10 @@ interface PageProps {
   wide?: boolean;
   children: ReactNode;
 }
+
+/** A page holding one window: errors, "not found" and the like. */
+export const Notice = ({ page, title, children }: { page?: string; title: string; children: ReactNode }) =>
+  <Page title={page}><Win title={title}>{children}</Win></Page>;
 
 /** Menu bar, <main> and status bar shared by every page except the live sheet. */
 export const Page = ({ title, heading, subtitle = '// Delta Green agents & rolls', actions, status, wide, children }: PageProps) => {

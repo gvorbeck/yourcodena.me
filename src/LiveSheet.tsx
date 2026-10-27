@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
-import { bondCount, derived, isSuccess, liveOutcome, outcomeClass, professionOf, rollD100, type Outcome } from './rules';
+import { activeBonds, clamp, isSuccess, liveOutcome, motivationsOf, outcomeClass, professionOf, rollD100, type Outcome } from './rules';
 import { d100Text, testText } from './rules/outcome';
-import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, effStat, encodeSheet, loseSan, maxSanOf, permStats, refreshSpent, setUnnatural, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
-import type { Character } from './model/character';
+import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, loseSan, maxSanOf, refreshSpent, setUnnatural, sheetPenalty, coreTests, SAN_LOSS, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
+import { nameOf, type Character } from './model/character';
 import { Btn, ConfirmDialog, SkillTable, Win } from './ui';
 import { useFocusMain } from './ui/Win';
 import { useTitle } from './pages/Page';
-import { copyLabel, copyNote, useCopy } from './lib/useCopy';
+import { Alert, CopyButton } from './ui/bits';
+import { gameUrl } from './lib/paths';
 import * as play from './model/actions';
 
 function Counter({ label, note, value, max, step = 1, onChange, onRoll }: { label: string; note?: string; value: number; max?: number; step?: number; onChange: (v: number) => void; onRoll?: () => void }) {
-  const set = (v: number) => onChange(Math.max(0, max === undefined ? v : Math.min(max, v)));
+  const set = (v: number) => onChange(clamp(v, 0, max ?? Infinity));
   return (
     <div className={note ? 'row counter noted' : 'row counter'} role="group" aria-label={label}>
       <strong>{onRoll ? <button className="rollable" onClick={onRoll}>{label}</button> : label}</strong>
@@ -89,9 +90,9 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   // Runs on state changes only: `game` is a fresh object every render and must not re-send the same state.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (l !== sent.current) { sent.current = l; game?.onChange(l); } }, [l]);
-  useTitle(`Live: ${c.details.name.trim() || 'Unnamed agent'}`);
+  const name = nameOf(c);
+  useTitle(`Live: ${name}`);
   useFocusMain();
-  const [copied, copy] = useCopy();
   const [leaving, setLeaving] = useState(false);
   const [rolls, setRolls] = useState<Roll[]>([]);
   const nextId = useRef(0);
@@ -103,13 +104,13 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const [san, setSan] = useState({ kind: 'violence' as SanKind, loss: '0/1D4' });
   const [pending, setPending] = useState<{ kind: SanKind; amount: number; result: string } | null>(null);
   const [bondPick, setBondPick] = useState(0);
-  const d = derived(permStats(c, l));
+  const d = capsOf(c, l);
   const say = (...m: string[]) => setAlerts((p) => [...m, ...p].slice(0, 8));
   /** Run a pure action on the newest state, then show its notes. */
   const act = (fn: (cur: Live) => play.Result) => { const r = fn(latest.current); setL(r.live); say(...r.notes); };
   const test = (label: string, base: number, wp = l.wp) => {
     const r = rollD100();
-    const { chance, pen, outcome } = liveOutcome(r, base, wp, l.penalty + (l.exhausted ? 20 : 0) + once);
+    const { chance, pen, outcome } = liveOutcome(r, base, wp, sheetPenalty(l) + once);
     setOnce(0);
     setRolls((p) => [{ id: nextId.current++, label, chance, pen, roll: r, outcome }, ...p].slice(0, 10));
     game?.onRoll({ label, chance, pen, roll: r, outcome });
@@ -128,7 +129,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const maxSan = maxSanOf(c, l);
   const [disorder, setDisorder] = useState('');
   const [drop, setDrop] = useState('');
-  const motivations = c.motivations.map((m) => m.trim()).filter((m) => m && !l.dropped.includes(m));
+  const motivations = motivationsOf(c).filter((m) => !l.dropped.includes(m));
   const addDisorder = () => {
     const name = disorder.trim();
     if (!name) return;
@@ -144,7 +145,10 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `game` only decides whether to skip; `link` is what changes
   }, [link]);
   const set = <K extends keyof Live>(k: K, v: Live[K]) => setL((p) => ({ ...p, [k]: v }));
-  const bonds = c.bonds.slice(0, bondCount(c)).map((b, i) => ({ ...b, i })).filter((b) => b.name);
+  const bonds = activeBonds(c);
+  // Stats, Luck and SAN roll under the same labels and chances as /dg roll (model/live.ts coreTests).
+  const tests = new Map(coreTests({ c, l }).map((t) => [t.id, t]));
+  const rollId = (id: string) => { const t = tests.get(id)!; roll(t.label, t.chance); };
   const bond = bonds.some((b) => b.i === bondPick) ? bondPick : bonds[0]?.i;
   const [find, setFind] = useState('');
   /** Phone shortcut between Status and Skills; honours reduced-motion. */
@@ -183,7 +187,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const lose = (s: Stat, by: number) => setL((cur) => play.adjustStatLoss(cur, s, by));
 
   const sanRoll = () => {
-    const r = play.planSanLoss(l, san.kind, san.loss, () => test('SAN (loss)', l.san));
+    const r = play.planSanLoss(l, san.kind, san.loss, () => test(SAN_LOSS, l.san));
     if ('error' in r) return say(r.error);
     setPending(r);
   };
@@ -203,7 +207,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
 
   return (
     <main id="main" tabIndex={-1}>
-    <h1 className="sr-only">Live sheet: {c.details.name.trim() || 'unnamed agent'}</h1>
+    <h1 className="sr-only">Live sheet: {name}</h1>
     <div className="shell live">
       <div className="rollbar noprint">
         {rolls.length === 0 ? <span className="dim">Tap a stat, Luck or skill name to roll d% against it (at or below passes).</span> : rolls.map((r, i) => (
@@ -212,14 +216,13 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
       </div>
       <p className="sr-only" aria-live="polite">{rolls[0] && `${rolls[0].label} ${rolls[0].chance}%: rolled ${rolls[0].roll}, ${rolls[0].outcome}`}</p>
 
-      <Win className="live-status" title={`LIVE SHEET // ${(c.details.name || 'UNNAMED').toUpperCase()}`} right={professionOf(c)?.name}>
+      <Win className="live-status" title={`LIVE SHEET // ${name.toUpperCase()}`} right={professionOf(c)?.name}>
         <div className="row noprint">
           {game ? <>
-            <Link className="btn" to={`/g/${game.gameId}`}>&lt; Game</Link>
+            <Link className="btn" to={gameUrl(game.gameId)}>&lt; Game</Link>
             <Btn onPress={game.back}>Edit agent</Btn>
           </> : <Btn onPress={() => setLeaving(true)}>&lt; Home</Btn>}
-          <Btn onPress={() => copy(game ? location.href : location.origin + location.pathname + link)}>{copyLabel(copied, game ? 'Copy agent link' : 'Copy share link')}</Btn>
-          <span className="sr-only" role="status">{copyNote(copied)}</span>
+          <CopyButton text={() => (game ? location.href : location.origin + location.pathname + link)} label={game ? 'Copy agent link' : 'Copy share link'} />
           <ConfirmDialog open={leaving} title="Leave this sheet?" confirm="Leave" onClose={() => setLeaving(false)}
             onConfirm={() => { history.replaceState(null, '', location.pathname); location.reload(); }}>
             Bookmark or copy its link first to keep your progress.
@@ -229,7 +232,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
           <Btn className="phone-only" onPress={() => jump('.live-skills', '.skill-find')}>Skills ↓</Btn>
         </div>
         <p className="noprint live-note"><small>{!game ? "Saved in this page's link: bookmark it to resume. A copied link is a snapshot."
-          : game.failed ? <span className="warn" role="alert">{game.failed}</span> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
+          : game.failed ? <Alert inline>{game.failed}</Alert> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
         {fumble && (
           <div className="alerts noprint">
             <p>Fumble on {fumble.label} (p. 44). The Handler picks a cost:</p>
@@ -289,19 +292,19 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
               const e = effStat(c, l, s);
               return (
                 <tr key={s}>
-                  <td><button className="rollable" onClick={() => roll(s, e * 5)}>{s} {STAT_NAMES[s]}</button></td>
+                  <td><button className="rollable" onClick={() => rollId(`stat:${s}`)}>{s} {STAT_NAMES[s]}</button></td>
                   <td className="num">{e}</td><td className="num">{e * 5}%</td>
                   <td className="noprint"><div className="lost"><Btn label={`Restore 1 lost ${s}`} onPress={() => lose(s, -1)}>−</Btn><output aria-label={`${s} lost`}>{l.statLoss[s] ?? 0}</output><Btn label={`Lose 1 ${s}`} onPress={() => lose(s, 1)}>+</Btn></div></td>
                 </tr>
               );
             })}
-            <tr><td><button className="rollable" onClick={() => roll('Luck', 50)}>Luck</button></td><td /><td className="num">50%</td><td className="noprint" /></tr>
+            <tr><td><button className="rollable" onClick={() => rollId('luck')}>Luck</button></td><td /><td className="num">{tests.get('luck')!.chance}%</td><td className="noprint" /></tr>
           </tbody>
         </table>
         <p className="noprint dim"><small>Tap a stat or Luck to roll d%. “Lost” is temporary stat loss.</small></p>
 
         <h3>Sanity</h3>
-        <Counter label="SAN" value={l.san} max={maxSan} onChange={(v) => set('san', v)} onRoll={() => roll('SAN test', l.san)} />
+        <Counter label="SAN" value={l.san} max={maxSan} onChange={(v) => set('san', v)} onRoll={() => rollId('san')} />
         <Counter label="Breaking pt" value={l.bp} onChange={(v) => set('bp', v)} />
         <Counter label="Unnatural" note="Raises with exposure; maximum SAN is 99 minus it (p. 15)." value={unnaturalOf(c, l)} max={99} onChange={(v) => setL((p) => setUnnatural(c, p, v))} />
         {l.san <= l.bp && <p className="warn">SAN at or below breaking point.</p>}

@@ -1,5 +1,5 @@
 import { CODENAMES, randomInt } from '../rules/data/random';
-import { SAVED_AGENT_KEY } from './storageKeys';
+import { SAVED_AGENT_BAK, SAVED_AGENT_KEY, store } from './storage';
 
 export const MIN_ID = 3;
 export const MAX_ID = 100;
@@ -20,22 +20,16 @@ export const newGameId = () => {
 const RECENT = 'dg.games';
 export const recentGames = (): string[] => {
   try {
-    const v = JSON.parse(localStorage.getItem(RECENT) ?? '[]');
+    const v = JSON.parse(store.get(RECENT) ?? '[]');
     return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
   } catch { return []; }
 };
-export const rememberGame = (id: string) => {
-  try { localStorage.setItem(RECENT, JSON.stringify([id, ...recentGames().filter((x) => x !== id)].slice(0, 5))); } catch { /* storage blocked */ }
-};
+export const rememberGame = (id: string) => { store.set(RECENT, JSON.stringify([id, ...recentGames().filter((x) => x !== id)].slice(0, 5))); };
 
 /** True when an Agent saved by the old local-only editor is still in this browser. */
-export const hasSavedAgent = () => {
-  try { return localStorage.getItem(SAVED_AGENT_KEY) !== null; } catch { return false; }
-};
+export const hasSavedAgent = () => store.get(SAVED_AGENT_KEY) !== null;
 /** Once that Agent is added to a game, stop offering it; a `.bak` copy stays in case the write never lands. */
 export const forgetSavedAgent = () => {
-  try {
-    const s = localStorage.getItem(SAVED_AGENT_KEY);
-    if (s !== null) { localStorage.setItem(`${SAVED_AGENT_KEY}.bak`, s); localStorage.removeItem(SAVED_AGENT_KEY); }
-  } catch { /* storage blocked */ }
+  const s = store.get(SAVED_AGENT_KEY);
+  if (s !== null && store.set(SAVED_AGENT_BAK, s)) store.remove(SAVED_AGENT_KEY); // only once the copy is safe
 };

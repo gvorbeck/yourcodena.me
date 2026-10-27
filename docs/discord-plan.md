@@ -99,15 +99,15 @@ All commands sit under `/dg`, so they don't clash with Dice Maiden's `/roll`.
     - `/dg roll test [modifier]`: stats, Luck, SAN and skills autocomplete with current %. With a webhook connected, the result posts to the webhook's channel and the player gets a private copy where they typed. Same math as the live sheet (WP, exhaustion, penalty). Rolled on the server, saved to the roll log, and a failed skill is ticked for improvement.
     - `/dg r t: [m:]`: short form of `/dg roll test: [modifier:]`. `test` also takes dice (`2D6+1`) for anything rolled outward, damage dealt included, or a number (`45`) for a plain d% roll against it; both land in the roll log too.
     - `/dg damage dice:` (short `/dg d d:`): your claimed Agent gets hurt. `1D10`, `2D6+1` or a number comes off their HP on the site, logged in the roll log with what it means (stunned, unconscious, dead; p. 55).
-    - `/dg san loss: kind:`: your claimed Agent loses SAN with the live sheet's rules: `0/1D6` makes the SAN test (adaptation passes it automatically), `1D6` just loses it; then temporary insanity, Breaking Point and adaptation apply (pp. 66–74). When projecting could reduce the loss (a loss, 2+ WP, a Bond with points), the bot asks privately with buttons: project or take it; after the 1D4 WP roll, which Bond (ones with enough points). Then it applies and posts for everyone. The SAN test is logged and posted at once, so it can't be re-rolled. The player, whoever claims that Agent now, or anyone with Manage Channels can settle a held loss, so it can't get stuck; the 1D4 is rolled once even on a double click, and `/dg san` while one is held says so instead of rolling. HP and SAN loss share one code path (`loseOnSheet` in bot.ts, `Loss` in dg.ts).
+    - `/dg san loss: kind:`: your claimed Agent loses SAN with the live sheet's rules: `0/1D6` makes the SAN test (adaptation passes it automatically), `1D6` just loses it; then temporary insanity, Breaking Point and adaptation apply (pp. 66–74). When projecting could reduce the loss (a loss, 2+ WP, a Bond with points), the bot asks privately with buttons: project or take it; after the 1D4 WP roll, which Bond (ones with enough points). Then it applies and posts for everyone. The SAN test is logged and posted at once, so it can't be re-rolled. The player, whoever claims that Agent now, or anyone with Manage Channels can settle a held loss, so it can't get stuck; the 1D4 is rolled once even on a double click, and `/dg san` while one is held says so instead of rolling. HP and SAN loss share one code path (`commitLoss` in bot.ts, `Loss` in dg.ts).
     - `/dg sheet`: HP, WP, SAN and BP, shown only to you.
 - [x] **Me:** the bot reuses `src/rules` and `src/model`, bundled into the Functions build.
 - [x] **Me:** `npm --prefix functions run discord:register` registers the commands. It asks for the bot token, so the token never goes in the repo, chat or Firebase.
-- [x] **Me:** bot rolls skip the phase 1 webhook, so nothing posts twice.
-- [ ] **You:** create an app in the Discord Developer Portal. Copy its Application ID and Public Key, and reset/copy the bot token.
-- [ ] **You:** deploy (it asks for the public key once), set the Interactions Endpoint URL in the portal, run the register script, and invite the app to the server.
+- [x] **Me:** bot rolls go through the phase 1 webhook like site rolls; the player gets a private copy, so nothing posts twice.
+- [x] **You:** create an app in the Discord Developer Portal. Copy its Application ID and Public Key, and reset/copy the bot token.
+- [x] **You:** deploy (it asks for the public key once), set the Interactions Endpoint URL in the portal, run the register script, and invite the app to the server.
 
-**Done when:** `/dg roll` in Discord shows up in the app's roll log.
+**Done when:** `/dg roll` in Discord shows up in the app's roll log. Done 2026-10-26.
 
 Known gaps:
 - A cold start can miss Discord's 3-second deadline ("The application did not respond"). Retry. Keeping an instance warm would cost about as much as the whole budget.

@@ -1,6 +1,7 @@
-import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, runTransaction, type DocumentData, type Unsubscribe } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, runTransaction, type DocumentData } from 'firebase/firestore';
+import { useSub, type Sub } from './useSub';
 import { db } from './firebase';
+import { agentPath, agentsPath, gamePath, rollsPath } from './paths';
 import type { RollEntry, TestEntry } from '../rules/outcome';
 
 /*
@@ -14,11 +15,11 @@ import type { RollEntry, TestEntry } from '../rules/outcome';
  */
 export const SCHEMA_VERSION = 1;
 
-export const gameRef = (g: string) => doc(db, 'games', g);
-export const agentsCol = (g: string) => collection(db, 'games', g, 'agents');
-export const agentRef = (g: string, a: string) => doc(db, 'games', g, 'agents', a);
+export const gameRef = (g: string) => doc(db, gamePath(g));
+export const agentsCol = (g: string) => collection(db, agentsPath(g));
+export const agentRef = (g: string, a: string) => doc(db, agentPath(g, a));
 export const deleteAgent = (g: string, a: string) => deleteDoc(agentRef(g, a));
-export const rollsCol = (g: string) => collection(db, 'games', g, 'rolls');
+export const rollsCol = (g: string) => collection(db, rollsPath(g));
 
 /** Rejects with Error('taken') when the ID is in use. */
 export const createGame = (id: string) =>
@@ -38,15 +39,6 @@ const toAgent = (id: string, d: DocumentData): AgentCard => ({
   id, name: d.name ?? '', codename: d.codename ?? '', profession: d.profession ?? '',
   vitals: d.live ? { hp: d.live.hp, wp: d.live.wp, san: d.live.san } : null,
 });
-
-type Sub<T> = (id: string, ok: (v: T) => void, bad: (e: Error) => void) => Unsubscribe;
-
-/** Live subscription keyed by game ID. Data from a previous ID is never shown; `data` is undefined until the first snapshot. */
-function useSub<T>(id: string, sub: Sub<T>): { data?: T; error?: Error } {
-  const [s, setS] = useState<{ id: string; data?: T; error?: Error }>({ id });
-  useEffect(() => sub(id, (data) => setS({ id, data }), (error) => setS({ id, error })), [id, sub]);
-  return s.id === id ? s : {};
-}
 
 const subGame: Sub<boolean> = (g, ok, bad) => onSnapshot(gameRef(g), (s) => ok(s.exists()), bad);
 const subAgents: Sub<AgentCard[]> = (g, ok, bad) =>

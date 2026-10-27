@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLoad } from '../lib/useSub';
+import { gameUrl } from '../lib/paths';
+import { Loading } from '../ui/bits';
 import { Link, useParams } from 'react-router-dom';
 import { Editor } from '../Editor';
 import { LiveSheet, type RemoteLive } from '../LiveSheet';
@@ -10,33 +13,25 @@ import { freshLive, reconcile, untouched, type Live } from '../model/live';
 import { blocking, validate } from '../rules';
 import type { Character } from '../model/character';
 import { agentLabel } from '../model/names';
-import { Win } from '../ui/Win';
-import { Page } from './Page';
+import { Notice, Page } from './Page';
 
 type Loaded = { c: Character; live: Live | null };
 
 export default function Agent() {
   const { gameId = '', agentId = '' } = useParams();
   const key = `${gameId}/${agentId}`;
-  const [s, setS] = useState<{ key: string; agent?: Loaded | null; error?: 'network' | 'damaged' }>({ key: '' });
-  useEffect(() => {
-    let current = true;
-    loadAgent(gameId, agentId).then((agent) => current && setS({ key, agent }), (e) => current && setS({ key, error: e instanceof DamagedAgent ? 'damaged' : 'network' }));
-    return () => { current = false; };
-  }, [gameId, agentId, key]);
+  const s = useLoad(key, () => loadAgent(gameId, agentId));
 
-  if (s.key !== key) return <Page><p className="dim" role="status">Loading agent…</p></Page>;
-  if (s.error || !s.agent) {
+  if (!s.error && s.data === undefined) return <Page><Loading what="agent" /></Page>;
+  if (s.error || !s.data) {
     return (
-      <Page>
-        <Win title={s.error ? 'CANNOT OPEN AGENT' : 'NO SUCH AGENT'}>
-          <p className={s.error ? 'warn' : undefined}>{s.error === 'damaged' ? "This agent's saved data is damaged and can't be opened." : s.error ? 'This agent could not be loaded. Check your connection and reload.' : 'This game has no agent with that ID.'}</p>
-          <div className="row"><Link className="btn" to={`/g/${gameId}`}>&lt; Game {gameId}</Link></div>
-        </Win>
-      </Page>
+      <Notice title={s.error ? 'CANNOT OPEN AGENT' : 'NO SUCH AGENT'}>
+        <p className={s.error ? 'warn' : undefined}>{s.error instanceof DamagedAgent ? "This agent's saved data is damaged and can't be opened." : s.error ? 'This agent could not be loaded. Check your connection and reload.' : 'This game has no agent with that ID.'}</p>
+        <div className="row"><Link className="btn" to={gameUrl(gameId)}>&lt; Game {gameId}</Link></div>
+      </Notice>
     );
   }
-  return <AgentBody key={key} gameId={gameId} agentId={agentId} init={s.agent} />;
+  return <AgentBody key={key} gameId={gameId} agentId={agentId} init={s.data} />;
 }
 
 /** One agent, loaded once. Local state is the source of truth while the page is open; changes are written back as they settle. */

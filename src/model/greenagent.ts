@@ -1,6 +1,7 @@
 import { PROFESSIONS } from '../rules/data/professions';
 import { BASE_RATINGS, BONUS_PICKS, makeKey } from '../rules/data/skills';
-import { CUSTOM_SKILLS, newCharacter, type Character } from './character';
+import { CUSTOM_SKILLS, DETAIL_FIELDS, MAX_LINE, MAX_NAME, newCharacter, type Character } from './character';
+import { clamp } from '../rules';
 import { slotsOf } from '../rules';
 
 // Importer for the JSON exported by greenagentcreator.github.io/charactercreator.
@@ -32,20 +33,20 @@ export function fromGreenAgent(r: GAgent): Character {
   const info = r.personalInfo ?? {};
   Object.assign(c.stats, r.stats);
   Object.assign(c.details, { name: info.name, age: String(info.age ?? ''), sex: info.sex, nationality: info.nationality, employer: info.employer });
-  for (const k of Object.keys(c.details) as (keyof Character['details'])[]) c.details[k] = String(c.details[k] ?? '').slice(0, k === 'name' || k === 'codename' ? 100 : 200);
-  c.bonds = (r.bonds ?? []).slice(0, 20).map((b) => ({ name: String(b.description ?? '').slice(0, 200), note: '' }));
-  c.motivations = (r.motivations ?? []).slice(0, 5).map((m: unknown) => String(m).slice(0, 200));
+  for (const { key, max } of DETAIL_FIELDS) c.details[key] = String(c.details[key] ?? '').slice(0, max);
+  c.bonds = (r.bonds ?? []).slice(0, 20).map((b) => ({ name: String(b.description ?? '').slice(0, MAX_LINE), note: '' }));
+  c.motivations = (r.motivations ?? []).slice(0, 5).map((m: unknown) => String(m).slice(0, MAX_LINE));
 
   // Each skill increase is +20, which is one of our eight bonus picks.
-  c.bonus = r.skills.flatMap((s) => Array<string>(s.increases ?? 0).fill(skillKey(s))).filter(Boolean).slice(0, BONUS_PICKS);
-  while (c.bonus.length < BONUS_PICKS) c.bonus.push('');
+  const picks = r.skills.flatMap((s) => Array<string>(s.increases ?? 0).fill(skillKey(s))).filter(Boolean);
+  c.bonus = Array.from({ length: BONUS_PICKS }, (_, i) => picks[i] ?? '');
 
   if (r.isCustomProfession) {
     c.professionId = 'custom';
     const chosen = (r.customProfessionSelectedSkills ?? []).map((s) => ({ key: skillKey(s), points: s.points ?? 0 })).filter((s) => s.key);
     c.custom = {
-      name: String(r.customProfessionName ?? '').slice(0, 100),
-      bonds: Math.min(4, Math.max(1, r.customProfessionBonds ?? 3)),
+      name: String(r.customProfessionName ?? '').slice(0, MAX_NAME),
+      bonds: clamp(r.customProfessionBonds ?? 3, 1, 4),
       skills: Array.from({ length: CUSTOM_SKILLS }, (_, i) => chosen[i]?.key ?? ''),
       points: Array.from({ length: CUSTOM_SKILLS }, (_, i) => Math.min(100, chosen[i]?.points ?? 0)),
     };

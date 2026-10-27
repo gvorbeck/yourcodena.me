@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { PROFESSIONS, GROUP_LABEL, POSTINGS, type Group } from '../rules/data/professions';
 import { PACKAGES } from '../rules/data/creation';
 import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPED_SKILLS, TYPE_SUGGESTIONS, baseRating, familyOf, typeOf } from '../rules/data/skills';
-import { CUSTOM_ID, CUSTOM_MAX_RATING, customBudget, duplicatesKit, professionOf, slotsOf, type Alt, type Slot } from '../rules';
+import { CUSTOM_ID, CUSTOM_MAX_RATING, customBudget, customLeft, duplicatesKit, plural, professionOf, slotsOf, type Alt, type Slot } from '../rules';
+import { MAX_NAME } from '../model/character';
 import { Btn, Choice, Num, Pick, RadioGroup, Label, Rule, SkillPicker, SkillTable, Text, TypeInput, type StepProps } from '../ui';
 
 const altLabel = (a: Alt) => `${a.family}${a.type ? `(${a.type})` : a.askType ? ' (type)' : ''} ${a.rating}%`;
@@ -28,8 +29,8 @@ export function ProfessionStep({ c, up }: StepProps) {
       </li>
     );
 
-  const budget = customBudget(c.custom.bonds), left = budget - c.custom.points.reduce((a, b) => a + b, 0);
-  const postings =POSTINGS.filter((x) => p && x.professions.includes(p.id));
+  const budget = customBudget(c.custom.bonds), left = customLeft(c);
+  const postings = POSTINGS.filter((x) => p && x.professions.includes(p.id));
 
   return (
     <>
@@ -61,7 +62,7 @@ export function ProfessionStep({ c, up }: StepProps) {
           {c.professionId === CUSTOM_ID ? (
             <>
               <h3>New profession</h3>
-              <Text label="Name" value={c.custom.name} max={100} onChange={(v) => up((d) => { d.custom.name = v; })} />
+              <Text label="Name" value={c.custom.name} max={MAX_NAME} onChange={(v) => up((d) => { d.custom.name = v; })} />
               <div className="row mt-s">
                 <label className="lbl" htmlFor="cp-bonds">Bonds</label>
                 <select id="cp-bonds" className="auto-width" value={c.custom.bonds} onChange={(e) => up((d) => { d.custom.bonds = Number(e.target.value); })}>
@@ -80,7 +81,7 @@ export function ProfessionStep({ c, up }: StepProps) {
           ) : !p || !kit ? <p className="dim">Select a profession.</p> : (
             <>
               <h3>{p.name}</h3>
-              <p className="dim">{p.page}{p.stats.length ? ` · recommended ${p.stats.join(', ')} ≥ 10` : ''} · {p.bonds} bond{p.bonds === 1 ? '' : 's'}</p>
+              <p className="dim">{p.page}{p.stats.length ? ` · recommended ${p.stats.join(', ')} ≥ 10` : ''} · {plural(p.bonds, 'bond')}</p>
               <h3>Professional skills</h3>
               <ul className="plain-list">{kit.fixed.map(fixedSlot)}</ul>
               {kit.n > 0 && (

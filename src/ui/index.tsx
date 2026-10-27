@@ -1,7 +1,7 @@
 import { Button, Checkbox, ComboBox, ComboBoxStateContext, Dialog, Heading, Input, Label, ListBox, ListBoxItem, Modal, ModalOverlay, NumberField, Popover, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
 import { useContext, useId, type ReactNode } from 'react';
 export { Win } from './Win';
-import type { Character } from '../model/character';
+import { MAX_LINE, MAX_PROSE, type Character } from '../model/character';
 import { SKILL_FAMILIES, TYPED_SKILLS, TYPE_SUGGESTIONS, familyOf, makeKey, typeOf } from '../rules/data/skills';
 import { filterSkills, skillsOf } from '../rules';
 
@@ -17,8 +17,8 @@ const Dice = () => (
   </svg>
 );
 
-/** `max` matches the character schema: 200 for a line, 5000 for a text area, unless given. */
-export const Text = ({ label, value, onChange, area, onRoll, max = area ? 5000 : 200 }: { label: string; value: string; onChange: (v: string) => void; area?: boolean; onRoll?: () => void; max?: number }) => (
+/** `max` matches the character schema: a line or a text area, unless given. */
+export const Text = ({ label, value, onChange, area, onRoll, max = area ? MAX_PROSE : MAX_LINE }: { label: string; value: string; onChange: (v: string) => void; area?: boolean; onRoll?: () => void; max?: number }) => (
   <TextField className="field" value={value} onChange={onChange} maxLength={max}>
     <Label>{label}</Label>
     <div className="with-roll">

@@ -1,7 +1,7 @@
 import type { Character } from './character';
-import { derived, parseLoss, rollExpr, rollLoss, type Outcome } from '../rules';
+import { clamp, parseLoss, rollExpr, rollLoss, type Outcome } from '../rules';
 import type { Stat } from '../rules/data/creation';
-import { loseStat, permStats, withBond, type Live, type SanKind } from './live';
+import { capsOf as caps, loseStat, withBond, type Live, type SanKind } from './live';
 
 /**
  * Play-time actions as pure functions: each takes the current state (and `rng`, so tests can fix the dice) and returns
@@ -10,21 +10,16 @@ import { loseStat, permStats, withBond, type Live, type SanKind } from './live';
 export interface Result { live: Live; notes: string[] }
 type Rng = () => number;
 const dice = (expr: string, rng: Rng) => rollExpr(expr, rng) ?? 0;
-const caps = (c: Character, l: Live) => derived(permStats(c, l));
 
 // ---- Fumbles (p. 44)
-export function strain(l: Live, rng: Rng = Math.random): Result {
+/** Lose 1D6 of `stat` (never below 0); `note` gets the amount. */
+const drain = (stat: 'hp' | 'wp', note: (n: number) => string, extra: Partial<Live> = {}) => (l: Live, rng: Rng = Math.random): Result => {
   const n = dice('1D6', rng);
-  return { live: { ...l, hp: Math.max(0, l.hp - n) }, notes: [`Physical strain: lost ${n} HP.`] };
-}
-export function burnout(l: Live, rng: Rng = Math.random): Result {
-  const n = dice('1D6', rng);
-  return { live: { ...l, wp: Math.max(0, l.wp - n) }, notes: [`Emotional burnout: lost ${n} WP.`] };
-}
-export function exhaust(l: Live, rng: Rng = Math.random): Result {
-  const n = dice('1D6', rng);
-  return { live: { ...l, wp: Math.max(0, l.wp - n), exhausted: true }, notes: [`Exhausted: lost ${n} WP, −20% to all tests until a full night's sleep (p. 47).`] };
-}
+  return { live: { ...l, ...extra, [stat]: Math.max(0, l[stat] - n) }, notes: [note(n)] };
+};
+export const strain = drain('hp', (n) => `Physical strain: lost ${n} HP.`);
+export const burnout = drain('wp', (n) => `Emotional burnout: lost ${n} WP.`);
+export const exhaust = drain('wp', (n) => `Exhausted: lost ${n} WP, −20% to all tests until a full night's sleep (p. 47).`, { exhausted: true });
 
 // ---- Damage and healing (pp. 54–55)
 export function heal(c: Character, l: Live, rng: Rng = Math.random): Result {
@@ -35,7 +30,7 @@ export function heal(c: Character, l: Live, rng: Rng = Math.random): Result {
 /** Recuperation after the CON×5 rest test: 1 HP, 1D4 on a critical, −1 on a fumble. */
 export function recuperate(c: Character, l: Live, outcome: Outcome, rng: Rng = Math.random): Live {
   const n = outcome === 'critical success' ? dice('1D4', rng) : outcome === 'success' ? 1 : outcome === 'fumble' ? -1 : 0;
-  return { ...l, hp: Math.max(0, Math.min(caps(c, l).hp, l.hp + n)), spent: { ...l.spent, rest: true } };
+  return { ...l, hp: clamp(l.hp + n, 0, caps(c, l).hp), spent: { ...l.spent, rest: true } };
 }
 
 /** The injury test is used up the moment it is rolled, whatever the result. */
@@ -56,7 +51,7 @@ export function sleep(c: Character, l: Live, rng: Rng = Math.random): Result {
 
 /** Temporary stat loss (restored a point per night), kept between 0 and 18. */
 export const adjustStatLoss = (l: Live, s: Stat, by: number): Live =>
-  ({ ...l, statLoss: { ...l.statLoss, [s]: Math.max(0, Math.min(18, (l.statLoss[s] ?? 0) + by)) } });
+  ({ ...l, statLoss: { ...l.statLoss, [s]: clamp((l.statLoss[s] ?? 0) + by, 0, 18) } });
 
 export function applyInjury(c: Character, l: Live, stat: Stat, amount: number): Result {
   const r = loseStat(c, l, stat, amount);

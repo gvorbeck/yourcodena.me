@@ -1,12 +1,11 @@
-import { copyLabel, copyNote, useCopy } from '../lib/useCopy';
 import { STATS, STAT_NAMES } from '../rules/data/creation';
-import { bondCount, derived, disorderOf, featureOf, professionOf, veteranOf, blocking, type Issue } from '../rules';
+import { activeBonds, derived, disorderOf, featureOf, motivationsOf, professionOf, veteranOf, blocking, type Issue } from '../rules';
 import { asciiSheet } from '../model/sheet';
-import { exportJson } from '../model/character';
+import { DETAIL_FIELDS, exportJson } from '../model/character';
 import { Btn, SkillTable, Rule, type StepProps } from '../ui';
+import { CopyButton } from '../ui/bits';
 
 export function ReviewStep({ c, issues, onLive }: StepProps & { issues: Issue[]; onLive: () => void }) {
-  const [copied, copy] = useCopy();
   const done = blocking(issues).length === 0;
   const d = derived(c);
   const p = professionOf(c);
@@ -16,8 +15,7 @@ export function ReviewStep({ c, issues, onLive }: StepProps & { issues: Issue[];
       <div className="row noprint">
         <Btn onPress={() => window.print()}>Print / PDF</Btn>
         <Btn onPress={() => exportJson(c)}>Export JSON</Btn>
-        <Btn onPress={() => copy(asciiSheet(c))}>{copyLabel(copied, 'Copy Text', 'Copied ✓')}</Btn>
-        <span className="sr-only" role="status">{copyNote(copied)}</span>
+        <CopyButton text={() => asciiSheet(c)} label="Copy Text" ok="Copied ✓" />
         <Btn disabled={!done} onPress={onLive}>Live Sheet</Btn>
       </div>
       {issues.length > 0 && (
@@ -45,12 +43,12 @@ export function ReviewStep({ c, issues, onLive }: StepProps & { issues: Issue[];
         <div className="cols"><SkillTable c={c} /></div>
         {Object.keys(c.adjust).length > 0 && <p><span className="dim">Handler adjustments (±):</span> {Object.entries(c.adjust).map(([k, n]) => `${k} ${n > 0 ? '+' : ''}${n}`).join(', ')}</p>}
         <h3>Bonds</h3>
-        <ul>{c.bonds.slice(0, bondCount(c)).filter((b) => b.name).map((b, i) => <li key={i}>{b.name} — {d.bondScore}{b.note && ` · ${b.note}`}</li>)}</ul>
+        <ul>{activeBonds(c).map((b) => <li key={b.i}>{b.name} — {d.bondScore}{b.note && ` · ${b.note}`}</li>)}</ul>
         {disorderOf(c) && <p><span className="dim">disorder:</span> {disorderOf(c)}</p>}
         <h3>Motivations</h3>
-        <ul>{c.motivations.filter(Boolean).map((m, i) => <li key={i}>{m}</li>)}</ul>
-        {(['education', 'appearance', 'personality', 'admires', 'dislikes', 'trust', 'helps'] as const).map((k) => det[k] && (
-          <p key={k}><span className="dim">{k}:</span> {det[k]}</p>
+        <ul>{motivationsOf(c).map((m, i) => <li key={i}>{m}</li>)}</ul>
+        {DETAIL_FIELDS.filter((f) => f.prose && det[f.key]).map((f) => (
+          <p key={f.key}><span className="dim">{f.label}:</span> {det[f.key]}</p>
         ))}
         <h3>Incidents of SAN loss without going insane</h3>
         {([['Violence', 'v'], ['Helplessness', 'h']] as const).map(([label, kind]) => (

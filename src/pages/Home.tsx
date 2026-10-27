@@ -4,6 +4,8 @@ import { useRun } from '../lib/useRun';
 import { MIN_ID, newGameId, recentGames, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
 import { Page } from './Page';
+import { Alert } from '../ui/bits';
+import { gameUrl } from '../lib/paths';
 
 export default function Home() {
   const nav = useNavigate();
@@ -13,9 +15,9 @@ export default function Home() {
   const slug = slugifyGameId(raw);
   const recent = recentGames();
 
-  const open = (e: FormEvent) => { e.preventDefault(); if (slug.length >= MIN_ID) nav(`/g/${slug}`); };
+  const open = (e: FormEvent) => { e.preventDefault(); if (slug.length >= MIN_ID) nav(gameUrl(slug)); };
   // Firestore loads on click, not with the landing page.
-  const generate = () => run(async () => { const id = newGameId(); await (await import('../lib/games')).createGame(id); nav(`/g/${id}`); });
+  const generate = () => run(async () => { const id = newGameId(); await (await import('../lib/games')).createGame(id); nav(gameUrl(id)); });
 
   return (
     <Page heading={<h1 className="intro">Delta Green agent creator and shared roll log</h1>}>
@@ -30,14 +32,14 @@ export default function Home() {
           <>
             <h3>Recent</h3>
             <p className="dim"><small>Games you opened in this browser.</small></p>
-            <ul className="agents">{recent.map((id) => <li key={id}><Link to={`/g/${id}`}>{id}</Link></li>)}</ul>
+            <ul className="agents">{recent.map((id) => <li key={id}><Link to={gameUrl(id)}>{id}</Link></li>)}</ul>
           </>
         )}
       </Win>
       <Win title="START A NEW GAME">
         <p>Get a fresh game ID to share with your table. Anyone with the ID can see the game's agents and rolls, so it works like an unlisted link.</p>
         <div className="row"><button className="btn" onClick={generate} disabled={busy}>{busy ? 'Creating…' : 'Generate game'}</button></div>
-        {err && <p className="warn" role="alert">{err}</p>}
+        <Alert>{err}</Alert>
       </Win>
     </Page>
   );

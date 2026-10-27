@@ -4,6 +4,12 @@ import { PROFESSIONS, type ProfessionDef } from './data/professions';
 import { modText } from './outcome';
 import { BASE_RATINGS, BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, MAX_SKILL, TYPED_SKILLS, baseRating, familyOf, makeKey, typeOf } from './data/skills';
 
+// ---- Small shared helpers
+export const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
+export const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+/** "1 bond", "2 bonds". */
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 // ---- Statistics (pp. 14, 18–19)
 export const roll4d6dl = (rng = Math.random) => {
   const d = Array.from({ length: 4 }, () => 1 + Math.floor(rng() * 6)).sort((a, b) => a - b);
@@ -50,12 +56,12 @@ export function parseDice(expr: string): Dice | null {
 export const diceText = (d: Dice) => `${d.sides ? `${d.count}D${d.sides}` : d.count}${modText(d.mod)}`;
 /** Rolls parsed dice with `face(sides)` → 1…sides, returning each die (empty for a flat number). */
 export const rollDice = (d: Dice, face: (sides: number) => number) => Array.from({ length: d.sides ? d.count : 0 }, () => face(d.sides));
+/** The total of rolled `dice` (from rollDice) plus the modifier, never below 0. */
+export const diceTotal = (d: Dice, dice: number[]) => Math.max(0, d.mod + (d.sides ? sum(dice) : d.count));
 /** "1D6", "1D6+2" or "3" → a total (never below 0); null when it isn't dice notation. */
 export function rollExpr(expr: string, rng = Math.random): number | null {
   const d = parseDice(expr);
-  if (!d) return null;
-  const dice = rollDice(d, (n) => 1 + Math.floor(rng() * n));
-  return Math.max(0, d.mod + (d.sides ? dice.reduce((a, b) => a + b, 0) : d.count));
+  return d && diceTotal(d, rollDice(d, (n) => 1 + Math.floor(rng() * n)));
 }
 /** A SAN loss roll: extra victims ("1D6+2") add to the die but never past its maximum (p. 67 footnote). */
 export function rollLoss(expr: string, rng = Math.random): number | null {
@@ -84,6 +90,8 @@ export const customBudget = (bonds: number) => 400 + (3 - bonds) * 50;
 // Types are stripped of the characters the kit DSL uses so a typed name can't break parseSlot.
 const customKey = (k: string) => makeKey(familyOf(k), typeOf(k).replace(/[()*|]/g, '').trim());
 const customRating = (c: Character, i: number) => baseRating(c.custom.skills[i]) + c.custom.points[i];
+/** Custom-profession points still to spend (negative when over). */
+export const customLeft = (c: Character) => customBudget(c.custom.bonds) - sum(c.custom.points);
 
 export function professionOf(c: Character): ProfessionDef | undefined {
   if (c.professionId !== CUSTOM_ID) return PROFESSIONS.find((p) => p.id === c.professionId);
@@ -183,7 +191,7 @@ export function skillsOf(c: Character, advance: Record<string, number> = {}): Sk
     const base = baseRating(key);
     const b = bonus.get(key) ?? 0, vv = vet.get(key) ?? 0;
     const adj = c.adjust[key] ?? 0;
-    return { key, base, professional, bonus: b, veteran: vv, adjust: adj, total: Math.max(0, Math.min(MAX_SKILL, (professional ?? base) + b + vv + adj + (advance[key] ?? 0))) };
+    return { key, base, professional, bonus: b, veteran: vv, adjust: adj, total: clamp((professional ?? base) + b + vv + adj + (advance[key] ?? 0), 0, MAX_SKILL) };
   });
 }
 
@@ -202,14 +210,18 @@ export const blocking = (issues: Issue[]) => issues.filter((i) => !i.warn);
 export function bondCount(c: Character) {
   return Math.max(1, (professionOf(c)?.bonds ?? 0) - (veteranOf(c)?.removeBond ? 1 : 0));
 }
+/** The Bonds that count: within the profession's number and named. `i` is the Bond's slot (its index in Live.bonds). */
+export const activeBonds = (c: Character) =>
+  c.bonds.slice(0, bondCount(c)).map((b, i) => ({ name: b.name.trim(), note: b.note, i })).filter((b) => b.name);
+/** Motivations as written, blanks dropped. */
+export const motivationsOf = (c: Character) => c.motivations.map((m) => m.trim()).filter(Boolean);
 
 export function validate(c: Character): Issue[] {
   const out: Issue[] = [];
   const add = (step: StepId, msg: string, warn?: boolean) => out.push({ step, msg, warn });
   const scores = STATS.map((s) => c.stats[s]);
 
-  if (c.statMethod === 'points' && scores.reduce((a, b) => a + b, 0) !== POINT_BUY_TOTAL)
-    add('stats', `Scores must total ${POINT_BUY_TOTAL} (now ${scores.reduce((a, b) => a + b, 0)}).`);
+  if (c.statMethod === 'points' && sum(scores) !== POINT_BUY_TOTAL) add('stats', `Scores must total ${POINT_BUY_TOTAL} (now ${sum(scores)}).`);
   if (c.statMethod === 'set') {
     const set = STAT_SETS.find((s) => s.id === c.statSet);
     if (!set) add('stats', 'Choose a stat set.');
@@ -220,17 +232,17 @@ export function validate(c: Character): Issue[] {
   if (!p) add('profession', 'Choose a profession.');
   else {
     const { options, n } = slotsOf(p);
-    if (c.picks.filter((id) => options.some((o) => o.id === id)).length !== n) add('profession', `Choose exactly ${n} optional professional skill${n === 1 ? '' : 's'}.`);
+    if (c.picks.filter((id) => options.some((o) => o.id === id)).length !== n) add('profession', `Choose exactly ${plural(n, 'optional professional skill')}.`);
     const kit = kitOf(c);
     if (kit.some((k) => k.missingType)) add('profession', 'Name the type for each typed skill (language, science, craft…).');
     const dupes = [...new Set(kit.map((k) => k.key).filter((k, i, a) => a.indexOf(k) !== i))];
     if (dupes.length) add('profession', `${dupes.join(', ')} appears twice in the professional skills — change one of the picks.`);
     if (c.professionId === CUSTOM_ID) {
-      const { name, bonds, skills, points } = c.custom;
+      const { name, bonds, skills } = c.custom;
       if (!name.trim()) add('profession', 'Name the new profession.');
       if (skills.some((k) => !k)) add('profession', `Pick all ${skills.length} professional skills.`);
       if (skills.some((k) => k && TYPED_SKILLS.includes(customKey(k)))) add('profession', 'Name the type for each typed professional skill.');
-      const left = customBudget(bonds) - points.reduce((a, b) => a + b, 0);
+      const left = customLeft(c);
       if (left) add('profession', `Spend exactly ${customBudget(bonds)} professional skill points (${left > 0 ? `${left} left` : `${-left} over`}).`);
       for (const [i, k] of skills.entries()) if (k && customRating(c, i) > CUSTOM_MAX_RATING) add('profession', `${k} is over ${CUSTOM_MAX_RATING}% — no professional skill may be higher.`);
     }
@@ -243,9 +255,8 @@ export function validate(c: Character): Issue[] {
 
   if (Object.keys(c.adjust).some((k) => TYPED_SKILLS.includes(familyOf(k)) && !typeOf(k))) add('profession', 'Name the type for each typed Handler adjustment.');
 
-  const need = bondCount(c);
-  const named = c.bonds.slice(0, need).filter((b) => b.name.trim()).length;
-  if (p && named !== need) add('bonds', `Name ${need} bond${need === 1 ? '' : 's'} (${named} named).`);
+  const need = bondCount(c), named = activeBonds(c).length;
+  if (p && named !== need) add('bonds', `Name ${plural(need, 'bond')} (${named} named).`);
 
   if (!c.details.name.trim()) add('details', 'Give the Agent a name.');
   const v = veteranOf(c);

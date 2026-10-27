@@ -7,7 +7,8 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { overBudget, type BudgetAlert } from './budget.js';
-import { handle, type Interaction } from './bot.js';
+import { handle, reply, type Interaction } from './bot.js';
+import { gamePath } from '../../src/lib/paths';
 import { isGameId } from '../../src/lib/gameId';
 import { formatEntry, isWebhookUrl, postWebhook, verifyDiscord, webhookName, type Roll } from './discord.js';
 
@@ -49,7 +50,7 @@ const secretRef = (gameId: string) => db.doc(`gameSecrets/${gameId}`);
 export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>(async (req) => {
   const { gameId, url } = req.data ?? {};
   if (typeof gameId !== 'string' || !isGameId(gameId)) throw new HttpsError('invalid-argument', 'Bad game ID.');
-  if (!(await db.doc(`games/${gameId}`).get()).exists) throw new HttpsError('not-found', 'No such game.');
+  if (!(await db.doc(gamePath(gameId)).get()).exists) throw new HttpsError('not-found', 'No such game.');
 
   if (url === undefined) {
     const s = (await secretRef(gameId).get()).data();
@@ -104,6 +105,6 @@ export const discordBot = onRequest({ invoker: 'public' }, async (req, res) => {
     res.json(await handle(req.body as Interaction));
   } catch (e) {
     logger.error('discordBot failed', e);
-    res.json({ type: 4, data: { content: 'Something went wrong. Try again.', flags: 64 } });
+    res.json(reply('Something went wrong. Try again.', true));
   }
 });

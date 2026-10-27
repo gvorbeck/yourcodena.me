@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { parseCharacter, type Character } from './character';
 import { bondCount, derived, disorderOf, rollExpr, skillsOf, veteranOf } from '../rules';
-import { STATS, type Stat } from '../rules/data/creation';
+import { STATS, STAT_NAMES, type Stat } from '../rules/data/creation';
 import { MAX_SKILL } from '../rules/data/skills';
 
 /** Play-time state. The whole sheet lives in the URL hash, so no server or database is involved. */
@@ -46,7 +46,7 @@ export const untouched = (l: Live, c: Character) => {
  * changed Bond count the right number of slots. Returns `l` itself when nothing needs to change.
  */
 export function reconcile(l: Live, c: Character): Live {
-  const d = derived(permStats(c, l));
+  const d = capsOf(c, l);
   const bonds = Array.from({ length: bondCount(c) }, (_, i) => Math.min(l.bonds[i] ?? d.bondScore, d.bondScore));
   const next = { ...l, hp: Math.min(l.hp, d.hp), wp: Math.min(l.wp, d.wp), san: Math.min(l.san, maxSanOf(c, l)), bonds };
   return next.hp === l.hp && next.wp === l.wp && next.san === l.san && next.bonds.length === l.bonds.length && next.bonds.every((b, i) => b === l.bonds[i]) ? l : next;
@@ -55,12 +55,13 @@ export function reconcile(l: Live, c: Character): Live {
 /** Unnatural skill as played (veteran gain plus growth); it caps SAN at 99 minus itself (pp. 15, 68). */
 export const unnaturalOf = (c: Character, l: Live) => skillsOf(c, l.advance).find((s) => s.key === 'Unnatural')?.total ?? 0;
 export const maxSanOf = (c: Character, l: Live) => 99 - unnaturalOf(c, l);
+/** SAN pulled down to the current maximum. */
+export const capSan = (c: Character, l: Live): Live => ({ ...l, san: Math.min(l.san, maxSanOf(c, l)) });
 
 /** Set the Unnatural skill (never below the veteran's starting gain); SAN is pulled down to the new maximum. */
 export function setUnnatural(c: Character, l: Live, value: number): Live {
   const adv = Math.max(0, Math.min(MAX_SKILL, value) - (veteranOf(c)?.unnatural ?? 0));
-  const live = { ...l, advance: { ...l.advance, Unnatural: adv } };
-  return { ...live, san: Math.min(live.san, maxSanOf(c, live)) };
+  return capSan(c, { ...l, advance: { ...l.advance, Unnatural: adv } });
 }
 
 /** End of session (p. 28): each checked skill gains 1D4, to a maximum of 99, and the checks are erased. */
@@ -72,8 +73,7 @@ export function advanceSkills(c: Character, l: Live, rng = Math.random): { live:
   });
   const advance = { ...l.advance };
   for (const [key, n] of gains) advance[key] = (advance[key] ?? 0) + n;
-  const live = { ...l, checked: [], advance };
-  return { live: { ...live, san: Math.min(live.san, maxSanOf(c, live)) }, gains };
+  return { live: capSan(c, { ...l, checked: [], advance }), gains };
 }
 
 /** Replace one Bond score without disturbing the others; holes (a link with fewer scores than Bonds) take `fallback`. */
@@ -139,12 +139,32 @@ const mod = (l: Live, s: Stat) => l.statMod[s] ?? 0;
 export const permStats = (c: Character, l: Live): Character => ({ ...c, stats: Object.fromEntries(STATS.map((s) => [s, c.stats[s] + mod(l, s)])) as Character['stats'] });
 /** Score to test against: permanent changes and temporary loss applied. */
 export const effStat = (c: Character, l: Live, s: Stat) => Math.max(0, c.stats[s] + mod(l, s) - (l.statLoss[s] ?? 0));
+/** HP, WP, SAN and Bond maximums as played: derived attributes after permanent stat changes. */
+export const capsOf = (c: Character, l: Live) => derived(permStats(c, l));
+/** Flat penalty the sheet puts on every test (p. 47): the set penalty plus 20 while exhausted. Low WP is added by liveOutcome. */
+export const sheetPenalty = (l: Live) => l.penalty + (l.exhausted ? 20 : 0);
+
+/** One rollable thing on the sheet. `label` is what the roll log shows; `name` is the longer name to search by. */
+export interface Test { id: string; label: string; name: string; chance: number; skill: boolean }
+/** Roll-log label of the SAN test made for a SAN loss (live sheet and /dg san). */
+export const SAN_LOSS = 'SAN (loss)';
+/** The stat ×5, Luck and SAN tests: cheap, no skill list. */
+export const coreTests = ({ c, l }: { c: Character; l: Live }): Test[] => [
+  ...STATS.map((s) => ({ id: `stat:${s}`, label: s, name: `${s} ${STAT_NAMES[s]}`, chance: effStat(c, l, s) * 5, skill: false })),
+  { id: 'luck', label: 'Luck', name: 'Luck', chance: 50, skill: false },
+  { id: 'san', label: 'SAN test', name: 'SAN', chance: l.san, skill: false },
+];
+/** Everything rollable on the live sheet (and from Discord): the core tests and every skill. */
+export const testsOf = (a: { c: Character; l: Live }): Test[] => [
+  ...coreTests(a),
+  ...skillsOf(a.c, a.l.advance).map((s) => ({ id: `skill:${s.key}`, label: s.key, name: s.key, chance: s.total, skill: true })),
+];
 
 /** Permanent stat loss, to a minimum score of 3 (p. 55); HP / WP are pulled down to the new caps. */
 export function loseStat(c: Character, l: Live, s: Stat, amount: number): { live: Live; lost: number } {
   const lost = Math.max(0, Math.min(amount, c.stats[s] + mod(l, s) - 3));
   const live = { ...l, statMod: { ...l.statMod, [s]: mod(l, s) - lost } };
-  const d = derived(permStats(c, live));
+  const d = capsOf(c, live);
   return { live: { ...live, hp: Math.min(live.hp, d.hp), wp: Math.min(live.wp, d.wp) }, lost };
 }
 
@@ -169,7 +189,7 @@ export function loseSan(c: Character, l: Live, loss: number, kind: SanKind, rng 
   if (insane) notes.push('Temporary insanity (p. 69): Flee, Struggle or Submit.');
   if (san === 0) notes.push('0 SAN: permanent insanity (p. 73). The Agent now belongs to the Handler.');
   if (breaking) {
-    live.bp = Math.max(0, san - derived(permStats(c, l)).pow); // current POW, veteran penalty included
+    live.bp = Math.max(0, san - capsOf(c, l).pow); // current POW, veteran penalty included
     notes.push(`Breaking Point reached: gain a disorder, which replaces a motivation (pp. 38, 69). New Breaking Point ${live.bp}.`);
   }
   if (kind !== 'unnatural' && loss >= 1) {

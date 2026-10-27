@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Link } from 'react-router-dom';
-import { importJson, type Character } from './model/character';
-import { blocking, type validate } from './rules';
+import { importJson, nameOf, type Character } from './model/character';
+import { store } from './lib/storage';
+import { gameUrl } from './lib/paths';
+import { Alert } from './ui/bits';
+import { blocking, clamp, plural, type validate } from './rules';
 import { Btn, ConfirmDialog, Win, type Up } from './ui';
 import { Page } from './pages/Page';
 import { StatsStep } from './steps/StatsStep';
@@ -18,12 +21,10 @@ interface EditorProps { agentId: string; c: Character; issues: ReturnType<typeof
 export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: EditorProps) {
   // Remembers the last agent's step only (one key, not one per agent), so a reload returns to where you were and a new agent starts at step 1.
   const [step, setStep] = useState(() => {
-    try {
-      const [id, n] = (localStorage.getItem(STEP_KEY) ?? '').split(' ');
-      return id === agentId ? Math.min(STEPS.length - 1, Math.max(0, Number(n) || 0)) : 0;
-    } catch { return 0; }
+    const [id, n] = (store.get(STEP_KEY) ?? '').split(' ');
+    return id === agentId ? clamp(Number(n) || 0, 0, STEPS.length - 1) : 0;
   });
-  useEffect(() => { try { localStorage.setItem(STEP_KEY, `${agentId} ${step}`); } catch { /* storage blocked */ } }, [step, agentId]);
+  useEffect(() => { store.set(STEP_KEY, `${agentId} ${step}`); }, [step, agentId]);
   // Return to the top on step change. Comparing with the previous step (not a mounted flag) survives StrictMode's double effect run.
   const prevStep = useRef(step);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -52,12 +53,12 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
   const here = issues.filter((x) => x.step === cur.id);
   const props = { c, up };
 
-  const name = c.details.name.trim();
+  const name = nameOf(c);
   return (
-    <Page wide title={name || 'Unnamed agent'} subtitle="// Agent intake terminal"
-      heading={<h1 className="sr-only">Agent intake: {name || 'unnamed agent'}</h1>}
+    <Page wide title={name} subtitle="// Agent intake terminal"
+      heading={<h1 className="sr-only">Agent intake: {name}</h1>}
       actions={<>
-        <Link to={`/g/${gameId}`}>&lt; Game {gameId}</Link>
+        <Link to={gameUrl(gameId)}>&lt; Game {gameId}</Link>
         <button onClick={pickFile} aria-keyshortcuts="Alt+I">[Alt+I] Import agent</button>
         <input ref={file} type="file" accept=".json,application/json" hidden
           onChange={async (e) => {
@@ -68,9 +69,9 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
           }} />
       </>}
       status={<>
-        <span>Agent: {c.details.name || 'UNNAMED'}</span>
-        <span className={open ? 'warn' : 'ok'}>{open ? `${open} open item${open === 1 ? '' : 's'}` : 'All steps complete'}</span>
-        {failed ? <span className="warn" role="alert">{failed}</span> : <span className="dim">Autosaved to game {gameId} · Source: Agent's Handbook</span>}
+        <span>Agent: {name}</span>
+        <span className={open ? 'warn' : 'ok'}>{open ? plural(open, 'open item') : 'All steps complete'}</span>
+        {failed ? <Alert inline>{failed}</Alert> : <span className="dim">Autosaved to game {gameId} · Source: Agent's Handbook</span>}
         <span className="cursor" aria-hidden />
       </>}
     >

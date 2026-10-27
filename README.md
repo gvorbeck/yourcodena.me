@@ -9,7 +9,9 @@ It follows the Agent's Handbook in order: statistics, profession and skills, bon
 - Character creation in five steps, same order as the book.
 - Shared games. You get an ID like `kestrel-lantern-7f3k` and send the link to people. Anyone with the link can read and write the game. It's unlisted, not secret, so don't put anything in there you'd mind losing.
 - A live sheet for play: HP, WP, SAN, Breaking Point, bonds, exhaustion, adaptation to violence and helplessness, temporary and permanent stat loss, disorders, and the skills you failed this session so they can improve afterward.
-- A roll log per game. Percentile tests, penalties, outcome. You can't edit or delete rolls.
+- A roll log per game: percentile tests with penalties and outcome, plus dice rolls and HP/SAN lost from Discord. You can't edit or delete entries.
+- A live sheet left open picks up changes saved elsewhere (Discord, another device) without overwriting your own.
+- Discord: post a game's rolls to a channel through a webhook, and play from Discord with the `/dg` bot (tests, dice, damage, SAN loss with Bond projection, sheet). See [Discord bot](#discord-bot).
 - Standalone sheets that live entirely in the URL hash (`/#sheet=...`). Nothing is stored on a server. If you lose the link you lose the Agent.
 - A plain-text sheet, 30 columns wide, for pasting into chat. Also a print stylesheet.
 - The home page remembers the last five games you opened in this browser.
@@ -68,7 +70,7 @@ src/
   ui/       window chrome, menu bar, skip link, legal text
   styles/   tokens, app, print
 firestore.rules
-functions/  Cloud Functions: the budget kill switch
+functions/  Cloud Functions: the budget kill switch and the Discord bot
 docs/       plans in progress
 ```
 
@@ -109,7 +111,7 @@ Functions deploy before Hosting, so a new build never calls a Function that isn'
 | `budgetKillSwitch` | us-east1 | Turns billing off at the $5 budget (next section) |
 | `discordWebhook` | us-central1 | Game page Discord panel: connect, disconnect, status |
 | `rollToDiscord` | us-central1 | Posts each new roll-log entry (d% tests, `/dg roll` dice, `/dg damage` and `/dg san` losses) to the game's Discord webhook, unless the bot already answered in the channel |
-| `discordBot` | us-central1 | Discord's Interactions Endpoint for `/dg` (link, claim, roll, sheet) |
+| `discordBot` | us-central1 | Discord's Interactions Endpoint for `/dg` (link, claim, roll, damage, san, sheet) and its buttons |
 
 Firestore triggers have to run in `us-central1`, because the database is in `nam5`. Three collections are Functions-only, and the rules deny browsers entirely:
 
@@ -130,6 +132,23 @@ To see how roll messages look without the app, run this and paste a webhook URL 
 ```bash
 npm --prefix functions run webhook:test
 ```
+
+## Discord bot
+
+`/dg` plays an Agent from Discord. Everything it rolls lands in the game's roll log and, with a webhook connected on the game page, posts in that channel; the player gets a private copy where they typed. Code: `functions/src/bot.ts` (commands and buttons), `dg.ts` (rules, reusing `src/rules` and `src/model`), `discord.ts` (message text), `commands.ts` (what's registered).
+
+| Command | Does |
+| --- | --- |
+| `/dg link game:` / `/dg unlink` | Links this Discord server to a game. Needs *Manage Channels*. |
+| `/dg claim agent:` / `/dg unclaim [agent:]` | Pick the Agent you play. Taking or releasing someone else's needs *Manage Channels*. |
+| `/dg roll test: [modifier:]` (short `/dg r t: m:`) | A stat, Luck, SAN or skill with the live sheet's math; a failed skill is ticked for improvement. `test:2D6+1` rolls plain dice (damage you deal); `test:45` rolls d% against 45. |
+| `/dg damage dice:` (short `/dg d d:`) | Your Agent loses HP (dice or a number), with stunned, unconscious and dead noted (p. 55). |
+| `/dg san loss: kind:` | SAN test and loss with the live sheet's rules: `0/1D6` tests, `1D6` doesn't. When projecting onto a Bond could help, the player chooses privately first (p. 74). |
+| `/dg sheet` | HP, WP, SAN and BP, only to you. |
+
+HP and SAN loss share one transaction (`commitLoss`): it writes only the sheet fields that changed and logs the entry. A SAN loss waiting on a projection choice sits in `discordPending/{agentId}` until the player, whoever claims that Agent now, or anyone with *Manage Channels* settles it.
+
+After changing a command's name, options or description, run `npm --prefix functions run discord:register` once the deploy is live.
 
 ## If the site was shut off for going over budget
 

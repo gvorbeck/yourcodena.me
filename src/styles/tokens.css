@@ -20,6 +20,7 @@
   --ok: #2c6b2f;
   --gap: 1rem;
   --control-padding-y: .125rem;
+  --control-h: calc(1.5em + 2 * var(--control-padding-y) + 2px); /* em resolves where it's used */
 }
 @media (prefers-color-scheme: dark) {
   :root {

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './ErrorBoundary';
+import { Loading } from './ui/bits';
 
 // Each page is its own chunk, so the landing page doesn't download the sheet editor (and react-aria) it never shows.
 const Home = lazy(() => import('./pages/Home'));
@@ -24,7 +25,7 @@ export const App = () => {
   const { pathname } = useLocation();
   return (
     <ErrorBoundary key={pathname}>
-      <Suspense fallback={<p className="dim page" role="status">Loading…</p>}>
+      <Suspense fallback={<Loading className="dim page" />}>
         <Routes>
           <Route path="/" element={<Root />} />
           <Route path="/g/:gameId" element={<Game />} />
