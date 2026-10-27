@@ -97,8 +97,8 @@ All commands sit under `/dg`, so they don't clash with Dice Maiden's `/roll`.
     - `/dg claim agent`: play an Agent; names autocomplete. A claimed Agent can only be taken by someone with *Manage Channels*.
     - `/dg unclaim [agent]`: release your own Agent, or (with *Manage Channels*) anyone's.
     - `/dg roll test [modifier]`: stats, Luck, SAN and skills autocomplete with current %. With a webhook connected, the result posts to the webhook's channel and the player gets a private copy where they typed. Same math as the live sheet (WP, exhaustion, penalty). Rolled on the server, saved to the roll log, and a failed skill is ticked for improvement.
-    - `/dg r t: [m:]`: short form of `/dg roll test: [modifier:]`.
-    - `/dg damage dice: [critical:] [label:]` (short: `/dg d d: c: l:`): `1D10`, `2D6+1`, `3`, or Lethality `L15`/`15%` (p. 57); a critical doubles damage (p. 52). Anyone can roll it, Handler included; posts like `/dg roll` but stays out of the roll log.
+    - `/dg r t: [m:]`: short form of `/dg roll test: [modifier:]`. `test` also takes dice (`2D6+1`) for anything rolled outward, damage dealt included, or a number (`45`) for a plain d% roll against it; both land in the roll log too.
+    - `/dg damage dice:` (short `/dg d d:`): your claimed Agent gets hurt. `1D10`, `2D6+1` or a number comes off their HP on the site, logged in the roll log with what it means (stunned, unconscious, dead; p. 55).
     - `/dg sheet`: HP, WP, SAN and BP, shown only to you.
 - [x] **Me:** the bot reuses `src/rules` and `src/model`, bundled into the Functions build.
 - [x] **Me:** `npm --prefix functions run discord:register` registers the commands. It asks for the bot token, so the token never goes in the repo, chat or Firebase.
@@ -110,7 +110,7 @@ All commands sit under `/dg`, so they don't clash with Dice Maiden's `/roll`.
 
 Known gaps:
 - A cold start can miss Discord's 3-second deadline ("The application did not respond"). Retry. Keeping an instance warm would cost about as much as the whole budget.
-- A skill ticked from Discord is lost if that Agent's sheet is open in a tab that then changes its own ticked skills before reloading.
+- ~~Changes from Discord lost to an open sheet tab~~ fixed: open sheets merge changes saved elsewhere (Discord damage, ticked skills, another device); a field changed in the tab too keeps the tab's value.
 
 ## Decisions needed
 

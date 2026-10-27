@@ -1,9 +1,8 @@
 import { createPublicKey, verify } from 'node:crypto';
-import { d100Text, testText } from '../../src/rules/outcome';
-import { modText, type Damage } from './dg.js';
+import { d100Text, diceLabel, hurtNote, testText, type RollEntry, type TestEntry } from '../../src/rules/outcome';
 
-/** A roll as stored at games/{gameId}/rolls/{rollId} (see src/lib/games.ts). `chance` is already after the penalty. */
-export interface Roll { agentName: string; label: string; chance: number; penalty: number; roll: number; outcome: string }
+/** A roll-log entry as stored at games/{gameId}/rolls/{rollId} (see src/rules/outcome.ts for the kinds). */
+export type Roll = RollEntry;
 
 const WEBHOOK = /^https:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/api\/webhooks\/\d{15,25}\/[\w-]{20,100}$/;
 export const isWebhookUrl = (url: string) => WEBHOOK.test(url);
@@ -18,7 +17,7 @@ export const plain = (s: string, max = 100) =>
 const OUTCOME: Record<string, string> = { 'critical success': '**CRITICAL SUCCESS**', success: 'Success', failure: 'Failure', fumble: '**FUMBLE**' };
 
 /** Same facts as the game page's roll log: `**Agent Smith** · Firearms 45% (−20) → 23 · Success` */
-export function formatRoll(r: Roll): string {
+export function formatRoll(r: Omit<TestEntry, 'kind'>): string {
   return `**${plain(r.agentName) || 'Unnamed agent'}** · ${testText(plain(r.label), r.chance, r.penalty)} → ${d100Text(r.roll)} · ${OUTCOME[r.outcome] ?? plain(r.outcome)}`;
 }
 
@@ -52,15 +51,14 @@ export function verifyDiscord(publicKeyHex: string, signatureHex: string, timest
   return verify(null, Buffer.concat([Buffer.from(timestamp), body]), key, Buffer.from(signatureHex, 'hex'));
 }
 
-/** `**Drew Rook** · Glock 17 · 1D10+1 → **8** (7+1)`, or for Lethality `… · Lethality 15% → 80 · **18** HP damage (8+10)`. */
-export function formatDamage(name: string, label: string, d: Damage): string {
-  const who = `**${plain(name) || 'Someone'}**${label.trim() ? ` · ${plain(label, 60)}` : ''}`;
-  const crit = d.critical ? ', critical ×2' : '';
-  if (d.kind === 'lethality') {
-    const rating = d.critical ? `${d.rating}% ×2 = ${Math.min(100, d.rating * 2)}%` : `${d.rating}%`;
-    const result = d.killed ? '**LETHAL**: a human target drops to 0 HP' : `**${d.total}** HP damage (${d.dice.join('+')}${crit})`;
-    return `${who} · Lethality ${rating} → ${d100Text(d.roll)} · ${result}`;
-  }
-  const detail = d.dice.length ? ` (${d.dice.join('+')}${modText(d.mod)}${crit})` : d.critical ? ' (critical ×2)' : '';
-  return `${who} · ${d.expr} → **${d.total}** damage${detail}`;
+/**
+ * Any roll-log entry as a Discord line: a d% test (formatRoll), `**Drew Rook** · 2D6+1 (4+4+1) → **9**`, or
+ * `**Drew Rook** takes **7** damage · 1D10 · HP 11 → 4 · Stunned (p. 55)`.
+ */
+export function formatEntry(r: Roll): string {
+  if (!r.kind) return formatRoll(r);
+  const who = `**${plain(r.agentName) || 'Someone'}**`, dice = diceLabel(plain(r.label), r.dice, r.mod); // the detail is only digits and signs
+  if (r.kind === 'dice') return `${who} · ${dice} → **${r.roll}**`;
+  const note = hurtNote(r.hpFrom, r.hpTo);
+  return `${who} takes **${r.roll}** damage${r.dice.length ? ` · ${dice}` : ''} · HP ${r.hpFrom} → ${r.hpTo}${note ? ` · ${note}` : ''}`;
 }

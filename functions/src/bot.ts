@@ -3,11 +3,11 @@ import { randomInt } from 'node:crypto';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { isGameId } from '../../src/lib/gameId';
 import { agentLabel } from '../../src/model/names';
-import { isSuccess } from '../../src/rules';
-import { agentOf, choicesFor, findTest, rollDamage, rollTest, sheetLines, type Agent } from './dg.js';
-import { formatDamage, formatRoll, plain } from './discord.js';
+import { diceText, isSuccess, parseDice } from '../../src/rules';
+import { agentOf, applyHit, choicesFor, diceEntry, findTest, isDice, rollAgainst, rollExpression, rollTest, sheetLines, type Agent } from './dg.js';
+import { formatEntry, formatRoll, plain, type Roll } from './discord.js';
 
-interface Option { name: string; type: number; value?: string | number | boolean; focused?: boolean; options?: Option[] }
+interface Option { name: string; type: number; value?: string | number; focused?: boolean; options?: Option[] }
 export interface Interaction {
   type: number; // 1 ping, 2 command, 4 autocomplete
   data?: { name: string; options?: Option[] };
@@ -62,13 +62,18 @@ async function myAgent(gameId: string, user: string): Promise<{ id: string; agen
   return null;
 }
 
-/** Claimed Agent's display name from the agent doc's summary fields, so a sheet that won't parse can't block it. */
-async function claimedName(gameId: string, user: string): Promise<string | null> {
+/** Claimed Agent's id and name from the agent doc's summary fields, so a sheet that won't parse can't block a dice roll. */
+async function claimed(gameId: string, user: string): Promise<{ id: string; name: string } | null> {
   const id = (await claimRef(gameId, user).get()).get('agentId') as string | undefined;
   if (!id) return null;
   const doc = await db().doc(`games/${gameId}/agents/${id}`).get();
-  return doc.exists ? agentLabel(doc.get('codename'), doc.get('name')) : null;
+  return doc.exists ? { id, name: agentLabel(doc.get('codename'), doc.get('name')) } : null;
 }
+/** Just the claimed Agent's id: `/dg damage` reads the agent doc itself, inside its transaction. */
+const claimId = async (gameId: string, user: string) => (await claimRef(gameId, user).get()).get('agentId') as string | undefined;
+const face = (sides: number) => randomInt(1, sides + 1);
+/** A number typed into `test:` ("45") is a plain d% roll against it. */
+const TARGET = /^\d{1,3}$/;
 /** Who rolled: the claimed Agent, else the player's server nickname, display name or username. */
 export const rollerName = (agent: string | null, m?: Interaction['member']) =>
   agent ?? m?.nick ?? m?.user.global_name ?? m?.user.username ?? 'Someone';
@@ -81,10 +86,10 @@ const hasWebhook = async (gameId: string) => Boolean((await db().doc(`gameSecret
 export const answer = (text: string, viaWebhook: boolean) =>
   (viaWebhook ? reply(`${text}\n-# Posted to the game's dice channel.`, true) : reply(text));
 
-/** Short forms registered in commands.ts: `/dg r t: m:` is `/dg roll test: modifier:`, `/dg d d: c: l:` is `/dg damage dice: critical: label:`. */
+/** Short forms registered in commands.ts: `/dg r t: m:` is `/dg roll test: modifier:`, `/dg d d:` is `/dg damage dice:`. */
 const ALIASES: Record<string, { name: string; options: Record<string, string> }> = {
   r: { name: 'roll', options: { t: 'test', m: 'modifier' } },
-  d: { name: 'damage', options: { d: 'dice', c: 'critical', l: 'label' } },
+  d: { name: 'damage', options: { d: 'dice' } },
 };
 const expand = (o: Option): Option => {
   const a = ALIASES[o.name];
@@ -104,7 +109,14 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
   if (i.type === 4) {
     const typed = String(sub.options?.find((o) => o.focused)?.value ?? '');
     if (!gameId) return choices([]);
-    if (sub.name === 'roll') { const me = await myAgent(gameId, user); return choices(me ? choicesFor(me.agent, typed) : []); }
+    if (sub.name === 'roll') {
+      // Typed dice ("2d6+1") or a number ("45") come first as their own choice; the Agent's tests follow.
+      const p = parseDice(typed), n = TARGET.test(typed.trim()) ? Number(typed) : 0;
+      const extra = p?.sides ? [{ name: `Roll ${diceText(p)}`, value: diceText(p) }] : n >= 1 && n <= 100 ? [{ name: `Roll d% against ${n}%`, value: String(n) }] : [];
+      // A sheet that won't parse just means no tests to suggest; dice still work without one.
+      const me = await myAgent(gameId, user).catch(() => null);
+      return choices([...extra, ...(me ? choicesFor(me.agent, typed) : [])].slice(0, 25));
+    }
     const q = typed.trim().toLowerCase();
     return choices((await agentsOf(gameId)).filter((a) => a.label.toLowerCase().includes(q)).slice(0, 25).map((a) => ({ name: a.label.slice(0, 100), value: a.id })));
   }
@@ -153,15 +165,44 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     return reply(`**${plain(a.label)}** is free to claim.`);
   }
 
+  // Every roll is logged, so it shows in the game page's roll log; rollToDiscord posts it unless the bot already answered.
+  const logEntry = (e: Roll, agentId: string, viaWebhook: boolean) =>
+    ({ ...e, agentId, createdAt: now, source: 'discord', ...(viaWebhook ? {} : { answered: true }) });
+
+  // `/dg roll test:2D6+1` (plain dice for anything rolled outward: damage dealt, a random table) and `/dg roll test:45`
+  // (d% against a number). No claim needed, so the Handler can roll too.
+  const typed = String(opt('test')?.value ?? '').trim();
+  if (sub.name === 'roll' && (isDice(typed) || TARGET.test(typed))) {
+    const target = Number(typed);
+    if (!isDice(typed) && (target < 1 || target > 100)) return reply('A d% roll needs a number from 1 to 100.', true);
+    const [mine, viaWebhook] = await Promise.all([claimed(gameId, user), hasWebhook(gameId)]);
+    const name = rollerName(mine?.name ?? null, i.member);
+    const e: Roll = isDice(typed)
+      ? diceEntry(rollExpression(typed, face)!, name)
+      : { ...rollAgainst(target, randomInt(1, 101), Number(opt('modifier')?.value ?? 0)), agentName: name };
+    await db().collection(`games/${gameId}/rolls`).add(logEntry(e, mine?.id ?? '', viaWebhook));
+    return answer(formatEntry(e), viaWebhook);
+  }
+
+  // `/dg damage dice:1D10`: your Agent gets hurt. The HP comes off their sheet on the site (HP never below 0, p. 55),
+  // and an open sheet merges it in (pages/Agent.tsx).
   if (sub.name === 'damage') {
-    const d = rollDamage(String(opt('dice')?.value ?? ''), opt('critical')?.value === true, (n) => randomInt(1, n + 1));
-    if (!d) return reply('Use dice like `1D10`, `2D6+1` or `3`, or a Lethality rating like `L15` or `15%`.', true);
-    // Anyone can roll damage (the Handler for NPCs too); a claimed Agent's name is used when there is one.
-    const [agent, viaWebhook] = await Promise.all([claimedName(gameId, user), hasWebhook(gameId)]);
-    const text = formatDamage(rollerName(agent, i.member), String(opt('label')?.value ?? ''), d);
-    // Not a d% roll, so no roll-log entry: postToDiscord picks this up after the reply has gone back.
-    if (viaWebhook) await db().collection(`games/${gameId}/discordPosts`).add({ text, createdAt: now });
-    return answer(text, viaWebhook);
+    const hit = rollExpression(String(opt('dice')?.value ?? ''), face);
+    if (!hit) return reply('Use dice like `1D10` or `2D6+1`, or a number like `7`.', true);
+    const [agentId, viaWebhook] = await Promise.all([claimId(gameId, user), hasWebhook(gameId)]);
+    if (!agentId) return reply('Claim your Agent first (`/dg claim`), so the damage comes off the right sheet.', true);
+    const ref = db().doc(`games/${gameId}/agents/${agentId}`);
+    // A transaction, so two hits landing at once both come off.
+    const e = await db().runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return null;
+      const { update, entry } = applyHit(snap.data()!, hit, agentLabel(snap.get('codename'), snap.get('name')), now);
+      tx.update(ref, update);
+      tx.create(db().collection(`games/${gameId}/rolls`).doc(), logEntry(entry, agentId, viaWebhook));
+      return entry;
+    });
+    if (!e) return reply('Your claimed Agent is no longer in this game. Use `/dg claim` again.', true);
+    return answer(formatEntry(e), viaWebhook);
   }
 
   const me = await myAgent(gameId, user);
@@ -180,7 +221,7 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     // rollToDiscord posts it when there's a webhook; otherwise `answered` tells it the bot already replied in the channel.
     const viaWebhook = await hasWebhook(gameId);
     const batch = db().batch();
-    batch.create(db().collection(`games/${gameId}/rolls`).doc(), { ...r, agentId: me.id, agentName: me.agent.name, createdAt: now, source: 'discord', ...(viaWebhook ? {} : { answered: true }) });
+    batch.create(db().collection(`games/${gameId}/rolls`).doc(), logEntry({ ...r, agentName: me.agent.name }, me.id, viaWebhook));
     if (check) batch.update(db().doc(`games/${gameId}/agents/${me.id}`), { 'live.checked': FieldValue.arrayUnion(t.label), updatedAt: now });
     await batch.commit();
     const text = formatRoll({ ...r, agentName: me.agent.name }) + (check ? ' · marked for improvement' : '');

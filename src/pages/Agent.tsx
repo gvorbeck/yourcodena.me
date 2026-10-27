@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Editor } from '../Editor';
-import { LiveSheet } from '../LiveSheet';
-import { DamagedAgent, loadAgent, saveCharacter, saveLive } from '../lib/agents';
+import { LiveSheet, type RemoteLive } from '../LiveSheet';
+import { DamagedAgent, loadAgent, saveCharacter, saveLive, watchLive } from '../lib/agents';
+import { mergeRemote } from '../lib/diff';
 import { logRoll } from '../lib/games';
 import { useAutosave } from '../lib/useAutosave';
 import { freshLive, reconcile, untouched, type Live } from '../model/live';
@@ -66,6 +67,14 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
     prevC.current = c;
     if (prev !== c) setLive((l) => (l && (untouched(l, prev) ? freshLive(c) : reconcile(l, c))));
   }, [c]);
+  // Changes someone else saves (Discord damage, a skill checked from Discord, another device) merge into the open sheet,
+  // so this tab's next save can't write its stale copy over them. Leaves changed here as well keep this tab's value.
+  const [remote, setRemote] = useState<RemoteLive | null>(null);
+  useEffect(() => watchLive(gameId, agentId, (r, base) => {
+    const merge = (l: Live) => mergeRemote(base, l, r);
+    setLive((l) => l && merge(l));
+    setRemote({ merge });
+  }), [gameId, agentId]);
   useAutosave(c, (v) => saveCharacter(gameId, agentId, v), report('c'));
   useAutosave(live, (v) => (v ? saveLive(gameId, agentId, v) : Promise.resolve()), report('live'), init.live);
 
@@ -73,7 +82,7 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
     // `init` is read once when the sheet mounts; later changes flow back through onChange.
     return (
       <LiveSheet c={c} init={live} game={{
-        gameId, failed, back: () => setMode('edit'), onChange: setLive,
+        gameId, failed, back: () => setMode('edit'), onChange: setLive, remote,
         onRoll: ({ pen, ...r }) => logRoll(gameId, { ...r, penalty: pen, agentId, agentName: agentLabel(c.details.codename, c.details.name) }).then(() => report('roll')(true), () => report('roll')(false)),
       }} />
     );

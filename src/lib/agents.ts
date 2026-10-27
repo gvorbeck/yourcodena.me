@@ -1,4 +1,4 @@
-import { FieldPath, arrayRemove, arrayUnion, deleteField, doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { FieldPath, arrayRemove, arrayUnion, deleteField, doc, getDoc, onSnapshot, setDoc, writeBatch, type Unsubscribe } from 'firebase/firestore';
 import { newCharacter, parseCharacter, type Character } from '../model/character';
 import { parseLive, type Live } from '../model/live';
 import { professionOf } from '../rules';
@@ -52,6 +52,24 @@ function saveField(g: string, a: string, field: 'character' | 'live', value: unk
   if (removals.length) update(removals);
   update([...main, 'updatedAt', Date.now(), ...Object.entries(extra).flat()]);
   return batch.commit().then(() => { known.set(k, value); });
+}
+
+/**
+ * Calls `onRemote(remote, base)` whenever the agent's `live` on the server differs from what this tab last read or
+ * wrote: someone else saved it (Discord damage, a skill checked from Discord, another device). The caller merges.
+ * Own writes still in flight are skipped; their echo merges harmlessly because those leaves are local changes too.
+ */
+export function watchLive(g: string, a: string, onRemote: (remote: Live, base: Live) => void): Unsubscribe {
+  const k = slot(g, a, 'live');
+  return onSnapshot(agentRef(g, a), (snap) => {
+    const base = known.get(k) as Live | null | undefined;
+    if (snap.metadata.hasPendingWrites || !snap.exists() || !base) return; // no base yet: nothing to merge against
+    let remote: Live;
+    try { remote = parseLive(snap.get('live')); } catch { return; } // missing or unreadable: keep what's on screen
+    if (JSON.stringify(remote) === JSON.stringify(base)) return;
+    known.set(k, remote);
+    onRemote(remote, base);
+  }, () => {}); // offline or denied: the page keeps working from its own state
 }
 
 export const saveCharacter = (g: string, a: string, c: Character) => saveField(g, a, 'character', c, summary(c));

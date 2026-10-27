@@ -38,6 +38,9 @@ const RollLine = ({ r }: { r: Roll }) => (
     <span className={outcomeClass(r.outcome)}>{r.outcome.toUpperCase()}</span></>
 );
 
+/** A merge to apply to the live sheet's own state; a new object each time someone else saves (pages/Agent.tsx). */
+export interface RemoteLive { merge: (l: Live) => Live }
+
 /** Present when the sheet belongs to an agent in a game: saves go to Firestore and rolls to the game's log instead of the URL. */
 export interface GameLink {
   gameId: string;
@@ -45,6 +48,8 @@ export interface GameLink {
   failed: string;
   back: () => void;
   onChange: (l: Live) => void;
+  /** Someone else's saved change to merge in (see pages/Agent.tsx). */
+  remote?: RemoteLive | null;
   onRoll: (r: Omit<Roll, 'id'>) => void;
 }
 
@@ -69,6 +74,17 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
     setLive(prev);
     setPending(null); // a half-resolved SAN loss was priced against the state just reverted
   };
+  // Someone else saved (Discord damage, another device): merge it in without an undo step, and drop older undo steps
+  // so undo can't revert their change.
+  const remote = game?.remote;
+  useEffect(() => {
+    if (!remote) return;
+    const next = refreshSpent(remote.merge(latest.current));
+    stack.clear();
+    setUndoLabel(null);
+    latest.current = next;
+    setLive(next);
+  }, [remote, stack]);
   const sent = useRef(init); // last state handed to game.onChange
   // Runs on state changes only: `game` is a fresh object every render and must not re-send the same state.
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REMOVED, diffPaths, setDelta } from './diff';
+import { REMOVED, diffPaths, mergeRemote, setDelta } from './diff';
 
 describe('diffPaths', () => {
   it('returns nothing for equal values', () => {
@@ -26,5 +26,24 @@ describe('setDelta', () => {
   });
   it('treats a missing old value as empty', () => {
     expect(setDelta(undefined, ['Law'])).toEqual({ add: ['Law'], remove: [] });
+  });
+});
+
+describe('mergeRemote', () => {
+  const base = { hp: 11, wp: 10, checked: ['Alertness'], spent: { rest: false, sleep: false } };
+  it('takes what someone else changed', () => {
+    expect(mergeRemote(base, base, { ...base, hp: 4 })).toEqual({ ...base, hp: 4 });
+  });
+  it('keeps both sides when they changed different leaves', () => {
+    expect(mergeRemote(base, { ...base, wp: 8 }, { ...base, hp: 4, checked: ['Alertness', 'Firearms'] }))
+      .toEqual({ ...base, hp: 4, wp: 8, checked: ['Alertness', 'Firearms'] });
+  });
+  it('keeps the local value when both changed the same leaf', () => {
+    expect(mergeRemote(base, { ...base, hp: 10 }, { ...base, hp: 4 })).toEqual({ ...base, hp: 10 });
+  });
+  it('merges inside nested objects and drops removed keys', () => {
+    const b = { advance: { Law: 1, Drive: 2 }, spent: { rest: false, sleep: false } };
+    expect(mergeRemote(b, { ...b, spent: { rest: true, sleep: false } }, { ...b, advance: { Law: 1 }, spent: { rest: false, sleep: true } }))
+      .toEqual({ advance: { Law: 1 }, spent: { rest: true, sleep: true } });
   });
 });

@@ -9,7 +9,7 @@ import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { overBudget, type BudgetAlert } from './budget.js';
 import { handle, type Interaction } from './bot.js';
 import { isGameId } from '../../src/lib/gameId';
-import { formatRoll, isWebhookUrl, postWebhook, verifyDiscord, webhookName, type Roll } from './discord.js';
+import { formatEntry, isWebhookUrl, postWebhook, verifyDiscord, webhookName, type Roll } from './discord.js';
 
 // Cost caps for every Function in this project (docs/discord-plan.md, phase 0).
 // us-central1 because Firestore triggers must sit with the database, which is in nam5.
@@ -72,8 +72,8 @@ export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>(async 
 });
 
 /**
- * The one way anything reaches a game's dice channel: its webhook, if connected. Never retries (the bot already gave
- * the player a private copy, and the roll log keeps d% results). A webhook deleted in Discord is forgotten.
+ * Posts to a game's dice channel through its webhook, if connected. Never retries: the bot already gave the player
+ * a private copy, and the roll log keeps every entry. A webhook deleted in Discord is forgotten.
  */
 async function toDiceChannel(gameId: string, content: string) {
   const ref = secretRef(gameId);
@@ -84,21 +84,11 @@ async function toDiceChannel(gameId: string, content: string) {
   else if (status !== 204) logger.warn('Discord did not take a post', { gameId, status });
 }
 
-/** Posts each new roll to the game's Discord channel. */
+/** Posts each new roll-log entry (d% tests, plain dice, damage taken) to the game's Discord channel. */
 export const rollToDiscord = onDocumentCreated('games/{gameId}/rolls/{rollId}', async (event) => {
   const roll = event.data?.data() as (Roll & { answered?: boolean }) | undefined;
   if (!roll || roll.answered) return; // /dg rolls with no webhook: the bot already answered in its channel
-  await toDiceChannel(event.params.gameId, formatRoll(roll));
-});
-
-/**
- * games/{gameId}/discordPosts/{postId}: { text, createdAt }, written by the bot for things that aren't d% rolls (damage).
- * Posting here, after the bot has answered, keeps the webhook call outside Discord's 3-second reply window.
- */
-export const postToDiscord = onDocumentCreated('games/{gameId}/discordPosts/{postId}', async (event) => {
-  const text = event.data?.get('text');
-  if (typeof text === 'string') await toDiceChannel(event.params.gameId, text);
-  await event.data?.ref.delete();
+  await toDiceChannel(event.params.gameId, formatEntry(roll));
 });
 
 const discordPublicKey = defineString('DISCORD_PUBLIC_KEY', { description: 'Discord app public key (Developer Portal → General Information → Public Key)' });

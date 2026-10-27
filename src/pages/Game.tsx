@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { d100Text, outcomeClass, testText } from '../rules/outcome';
+import { d100Text, diceLabel, hurtNote, outcomeClass, testText } from '../rules/outcome';
 import { agentLabel } from '../model/names';
 import { useRun } from '../lib/useRun';
 import { copyLabel, copyNote, useCopy } from '../lib/useCopy';
-import { createGame, deleteAgent, useAgents, type AgentCard, useGameExists, useRolls } from '../lib/games';
+import { createGame, deleteAgent, useAgents, type AgentCard, useGameExists, useRolls, type RollDoc } from '../lib/games';
 import { forgetSavedAgent, hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
 import { DiscordPanel } from '../DiscordPanel';
@@ -12,6 +12,23 @@ import { Page } from './Page';
 
 // Lazy: ui/index brings in the rules and react-aria, which this page otherwise doesn't load. Delete loads it through run() first, so a failed load shows an inline error instead of crashing the page.
 const ConfirmDialog = lazy(() => import('../ui').then((m) => ({ default: m.ConfirmDialog })));
+
+/** Test, Roll and Result cells: a d% test, plain dice from Discord ("2D6+1 (4+4+1) → 9"), or HP lost ("HP 11 → 4"). */
+function EntryCells({ r }: { r: RollDoc }) {
+  if (!r.kind) return (<>
+    <td>{testText(r.label, r.chance, r.penalty)}</td>
+    <td className="num"><b>{d100Text(r.roll)}</b></td>
+    <td className={outcomeClass(r.outcome)}>{r.outcome.toUpperCase()}</td>
+  </>);
+  const dice = diceLabel(r.label, r.dice, r.mod);
+  if (r.kind === 'dice') return <><td>{dice}</td><td className="num"><b>{r.roll}</b></td><td className="dim">DICE</td></>;
+  const note = hurtNote(r.hpFrom, r.hpTo);
+  return (<>
+    <td>Damage {dice}</td>
+    <td className="num"><b>{r.roll}</b></td>
+    <td className="warn">HP {r.hpFrom} → {r.hpTo}{note && <><br /><small>{note}</small></>}</td>
+  </>);
+}
 
 const when = (t: number) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -114,10 +131,8 @@ export default function Game() {
                 {rolls.data.map((r) => (
                   <tr key={r.id}>
                     <td className="dim">{when(r.createdAt)}</td>
-                    <td>{has(r.agentId) ? <Link to={`/g/${gameId}/a/${r.agentId}`}>{r.agentName}</Link> : <span title="Deleted">{r.agentName}</span>}</td>
-                    <td>{testText(r.label, r.chance, r.penalty)}</td>
-                    <td className="num"><b>{d100Text(r.roll)}</b></td>
-                    <td className={outcomeClass(r.outcome)}>{r.outcome.toUpperCase()}</td>
+                    <td>{!r.agentId ? r.agentName : has(r.agentId) ? <Link to={`/g/${gameId}/a/${r.agentId}`}>{r.agentName}</Link> : <span title="Deleted">{r.agentName}</span>}</td>
+                    <EntryCells r={r} />
                   </tr>
                 ))}
               </tbody>

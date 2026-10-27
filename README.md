@@ -108,8 +108,7 @@ Functions deploy before Hosting, so a new build never calls a Function that isn'
 | --- | --- | --- |
 | `budgetKillSwitch` | us-east1 | Turns billing off at the $5 budget (next section) |
 | `discordWebhook` | us-central1 | Game page Discord panel: connect, disconnect, status |
-| `rollToDiscord` | us-central1 | Posts each new roll to the game's Discord webhook, `/dg` rolls included (skips them only when there's no webhook and the bot answered in the channel) |
-| `postToDiscord` | us-central1 | Posts bot messages that aren't d% rolls (`/dg damage`) to the dice channel, after the bot has replied |
+| `rollToDiscord` | us-central1 | Posts each new roll-log entry (d% tests, `/dg roll` dice, `/dg damage`) to the game's Discord webhook, unless the bot already answered in the channel |
 | `discordBot` | us-central1 | Discord's Interactions Endpoint for `/dg` (link, claim, roll, sheet) |
 
 Firestore triggers have to run in `us-central1`, because the database is in `nam5`. Three collections are Functions-only, and the rules deny browsers entirely:

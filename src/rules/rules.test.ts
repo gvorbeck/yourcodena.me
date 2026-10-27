@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
 import { blocking, filterSkills, liveOutcome, parseDice, parseLoss, rollExpr, rollLoss, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { asciiSheet } from '../model/sheet';
+import { diceDetail, diceLabel, hurtNote } from './outcome';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
 
@@ -330,5 +331,23 @@ describe('Handler adjustment import and validation', () => {
     if (was) expect(was).toBe(true);
     c.adjust = { 'Foreign Language': 10 };
     expect(validate(c).some((i) => i.msg.includes('typed Handler adjustment'))).toBe(true);
+  });
+});
+
+describe('roll-log entries that aren\'t d% tests', () => {
+  it('shows how a total was made', () => {
+    expect(diceDetail([4, 4], 1)).toBe('(4+4+1)');
+    expect(diceDetail([7], -1)).toBe('(7-1)');
+    expect(diceDetail([7], 0)).toBe('');
+    expect(diceDetail([], 3)).toBe('');
+    expect(diceLabel('2D6+1', [4, 4], 1)).toBe('2D6+1 (4+4+1)');
+    expect(diceLabel('7', [], 0)).toBe('7');
+  });
+  it('names what a hit means (p. 55)', () => {
+    expect(hurtNote(11, 8)).toBe('');
+    expect(hurtNote(11, 5)).toBe('Stunned (p. 55)'); // 6 is at least half of 11
+    expect(hurtNote(5, 2)).toBe('Stunned · Unconscious, CON×5 test for permanent injury (p. 55)');
+    expect(hurtNote(3, 2)).toBe('Unconscious, CON×5 test for permanent injury (p. 55)');
+    expect(hurtNote(4, 0)).toBe('Dead (p. 55)');
   });
 });

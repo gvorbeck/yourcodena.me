@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from '../../src/model/character';
 import { freshLive } from '../../src/model/live';
-import { agentOf, choicesFor, findTest, rollDamage, rollTest, sheetLines, testsOf } from './dg';
+import { agentOf, applyHit, choicesFor, diceEntry, findTest, isDice, rollAgainst, rollExpression, rollTest, sheetLines, testsOf } from './dg';
 
 const agent = (live?: Partial<ReturnType<typeof freshLive>>) => {
   const c = newCharacter();
@@ -63,30 +63,48 @@ describe('sheetLines', () => {
   });
 });
 
-describe('rollDamage', () => {
+describe('rollExpression', () => {
   const fixed = (...faces: number[]) => { let i = 0; return () => faces[i++]; };
-  it('rolls dice plus a modifier', () => {
-    expect(rollDamage('2d6+1', false, fixed(4, 3))).toMatchObject({ kind: 'dice', expr: '2D6+1', dice: [4, 3], total: 8 });
-    expect(rollDamage('D10', false, fixed(7))).toMatchObject({ expr: '1D10', total: 7 });
-    expect(rollDamage('1d4-2', false, fixed(1))).toMatchObject({ expr: '1D4-2', total: 0 }); // never below 0
-    expect(rollDamage('3', true, fixed())).toMatchObject({ total: 6 });
+  it('rolls dice plus a modifier, never below 0', () => {
+    expect(rollExpression('2d6+1', fixed(4, 3))).toEqual({ expr: '2D6+1', dice: [4, 3], mod: 1, total: 8 });
+    expect(rollExpression('D10', fixed(7))).toMatchObject({ expr: '1D10', total: 7 });
+    expect(rollExpression('1d4-2', fixed(1))).toMatchObject({ expr: '1D4-2', total: 0 });
+    expect(rollExpression('7', fixed())).toEqual({ expr: '7', dice: [], mod: 0, total: 7 });
   });
-  it('doubles damage on a critical', () => {
-    expect(rollDamage('1d10', true, fixed(6))).toMatchObject({ total: 12, critical: true });
+  it('rejects anything else, so test names still reach the test lookup', () => {
+    for (const bad of ['', 'alertness', 'stat:STR', 'skill:Firearms', '0d6', '99d6', '2d6+1000']) expect(rollExpression(bad, fixed(1))).toBeNull();
   });
-  it('follows the Lethality example on p. 57: 15% rolls 80, so 8 + 10 = 18 HP', () => {
-    expect(rollDamage('L15', false, fixed(80))).toMatchObject({ kind: 'lethality', killed: false, dice: [8, 10], total: 18 });
-    expect(rollDamage('15%', false, fixed(12))).toMatchObject({ killed: true, total: 0 });
+});
+
+describe('isDice and rollAgainst', () => {
+  it('tells dice from a number typed into test:', () => {
+    expect(isDice('2d6+1')).toBe(true);
+    expect(isDice('45')).toBe(false);
+    expect(isDice('3+2')).toBe(false);
+    expect(isDice('alertness')).toBe(false);
   });
-  it('reads 00 and single digits as 10s', () => {
-    expect(rollDamage('L10', false, fixed(100))).toMatchObject({ dice: [10, 10], total: 20 });
-    expect(rollDamage('L5', false, fixed(7))).toMatchObject({ dice: [10, 7], total: 17 });
+  it('rolls d% against a number, with the same modifier as a test', () => {
+    expect(rollAgainst(45, 30)).toEqual({ label: 'd%', chance: 45, penalty: 0, roll: 30, outcome: 'success' });
+    expect(rollAgainst(45, 30, -20)).toMatchObject({ chance: 25, penalty: 20, outcome: 'failure' });
+    expect(rollAgainst(45, 55)).toMatchObject({ outcome: 'fumble' });
   });
-  it('doubles the Lethality rating and the damage on a critical', () => {
-    expect(rollDamage('L15', true, fixed(25))).toMatchObject({ killed: true });
-    expect(rollDamage('L15', true, fixed(80))).toMatchObject({ killed: false, total: 36 });
+});
+
+describe('applyHit', () => {
+  const hit = { expr: '1D10', dice: [7], mod: 0, total: 7 };
+  it('writes only live.hp when the sheet has been played, never below 0', () => {
+    expect(applyHit({ live: { hp: 11 } }, hit, 'Drew Rook', 5)).toEqual({
+      update: { 'live.hp': 4, updatedAt: 5 },
+      entry: { ...diceEntry(hit, 'Drew Rook'), kind: 'damage', hpFrom: 11, hpTo: 4 },
+    });
+    expect(applyHit({ live: { hp: 3 } }, hit, 'Drew Rook', 5).update).toEqual({ 'live.hp': 0, updatedAt: 5 });
   });
-  it('rejects anything else', () => {
-    for (const bad of ['', 'fireball', '0d6', '99d6', 'L0', 'L101', '2d6+1000']) expect(rollDamage(bad, false, fixed(1))).toBeNull();
+  it('needs only HP, so a sheet that won\'t parse still takes damage', () => {
+    expect(applyHit({ character: { broken: true }, live: { hp: 11 } }, hit, 'Drew Rook', 5).entry.hpTo).toBe(4);
+  });
+  it('starts from the fresh play state when live play was never saved', () => {
+    const { update, entry } = applyHit({ character: newCharacter(), live: null }, hit, 'Drew Rook', 5);
+    expect(entry).toMatchObject({ hpFrom: 10, hpTo: 3 });
+    expect(update).toMatchObject({ live: { hp: 3, wp: 10, san: 50 }, updatedAt: 5 });
   });
 });

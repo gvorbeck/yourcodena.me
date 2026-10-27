@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatRoll, isWebhookUrl, plain, postWebhook } from './discord.js';
+import { formatEntry, formatRoll, isWebhookUrl, plain, postWebhook } from './discord.js';
 
 const roll = { agentName: 'Agent Smith', label: 'Firearms', chance: 45, penalty: 0, roll: 23, outcome: 'success' };
 
@@ -65,20 +65,21 @@ describe('verifyDiscord', () => {
   });
 });
 
-describe('formatDamage', () => {
-  it('shows dice, total and label', async () => {
-    const { formatDamage } = await import('./discord.js');
-    expect(formatDamage('Drew Rook', 'Glock 17', { kind: 'dice', expr: '1D10+1', dice: [7], mod: 1, total: 8, critical: false }))
-      .toBe('**Drew Rook** · Glock 17 · 1D10+1 → **8** damage (7+1)');
-    expect(formatDamage('Drew Rook', '', { kind: 'lethality', rating: 15, roll: 80, killed: false, dice: [8, 10], total: 18, critical: false }))
-      .toBe('**Drew Rook** · Lethality 15% → 80 · **18** HP damage (8+10)');
-    expect(formatDamage('Drew Rook', '', { kind: 'lethality', rating: 15, roll: 25, killed: true, dice: [2, 5], total: 0, critical: true }))
-      .toBe('**Drew Rook** · Lethality 15% ×2 = 30% → 25 · **LETHAL**: a human target drops to 0 HP');
-    expect(formatDamage('Handler', '', { kind: 'dice', expr: '3', dice: [], mod: 3, total: 6, critical: true }))
-      .toBe('**Handler** · 3 → **6** damage (critical ×2)');
-    expect(formatDamage('Drew Rook', 'Knife', { kind: 'dice', expr: '1D4-1', dice: [3], mod: -1, total: 4, critical: true }))
-      .toBe('**Drew Rook** · Knife · 1D4-1 → **4** damage (3-1, critical ×2)');
-    expect(formatDamage('Drew Rook', '', { kind: 'lethality', rating: 10, roll: 100, killed: false, dice: [10, 10], total: 20, critical: false }))
-      .toBe('**Drew Rook** · Lethality 10% → 100 · **20** HP damage (10+10)');
+describe('formatEntry', () => {
+  const base = { agentName: 'Drew Rook', chance: 0, penalty: 0, outcome: '' };
+  it('formats plain dice', () => {
+    expect(formatEntry({ ...base, kind: 'dice', label: '2D6+1', dice: [4, 4], mod: 1, roll: 9 })).toBe('**Drew Rook** · 2D6+1 (4+4+1) → **9**');
+    expect(formatEntry({ ...base, kind: 'dice', label: '1D10', dice: [7], mod: 0, roll: 7 })).toBe('**Drew Rook** · 1D10 → **7**');
+  });
+  it('formats damage taken with what it means (p. 55)', () => {
+    expect(formatEntry({ ...base, kind: 'damage', label: '1D10', dice: [3], mod: 0, roll: 3, hpFrom: 11, hpTo: 8 }))
+      .toBe('**Drew Rook** takes **3** damage · 1D10 · HP 11 → 8');
+    expect(formatEntry({ ...base, kind: 'damage', label: '7', dice: [], mod: 0, roll: 7, hpFrom: 11, hpTo: 4 }))
+      .toBe('**Drew Rook** takes **7** damage · HP 11 → 4 · Stunned (p. 55)');
+    expect(formatEntry({ ...base, kind: 'damage', label: '2D6', dice: [6, 5], mod: 0, roll: 11, hpFrom: 11, hpTo: 0 }))
+      .toBe('**Drew Rook** takes **11** damage · 2D6 (6+5) · HP 11 → 0 · Dead (p. 55)');
+  });
+  it('leaves d% tests to formatRoll', () => {
+    expect(formatEntry({ agentName: 'Drew Rook', label: 'd%', chance: 45, penalty: 0, roll: 23, outcome: 'success' })).toMatch(/^\*\*Drew Rook\*\* · d% 45% → 23/);
   });
 });

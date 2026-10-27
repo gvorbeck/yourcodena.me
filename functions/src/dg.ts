@@ -2,7 +2,8 @@
 import { parseCharacter, type Character } from '../../src/model/character';
 import { effStat, freshLive, maxSanOf, parseLive, permStats, type Live } from '../../src/model/live';
 import { agentLabel } from '../../src/model/names';
-import { derived, liveOutcome, parseDice, rollDice, skillsOf } from '../../src/rules';
+import { derived, diceText, liveOutcome, parseDice, rollDice, skillsOf, testOutcome } from '../../src/rules';
+import type { DamageEntry, DiceEntry, TestEntry } from '../../src/rules/outcome';
 import { STATS, STAT_NAMES } from '../../src/rules/data/creation';
 
 export interface Test { id: string; label: string; name: string; chance: number; skill: boolean }
@@ -57,37 +58,40 @@ export function sheetLines({ name, c, l }: Agent): string[] {
   ];
 }
 
-// ---- Damage (Agent's Handbook pp. 56–57). Not a percentile test, so it never goes in the roll log.
-export type Damage =
-  | { kind: 'dice'; expr: string; dice: number[]; mod: number; total: number; critical: boolean }
-  | { kind: 'lethality'; rating: number; roll: number; killed: boolean; dice: [number, number]; total: number; critical: boolean };
+// ---- Plain dice: `/dg roll test:2D6+1` (anything you roll outward, like damage you deal) and `/dg damage` (HP you lose).
+export interface DiceRoll { expr: string; dice: number[]; mod: number; total: number }
 
-const LETHALITY = /^(?:l|lethality)\s*(\d{1,3})\s*%?$|^(\d{1,3})\s*%$/i;
-
-/** A modifier as written after dice: "+1", "-2", or nothing. */
-export const modText = (mod: number) => (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : '');
-
-/**
- * "1D10", "2D6+1", "3" (flat), or a Lethality rating "L15" / "15%". A critical attack doubles damage (p. 52); for Lethality
- * it doubles the rating and, if the target survives, the damage (p. 57). `rand(n)` returns 1…n.
- */
-export function rollDamage(input: string, critical: boolean, rand: (sides: number) => number): Damage | null {
-  const s = input.trim();
-  const l = LETHALITY.exec(s);
-  if (l) {
-    const rating = Number(l[1] ?? l[2]);
-    if (rating < 1 || rating > 100) return null;
-    const roll = rand(100);
-    // Failed Lethality: the two percentile dice added as d10s, 0 counting as 10 (so 80 is 8 + 10).
-    const dice: [number, number] = [Math.floor((roll % 100) / 10) || 10, roll % 10 || 10];
-    const killed = roll <= (critical ? rating * 2 : rating);
-    const sum = dice[0] + dice[1];
-    return { kind: 'lethality', rating, roll, killed, dice, total: killed ? 0 : critical ? sum * 2 : sum, critical };
-  }
-  const p = parseDice(s);
+/** "1D10", "2D6+1", "1D4-1" or a flat "3", rolled with `rand(n)` → 1…n. Null when it isn't dice notation. */
+export function rollExpression(input: string, rand: (sides: number) => number): DiceRoll | null {
+  const p = parseDice(input);
   if (!p) return null;
   const dice = rollDice(p, rand);
-  const sum = (p.sides ? dice.reduce((a, b) => a + b, 0) : p.count) + p.mod;
-  const expr = p.sides ? `${p.count}D${p.sides}${modText(p.mod)}` : `${p.count}${modText(p.mod)}`;
-  return { kind: 'dice', expr, dice, mod: p.mod, total: Math.max(0, critical ? sum * 2 : sum), critical };
+  return { expr: diceText(p), dice, mod: p.mod, total: Math.max(0, (p.sides ? dice.reduce((a, b) => a + b, 0) : p.count) + p.mod) };
+}
+
+/** True for real dice ("2D6+1"), false for a flat number or anything else: a number typed into `test:` means d%. */
+export const isDice = (input: string) => Boolean(parseDice(input)?.sides);
+
+/** A plain d% roll against a typed number ("45"), with the same signed modifier as a test. No sheet penalties apply. */
+export function rollAgainst(target: number, roll: number, modifier = 0): Omit<TestEntry, 'agentName'> {
+  const chance = Math.max(0, target + modifier);
+  return { label: 'd%', chance, penalty: Math.max(0, -modifier), roll, outcome: testOutcome(roll, chance) };
+}
+
+/** The roll-log entry for plain dice. */
+export const diceEntry = (r: DiceRoll, agentName: string): DiceEntry =>
+  ({ kind: 'dice', label: r.expr, dice: r.dice, mod: r.mod, roll: r.total, agentName, chance: 0, penalty: 0, outcome: '' });
+
+/**
+ * `/dg damage` against a stored agent doc: HP before and after (never below 0, p. 55), the Firestore update, and the
+ * roll-log entry. Reads only `live.hp`, so a sheet that won't fully parse still takes damage; a sheet whose live
+ * play hasn't been saved yet starts from its fresh state.
+ */
+export function applyHit(d: { name?: unknown; codename?: unknown; character?: unknown; live?: { hp?: unknown } | null }, hit: DiceRoll, agentName: string, now: number) {
+  const hp = d.live?.hp;
+  const fresh = typeof hp === 'number' ? null : freshLive(parseCharacter(d.character));
+  const hpFrom = fresh ? fresh.hp : (hp as number), hpTo = Math.max(0, hpFrom - hit.total);
+  const update: Record<string, unknown> = fresh ? { live: { ...fresh, hp: hpTo }, updatedAt: now } : { 'live.hp': hpTo, updatedAt: now };
+  const entry: DamageEntry = { ...diceEntry(hit, agentName), kind: 'damage', hpFrom, hpTo };
+  return { update, entry };
 }

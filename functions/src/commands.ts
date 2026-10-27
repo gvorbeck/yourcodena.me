@@ -1,26 +1,22 @@
-// The /dg command as registered with Discord (npm run discord:register). Option types: 1 subcommand, 3 string, 4 integer, 5 boolean.
+// The /dg command as registered with Discord (npm run discord:register). Option types: 1 subcommand, 3 string, 4 integer.
 export const DG = {
   name: 'dg',
   description: 'Play your yourcodena.me Agent',
   contexts: [0], // server channels only
   options: [
-    { type: 1, name: 'roll', description: 'Roll a test for your Agent', options: [
-      { type: 3, name: 'test', description: 'Stat, Luck, SAN or skill', required: true, autocomplete: true },
-      { type: 4, name: 'modifier', description: '-20 for a penalty, 20 for a bonus', min_value: -100, max_value: 100 },
+    { type: 1, name: 'roll', description: 'Roll a test for your Agent, or any dice', options: [
+      { type: 3, name: 'test', description: 'Stat, Luck, SAN, skill, or dice like 2D6+1', required: true, autocomplete: true },
+      { type: 4, name: 'modifier', description: 'Tests only: -20 for a penalty, 20 for a bonus', min_value: -100, max_value: 100 },
     ] },
     { type: 1, name: 'r', description: 'Short for /dg roll', options: [
-      { type: 3, name: 't', description: 'Test: stat, Luck, SAN or skill', required: true, autocomplete: true },
+      { type: 3, name: 't', description: 'Test: stat, Luck, SAN, skill, or dice like 2D6+1', required: true, autocomplete: true },
       { type: 4, name: 'm', description: 'Modifier: -20 for a penalty, 20 for a bonus', min_value: -100, max_value: 100 },
     ] },
-    { type: 1, name: 'damage', description: 'Roll damage: 1D10, 2D6+1, or Lethality like L15', options: [
-      { type: 3, name: 'dice', description: 'Dice (1D10, 2D6+1, 3) or Lethality (L15 or 15%)', required: true, max_length: 20 },
-      { type: 5, name: 'critical', description: 'The attack was a critical: double damage (and Lethality rating)' },
-      { type: 3, name: 'label', description: 'Weapon or note, e.g. Glock 17', max_length: 60 },
+    { type: 1, name: 'damage', description: 'Your Agent gets hurt: roll or enter the damage and it comes off your HP', options: [
+      { type: 3, name: 'dice', description: 'Damage taken: 1D10, 2D6+1, or a number like 7', required: true, max_length: 20 },
     ] },
     { type: 1, name: 'd', description: 'Short for /dg damage', options: [
-      { type: 3, name: 'd', description: 'Dice: 1D10, 2D6+1, 3, or Lethality L15', required: true, max_length: 20 },
-      { type: 5, name: 'c', description: 'Critical: double damage (and Lethality rating)' },
-      { type: 3, name: 'l', description: 'Label: weapon or note', max_length: 60 },
+      { type: 3, name: 'd', description: 'Damage taken: 1D10, 2D6+1, or a number like 7', required: true, max_length: 20 },
     ] },
     { type: 1, name: 'sheet', description: "Your Agent's HP, WP, SAN and BP (only you see it)" },
     { type: 1, name: 'claim', description: 'Play an Agent from the linked game', options: [

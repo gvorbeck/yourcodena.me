@@ -22,3 +22,22 @@ export function setDelta(prev: unknown, next: unknown) {
   const a = Array.isArray(prev) ? prev : [], b = Array.isArray(next) ? next : [];
   return { add: b.filter((x) => !a.includes(x)), remove: a.filter((x) => !b.includes(x)) };
 }
+
+/** `obj` with the leaf at `path` set to `v` (or deleted for REMOVED); untouched branches are shared, not copied. */
+function setPath(obj: unknown, path: string[], v: unknown): unknown {
+  if (!path.length) return v;
+  const [k, ...rest] = path, o = { ...(isObj(obj) ? obj : {}) };
+  if (!rest.length && v === REMOVED) delete o[k];
+  else o[k] = setPath(o[k], rest, v);
+  return o;
+}
+
+/**
+ * Three-way merge for a value someone else saved while this tab had it open: `local` plus every leaf that `remote`
+ * changed from `base` (what this tab last read or wrote), except leaves `local` changed too, which stay local.
+ */
+export function mergeRemote<T>(base: T, local: T, remote: T): T {
+  const mine = diffPaths(base, local).map(([p]) => p);
+  const overlaps = (p: string[]) => mine.some((m) => m.length <= p.length ? m.every((k, i) => k === p[i]) : p.every((k, i) => k === m[i]));
+  return diffPaths(base, remote).reduce<unknown>((out, [p, v]) => (overlaps(p) ? out : setPath(out, p, v)), local) as T;
+}

@@ -1,6 +1,7 @@
 import type { Character } from '../model/character';
 import { STATS, STAT_SETS, POINT_BUY_TOTAL, VETERANS, FEATURES, type Stat } from './data/creation';
 import { PROFESSIONS, type ProfessionDef } from './data/professions';
+import { modText } from './outcome';
 import { BASE_RATINGS, BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, MAX_SKILL, TYPED_SKILLS, baseRating, familyOf, makeKey, typeOf } from './data/skills';
 
 // ---- Statistics (pp. 14, 18–19)
@@ -45,6 +46,8 @@ export function parseDice(expr: string): Dice | null {
   const sides = Number(m[2]);
   return count >= 1 && sides >= 1 && sides <= 100 ? { count, sides, mod } : null;
 }
+/** Parsed dice written back out the standard way: "2D6+1", "3". */
+export const diceText = (d: Dice) => `${d.sides ? `${d.count}D${d.sides}` : d.count}${modText(d.mod)}`;
 /** Rolls parsed dice with `face(sides)` → 1…sides, returning each die (empty for a flat number). */
 export const rollDice = (d: Dice, face: (sides: number) => number) => Array.from({ length: d.sides ? d.count : 0 }, () => face(d.sides));
 /** "1D6", "1D6+2" or "3" → a total (never below 0); null when it isn't dice notation. */

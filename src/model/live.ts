@@ -126,6 +126,8 @@ export class UndoStack {
     this.snaps = [...this.snaps, { snap, label: describeChange(before, after, bondNames) }].slice(-30);
     return true;
   }
+  /** Forget every step: used when someone else's change arrives, so undo can't quietly revert it. */
+  clear() { this.snaps = []; }
   undo(current: Live): Live | null {
     const top = this.snaps.pop();
     return top ? { ...top.snap, notes: current.notes } : null;
