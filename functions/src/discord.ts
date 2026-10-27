@@ -1,5 +1,5 @@
 import { createPublicKey, verify } from 'node:crypto';
-import { d100Text, diceLabel, hurtNote, testText, type RollEntry, type TestEntry } from '../../src/rules/outcome';
+import { asLoss, d100Text, diceLabel, testText, type RollEntry, type TestEntry } from '../../src/rules/outcome';
 
 /** A roll-log entry as stored at games/{gameId}/rolls/{rollId} (see src/rules/outcome.ts for the kinds). */
 export type Roll = RollEntry;
@@ -52,13 +52,15 @@ export function verifyDiscord(publicKeyHex: string, signatureHex: string, timest
 }
 
 /**
- * Any roll-log entry as a Discord line: a d% test (formatRoll), `**Drew Rook** · 2D6+1 (4+4+1) → **9**`, or
- * `**Drew Rook** takes **7** damage · 1D10 · HP 11 → 4 · Stunned (p. 55)`.
+ * Any roll-log entry as a Discord line: a d% test (formatRoll), `**Drew Rook** · 2D6+1 (4+4+1) → **9**`,
+ * `**Drew Rook** loses **7** HP · 1D10 · HP 11 → 4 · Stunned (p. 55)`, or
+ * `**Drew Rook** loses **4** SAN (violence) · 0/1D6 · SAN 55 → 51 · Failed the SAN test (rolled 63 against 55%).`
  */
 export function formatEntry(r: Roll): string {
   if (!r.kind) return formatRoll(r);
   const who = `**${plain(r.agentName) || 'Someone'}**`, dice = diceLabel(plain(r.label), r.dice, r.mod); // the detail is only digits and signs
   if (r.kind === 'dice') return `${who} · ${dice} → **${r.roll}**`;
-  const note = hurtNote(r.hpFrom, r.hpTo);
-  return `${who} takes **${r.roll}** damage${r.dice.length ? ` · ${dice}` : ''} · HP ${r.hpFrom} → ${r.hpTo}${note ? ` · ${note}` : ''}`;
+  const l = asLoss(r);
+  const rolled = l.label === String(l.roll) ? '' : ` · ${dice}`; // a flat "7" would only repeat the amount
+  return `${who} loses **${l.roll}** ${l.stat}${l.cause ? ` (${plain(l.cause)})` : ''}${rolled} · ${l.stat} ${l.from} → ${l.to}${l.notes.map((n) => ` · ${n}`).join('')}`;
 }

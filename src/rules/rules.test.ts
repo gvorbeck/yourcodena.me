@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
 import { blocking, filterSkills, liveOutcome, parseDice, parseLoss, rollExpr, rollLoss, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { asciiSheet } from '../model/sheet';
-import { diceDetail, diceLabel, hurtNote } from './outcome';
+import { asLoss, diceDetail, diceLabel, hurtNote } from './outcome';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
 
@@ -349,5 +349,12 @@ describe('roll-log entries that aren\'t d% tests', () => {
     expect(hurtNote(5, 2)).toBe('Stunned · Unconscious, CON×5 test for permanent injury (p. 55)');
     expect(hurtNote(3, 2)).toBe('Unconscious, CON×5 test for permanent injury (p. 55)');
     expect(hurtNote(4, 0)).toBe('Dead (p. 55)');
+  });
+});
+
+describe('asLoss', () => {
+  it('reads old damage entries as HP losses', () => {
+    const old = { kind: 'damage' as const, label: '7', dice: [], mod: 0, roll: 7, hpFrom: 11, hpTo: 4, agentName: 'A', chance: 0, penalty: 0, outcome: '' };
+    expect(asLoss(old)).toMatchObject({ kind: 'loss', stat: 'HP', from: 11, to: 4, notes: ['Stunned (p. 55)'] });
   });
 });

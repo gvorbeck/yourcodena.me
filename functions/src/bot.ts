@@ -1,16 +1,18 @@
 // /dg command handling. Discord sends each command (and each autocomplete keystroke) here; the reply goes back in the HTTP response.
 import { randomInt } from 'node:crypto';
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, getFirestore, type DocumentData, type DocumentReference } from 'firebase-admin/firestore';
+import { REMOVED, type Change } from '../../src/lib/diff';
+import { SAN_KINDS, type SanKind } from '../../src/model/live';
 import { isGameId } from '../../src/lib/gameId';
 import { agentLabel } from '../../src/model/names';
 import { diceText, isSuccess, parseDice } from '../../src/rules';
-import { agentOf, applyHit, choicesFor, diceEntry, findTest, isDice, rollAgainst, rollExpression, rollTest, sheetLines, type Agent } from './dg.js';
+import { agentOf, applyHit, bondsOf, canProject, choicesFor, diceEntry, findTest, finishSan, isDice, planSan, rollAgainst, rollExpression, rollTest, sheetLines, type Agent, type Loss, type SanStake } from './dg.js';
 import { formatEntry, formatRoll, plain, type Roll } from './discord.js';
 
 interface Option { name: string; type: number; value?: string | number; focused?: boolean; options?: Option[] }
 export interface Interaction {
-  type: number; // 1 ping, 2 command, 4 autocomplete
-  data?: { name: string; options?: Option[] };
+  type: number; // 1 ping, 2 command, 3 button, 4 autocomplete
+  data?: { name?: string; options?: Option[]; custom_id?: string };
   guild_id?: string; channel_id?: string;
   member?: { user: { id: string; username?: string; global_name?: string | null }; nick?: string | null; permissions: string };
 }
@@ -24,6 +26,10 @@ const db = () => getFirestore();
 const reply = (content: string, ephemeral = false) =>
   ({ type: 4, data: { content, flags: ephemeral ? 64 : 0, allowed_mentions: { parse: [] } } });
 const choices = (list: { name: string; value: string }[]) => ({ type: 8, data: { choices: list } });
+/** A private message with its own content and buttons. */
+const privately = (data: { content: string; components?: unknown[] }) => ({ type: 4, data: { ...data, flags: 64, allowed_mentions: { parse: [] } } });
+/** Replace the message whose button was pressed (no buttons unless given). */
+const updateTo = (content: string, components: unknown[] = []) => ({ type: 7, data: { content, components, allowed_mentions: { parse: [] } } });
 
 /**
  * discordGuilds/{guildId}: { gameId, linkedBy, linkedAt }, so /dg works in every channel of the server.
@@ -72,6 +78,10 @@ async function claimed(gameId: string, user: string): Promise<{ id: string; name
 /** Just the claimed Agent's id: `/dg damage` reads the agent doc itself, inside its transaction. */
 const claimId = async (gameId: string, user: string) => (await claimRef(gameId, user).get()).get('agentId') as string | undefined;
 const face = (sides: number) => randomInt(1, sides + 1);
+/** Math.random-shaped, from the crypto generator, for the shared rules code (SAN loss). */
+const rng = () => randomInt(0, 2 ** 47) / 2 ** 47;
+/** Agent-doc leaves as Firestore update arguments: field path, value, field path, value… */
+export const toPairs = (leaves: Change[]) => leaves.flatMap(([path, v]) => [new FieldPath(...path), v === REMOVED ? FieldValue.delete() : v]);
 /** A number typed into `test:` ("45") is a plain d% roll against it. */
 const TARGET = /^\d{1,3}$/;
 /** Who rolled: the claimed Agent, else the player's server nickname, display name or username. */
@@ -86,6 +96,113 @@ const hasWebhook = async (gameId: string) => Boolean((await db().doc(`gameSecret
 export const answer = (text: string, viaWebhook: boolean) =>
   (viaWebhook ? reply(`${text}\n-# Posted to the game's dice channel.`, true) : reply(text));
 
+/** A roll-log entry as written; `answered` tells rollToDiscord the bot already posted it in the channel. */
+const logged = (e: Roll, agentId: string, viaWebhook: boolean, now: number) =>
+  ({ ...e, agentId, createdAt: now, source: 'discord', ...(viaWebhook ? {} : { answered: true }) });
+const rollsOf = (gameId: string) => db().collection(`games/${gameId}/rolls`);
+
+/**
+ * The one transaction for `/dg damage` and `/dg san`: apply `rule` to the stored agent doc, write only the leaves it
+ * changed (an open sheet merges them in, pages/Agent.tsx), and log the entry, so two losses landing at once both count.
+ * `settles` is a held SAN loss to clear in the same transaction; if it's already gone (a double click), nothing happens.
+ * Null when the Agent is no longer in the game.
+ */
+async function commitLoss(gameId: string, agentId: string, viaWebhook: boolean, now: number,
+  rule: (d: DocumentData, agentName: string) => Loss | { error: string }, settles?: DocumentReference): Promise<Loss | { error: string } | null> {
+  const ref = db().doc(`games/${gameId}/agents/${agentId}`);
+  return db().runTransaction(async (tx) => {
+    const [snap, held] = await Promise.all([tx.get(ref), settles && tx.get(settles)]);
+    if (settles && !held?.exists) return { error: 'This SAN loss is already settled.' };
+    if (!snap.exists) return null;
+    const r = rule(snap.data()!, agentLabel(snap.get('codename'), snap.get('name')));
+    if ('error' in r) return r;
+    const [field, value, ...rest] = [...toPairs(r.leaves), 'updatedAt', now];
+    tx.update(ref, field as FieldPath, value, ...rest);
+    tx.create(rollsOf(gameId).doc(), logged(r.entry, agentId, viaWebhook, now));
+    if (settles) tx.delete(settles);
+    return r;
+  });
+}
+
+// ---- /dg san with projection (p. 74). A failed SAN loss that projecting could reduce is held in discordPending/{agentId}
+// while the player decides, in a private message with buttons: project or take it, then (after the 1D4 WP roll) which
+// Bond. Only then is it applied and posted for everyone. The SAN test itself is logged and posted straight away, so it's
+// on record and can't be re-rolled; `/dg san` while one is held shows the same choice again.
+interface HeldSan extends SanStake { gameId: string; agentId: string; userId: string; testLine: string; createdAt: number; n?: number }
+const heldRef = (agentId: string) => db().doc(`discordPending/${agentId}`);
+type Button = { type: 2; style: 1 | 2; label: string; custom_id: string };
+const rows = (buttons: Button[]) => Array.from({ length: Math.ceil(buttons.length / 5) }, (_, r) => ({ type: 1, components: buttons.slice(r * 5, r * 5 + 5) })).slice(0, 5);
+
+/** The private choice for a held loss: project or take it, or (once the 1D4 is rolled) which Bond. */
+export function sanChoice(h: HeldSan, a: Agent, name: string) {
+  const after = Math.max(0, a.l.san - h.amount);
+  if (h.n === undefined) return {
+    content: `${h.testLine ? `${h.testLine}\n` : ''}**${plain(name)}** is about to lose **${h.amount} SAN** (${h.kind}) · SAN ${a.l.san} → ${after}.\n`
+      + `Project it onto a Bond? You spend 1D4 WP (you have ${a.l.wp}). If you keep at least 1 WP, the loss and one Bond both drop by that much (p. 74).`,
+    components: rows([
+      { type: 2, style: 1, label: 'Project onto a Bond (1D4 WP)', custom_id: `san:project:${h.agentId}` },
+      { type: 2, style: 2, label: 'Take the loss', custom_id: `san:take:${h.agentId}` },
+    ]),
+  };
+  const n = h.n, bonds = bondsOf(a), fit = bonds.filter((b) => b.score >= n), pick = fit.length ? fit : bonds;
+  return {
+    content: `Rolled **${n}**: spend ${n} WP (${a.l.wp} → ${a.l.wp - n}) and lose ${n} less SAN (${h.amount} → ${Math.max(0, h.amount - n)}). Which Bond takes ${n}?`
+      + (fit.length ? '' : '\nNo Bond has that many points: the one you pick drops to 0.'),
+    components: rows(pick.map((b) => ({ type: 2, style: 1, label: `${b.name} (${b.score} → ${Math.max(0, b.score - n)})`.slice(0, 80), custom_id: `san:bond:${h.agentId}:${b.i}` }))),
+  };
+}
+
+/** The settled loss: privately where the buttons were (with a webhook, which posts it) or publicly as a new message. */
+function sanSettled(out: Loss | { error: string } | null, testLine: string, viaWebhook: boolean, fromButton: boolean) {
+  if (!out) return reply('Your claimed Agent is no longer in this game.', true);
+  if ('error' in out) return fromButton ? updateTo(out.error) : reply(out.error, true);
+  const text = formatEntry(out.entry);
+  if (!viaWebhook) return reply(testLine ? `${testLine}\n${text}` : text); // nothing else will post the SAN test
+  return fromButton ? updateTo(`${text}\n-# Posted to the game's dice channel.`) : answer(text, true);
+}
+
+/**
+ * Who may settle a held loss: the player who rolled it, whoever claims that Agent now (the old player may have left),
+ * or anyone with Manage Channels (the Handler), so a held loss can never get stuck.
+ */
+export const maySettle = (h: { userId: string }, presser: string, claimsAgent: boolean, manage: boolean) => h.userId === presser || claimsAgent || manage;
+
+/** A press on one of sanChoice's buttons. */
+async function sanButton(i: Interaction, now: number): Promise<object> {
+  const [, action, agentId, bond] = String(i.data?.custom_id ?? '').split(':');
+  const presser = i.member?.user.id ?? '';
+  const ref = heldRef(agentId ?? ''), held = agentId ? await ref.get() : null;
+  if (!held?.exists) return updateTo('This SAN loss is already settled.');
+  const h = held.data() as HeldSan;
+  const manage = (BigInt(i.member?.permissions ?? '0') & MANAGE_CHANNELS) !== 0n;
+  const [viaWebhook, claim, doc] = await Promise.all([
+    hasWebhook(h.gameId), claimId(h.gameId, presser), db().doc(`games/${h.gameId}/agents/${agentId}`).get(),
+  ]);
+  if (!maySettle(h, presser, claim === agentId, manage)) return reply('Only the player of this Agent (or someone with Manage Channels) can decide this SAN loss.', true);
+  if (!doc.exists) { await ref.delete(); return updateTo('That Agent is no longer in the game.'); }
+  const settle = async (projection: { bond: number; n: number } | null) => sanSettled(
+    await commitLoss(h.gameId, agentId, viaWebhook, now, (d, name) => finishSan(agentOf(d), h, projection, name, rng), ref), h.testLine, viaWebhook, true);
+  if (action === 'take') return settle(null);
+  const a = agentOf(doc.data()!), name = agentLabel(doc.get('codename'), doc.get('name'));
+  if (action === 'project') {
+    // Rolled once, inside a transaction: a double click gets the same roll back, never a second one.
+    const n = await db().runTransaction(async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists) return null;
+      if (typeof s.get('n') === 'number') return s.get('n') as number;
+      const rolled = face(4);
+      tx.update(ref, { n: rolled });
+      return rolled;
+    });
+    if (n === null) return updateTo('This SAN loss is already settled.');
+    if (a.l.wp - n < 1) return settle({ bond: bondsOf(a)[0]?.i ?? 0, n }); // WP runs out: it's spent and the loss stands
+    const c = sanChoice({ ...h, n }, a, name);
+    return updateTo(c.content, c.components);
+  }
+  if (action === 'bond' && h.n !== undefined) return settle({ bond: Number(bond), n: h.n });
+  return updateTo('That choice has expired. Run `/dg san` again to see it.');
+}
+
 /** Short forms registered in commands.ts: `/dg r t: m:` is `/dg roll test: modifier:`, `/dg d d:` is `/dg damage dice:`. */
 const ALIASES: Record<string, { name: string; options: Record<string, string> }> = {
   r: { name: 'roll', options: { t: 'test', m: 'modifier' } },
@@ -98,6 +215,7 @@ const expand = (o: Option): Option => {
 
 export async function handle(i: Interaction, now = Date.now()): Promise<object> {
   if (i.type === 1) return { type: 1 };
+  if (i.type === 3) return sanButton(i, now);
   const raw = i.data?.options?.[0];
   const sub = raw && expand(raw);
   const user = i.member?.user.id;
@@ -165,9 +283,7 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     return reply(`**${plain(a.label)}** is free to claim.`);
   }
 
-  // Every roll is logged, so it shows in the game page's roll log; rollToDiscord posts it unless the bot already answered.
-  const logEntry = (e: Roll, agentId: string, viaWebhook: boolean) =>
-    ({ ...e, agentId, createdAt: now, source: 'discord', ...(viaWebhook ? {} : { answered: true }) });
+  const logEntry = (e: Roll, agentId: string, viaWebhook: boolean) => logged(e, agentId, viaWebhook, now);
 
   // `/dg roll test:2D6+1` (plain dice for anything rolled outward: damage dealt, a random table) and `/dg roll test:45`
   // (d% against a number). No claim needed, so the Handler can roll too.
@@ -184,25 +300,48 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     return answer(formatEntry(e), viaWebhook);
   }
 
-  // `/dg damage dice:1D10`: your Agent gets hurt. The HP comes off their sheet on the site (HP never below 0, p. 55),
-  // and an open sheet merges it in (pages/Agent.tsx).
+  const claimFirst = () => reply('Claim your Agent first (`/dg claim`), so it comes off the right sheet.', true);
+
+  // `/dg damage dice:1D10`: your Agent gets hurt (HP never below 0, p. 55).
   if (sub.name === 'damage') {
     const hit = rollExpression(String(opt('dice')?.value ?? ''), face);
     if (!hit) return reply('Use dice like `1D10` or `2D6+1`, or a number like `7`.', true);
     const [agentId, viaWebhook] = await Promise.all([claimId(gameId, user), hasWebhook(gameId)]);
-    if (!agentId) return reply('Claim your Agent first (`/dg claim`), so the damage comes off the right sheet.', true);
-    const ref = db().doc(`games/${gameId}/agents/${agentId}`);
-    // A transaction, so two hits landing at once both come off.
-    const e = await db().runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      if (!snap.exists) return null;
-      const { update, entry } = applyHit(snap.data()!, hit, agentLabel(snap.get('codename'), snap.get('name')), now);
-      tx.update(ref, update);
-      tx.create(db().collection(`games/${gameId}/rolls`).doc(), logEntry(entry, agentId, viaWebhook));
-      return entry;
-    });
-    if (!e) return reply('Your claimed Agent is no longer in this game. Use `/dg claim` again.', true);
-    return answer(formatEntry(e), viaWebhook);
+    if (!agentId) return claimFirst();
+    const out = await commitLoss(gameId, agentId, viaWebhook, now, (d, name) => applyHit(d, hit, name));
+    if (!out) return reply('Your claimed Agent is no longer in this game. Use `/dg claim` again.', true);
+    return 'error' in out ? reply(out.error, true) : answer(formatEntry(out.entry), viaWebhook);
+  }
+
+  // `/dg san loss:0/1D6 kind:violence`: SAN test and loss with the live sheet's rules (pp. 66–74), holding the loss for
+  // a private projection choice when projecting could reduce it (see sanChoice).
+  if (sub.name === 'san') {
+    const kind = String(opt('kind')?.value ?? '') as SanKind;
+    if (!SAN_KINDS.includes(kind)) return reply('Pick violence, helplessness or unnatural.', true);
+    const [agentId, viaWebhook] = await Promise.all([claimId(gameId, user), hasWebhook(gameId)]);
+    if (!agentId) return claimFirst();
+    const [doc, held] = await Promise.all([db().doc(`games/${gameId}/agents/${agentId}`).get(), heldRef(agentId).get()]);
+    if (!doc.exists) return reply('Your claimed Agent is no longer in this game. Use `/dg claim` again.', true);
+    const a = agentOf(doc.data()!), name = agentLabel(doc.get('codename'), doc.get('name'));
+    if (held.exists) {
+      // One loss at a time: settle the waiting one first. Say so, so the new loss isn't mistaken for handled.
+      const c = sanChoice(held.data() as HeldSan, a, name);
+      return privately({ ...c, content: `A SAN loss is already waiting for **${plain(name)}**. Settle it first; your new loss (\`${plain(String(opt('loss')?.value ?? ''), 20)}\`) wasn't rolled.\n\n${c.content}` });
+    }
+    const plan = planSan(a, String(opt('loss')?.value ?? ''), kind, rng);
+    if ('error' in plan) return reply(plan.error, true);
+    let testLine = '';
+    if (plan.test) {
+      const t: Roll = { ...plan.test, agentName: name };
+      await rollsOf(gameId).add(logged(t, agentId, viaWebhook, now));
+      testLine = formatEntry(t);
+    }
+    if (!canProject(a, plan.stake.amount)) {
+      return sanSettled(await commitLoss(gameId, agentId, viaWebhook, now, (d, n) => finishSan(agentOf(d), plan.stake, null, n, rng)), testLine, viaWebhook, false);
+    }
+    const h: HeldSan = { ...plan.stake, gameId, agentId, userId: user, testLine, createdAt: now };
+    await heldRef(agentId).set(h);
+    return privately(sanChoice(h, a, name));
   }
 
   const me = await myAgent(gameId, user);

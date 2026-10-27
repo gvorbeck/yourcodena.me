@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from '../../src/model/character';
-import { freshLive } from '../../src/model/live';
-import { agentOf, applyHit, choicesFor, diceEntry, findTest, isDice, rollAgainst, rollExpression, rollTest, sheetLines, testsOf } from './dg';
+import { freshLive, type Live } from '../../src/model/live';
+import { agentOf, applyHit, bondsOf, canProject, choicesFor, diceEntry, findTest, finishSan, isDice, planSan, rollAgainst, rollExpression, rollTest, sheetLines, testsOf } from './dg';
 
 const agent = (live?: Partial<ReturnType<typeof freshLive>>) => {
   const c = newCharacter();
@@ -93,18 +93,80 @@ describe('isDice and rollAgainst', () => {
 describe('applyHit', () => {
   const hit = { expr: '1D10', dice: [7], mod: 0, total: 7 };
   it('writes only live.hp when the sheet has been played, never below 0', () => {
-    expect(applyHit({ live: { hp: 11 } }, hit, 'Drew Rook', 5)).toEqual({
-      update: { 'live.hp': 4, updatedAt: 5 },
-      entry: { ...diceEntry(hit, 'Drew Rook'), kind: 'damage', hpFrom: 11, hpTo: 4 },
+    expect(applyHit({ live: { hp: 11 } }, hit, 'Drew Rook')).toEqual({
+      leaves: [[['live', 'hp'], 4]],
+      entry: { ...diceEntry(hit, 'Drew Rook'), kind: 'loss', stat: 'HP', from: 11, to: 4, notes: ['Stunned (p. 55)'], hpFrom: 11, hpTo: 4 },
     });
-    expect(applyHit({ live: { hp: 3 } }, hit, 'Drew Rook', 5).update).toEqual({ 'live.hp': 0, updatedAt: 5 });
+    expect(applyHit({ live: { hp: 3 } }, hit, 'Drew Rook').entry).toMatchObject({ to: 0, notes: ['Dead (p. 55)'] });
   });
   it('needs only HP, so a sheet that won\'t parse still takes damage', () => {
-    expect(applyHit({ character: { broken: true }, live: { hp: 11 } }, hit, 'Drew Rook', 5).entry.hpTo).toBe(4);
+    expect(applyHit({ character: { broken: true }, live: { hp: 11 } }, hit, 'Drew Rook').entry.to).toBe(4);
   });
   it('starts from the fresh play state when live play was never saved', () => {
-    const { update, entry } = applyHit({ character: newCharacter(), live: null }, hit, 'Drew Rook', 5);
-    expect(entry).toMatchObject({ hpFrom: 10, hpTo: 3 });
-    expect(update).toMatchObject({ live: { hp: 3, wp: 10, san: 50 }, updatedAt: 5 });
+    const { leaves, entry } = applyHit({ character: newCharacter(), live: null }, hit, 'Drew Rook');
+    expect(entry).toMatchObject({ from: 10, to: 3 });
+    expect(leaves).toMatchObject([[['live'], { hp: 3, wp: 10, san: 50 }]]);
+  });
+});
+
+describe('SAN loss in steps', () => {
+  // Math.random-shaped values in order: the d% SAN test first, then each loss die.
+  const seq = (...xs: number[]) => { let i = 0; return () => xs[i++]; };
+  const agentWith = (live: Partial<Live> = {}, bond = 'Mom') => {
+    const c = newCharacter();
+    c.details.codename = 'Drew Rook';
+    c.bonds = [{ name: bond, note: '' }];
+    return agentOf({ character: c, live: { ...freshLive(c), ...live } });
+  };
+  const plan = (a: ReturnType<typeof agentWith>, loss: string, kind: 'violence' | 'unnatural', rng: () => number) => {
+    const p = planSan(a, loss, kind, rng);
+    if ('error' in p) throw new Error(p.error);
+    return p;
+  };
+
+  it('plans: fails the SAN test (logged on its own) and rolls the failure side', () => {
+    const p = plan(agentWith(), '0/1d6', 'violence', seq(0.62, 0.5));
+    expect(p.test).toEqual({ label: 'SAN (loss)', chance: 50, penalty: 0, roll: 63, outcome: 'failure' });
+    expect(p.stake).toEqual({ kind: 'violence', expr: '0/1D6', amount: 4, note: '' });
+  });
+  it('plans: plain dice skip the test; adaptation passes it automatically (p. 74)', () => {
+    expect(plan(agentWith(), '3', 'unnatural', seq())).toEqual({ stake: { kind: 'unnatural', expr: '3', amount: 3, note: '' }, test: null });
+    expect(plan(agentWith({ adapt: { v: 3, h: 0 } }), '0/1D6', 'violence', seq())).toMatchObject({
+      stake: { amount: 0, note: 'Adapted to violence: the SAN test automatically succeeds (p. 74).' }, test: null,
+    });
+    expect(planSan(agentWith(), 'lots', 'violence', seq())).toMatchObject({ error: expect.stringContaining('0/1D4') });
+  });
+  it('offers projection only when it can help (a loss, 2+ WP, a Bond with points)', () => {
+    expect(canProject(agentWith(), 4)).toBe(true);
+    expect(canProject(agentWith(), 0)).toBe(false);
+    expect(canProject(agentWith({ wp: 1 }), 4)).toBe(false);
+    expect(canProject(agentWith({ bonds: [0] }), 4)).toBe(false);
+    expect(canProject(agentWith({}, ''), 4)).toBe(false); // an unnamed Bond doesn't count
+    expect(bondsOf(agentWith())).toEqual([{ i: 0, name: 'Mom', score: 10 }]);
+  });
+  it('finishes without projecting: only what changed is written', () => {
+    const a = agentWith(), { stake } = plan(a, '0/1D6', 'violence', seq(0.62, 0.5));
+    expect(finishSan(a, stake, null, 'Drew Rook', seq())).toEqual({
+      leaves: [[['live', 'san'], 46], [['live', 'adapt', 'v'], 1]],
+      entry: expect.objectContaining({ kind: 'loss', stat: 'SAN', label: '0/1D6', roll: 4, from: 50, to: 46, cause: 'violence', notes: [] }),
+    });
+  });
+  it('finishes with a projection: WP and the Bond drop, and so does the loss (p. 74)', () => {
+    const a = agentWith(), stake = { kind: 'unnatural' as const, expr: '1D8', amount: 6, note: '' };
+    const r = finishSan(a, stake, { bond: 0, n: 3 }, 'Drew Rook', seq());
+    expect(r.entry).toMatchObject({ roll: 3, from: 50, to: 47 });
+    expect(r.entry.notes[0]).toBe('Mom 10 → 7');
+    expect(r.leaves).toEqual(expect.arrayContaining([[['live', 'wp'], 7], [['live', 'san'], 47], [['live', 'bonds'], [7]]]));
+  });
+  it('a projection that would leave 0 WP spends it and the loss stands', () => {
+    const r = finishSan(agentWith({ wp: 2 }), { kind: 'unnatural', expr: '6', amount: 6, note: '' }, { bond: 0, n: 3 }, 'Drew Rook', seq());
+    expect(r.entry).toMatchObject({ roll: 6, to: 44, notes: expect.arrayContaining(['Spent 3 WP but none is left: the loss stands.']) });
+    expect(r.leaves).toContainEqual([['live', 'wp'], 0]);
+  });
+  it('applies temporary insanity and Breaking Point from the sheet rules', () => {
+    const r = finishSan(agentWith({ san: 45, bp: 42 }), { kind: 'unnatural', expr: '5', amount: 5, note: '' }, null, 'Drew Rook', seq());
+    expect(r.entry.to).toBe(40);
+    expect(r.entry.notes.join(' ')).toMatch(/Temporary insanity.*Breaking Point reached/);
+    expect(r.leaves).toContainEqual([['live', 'bp'], 30]);
   });
 });

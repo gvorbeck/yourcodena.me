@@ -87,14 +87,17 @@ export function planSanLoss(l: Live, kind: SanKind, expr: string, test: () => { 
  * Spend 1D4 WP and strain a Bond by the same amount (pp. 74–75). If no WP is left afterwards nothing helps and the
  * Bond is spared (`ok` false); the WP is gone either way.
  */
-export function spendWillpower(c: Character, l: Live, bond: number, rng: Rng = Math.random): { live: Live; n: number; ok: boolean } {
-  const n = dice('1D4', rng), wp = Math.max(0, l.wp - n), score = caps(c, l).bondScore;
+/** Spend an already rolled `n` WP on a Bond (pp. 74–75): the Bond drops by `n` only if the Agent keeps at least 1 WP. */
+export function spendRolledWillpower(c: Character, l: Live, bond: number, n: number): { live: Live; n: number; ok: boolean } {
+  const wp = Math.max(0, l.wp - n), score = caps(c, l).bondScore;
   const ok = wp >= 1;
   return { live: { ...l, wp, bonds: ok ? withBond(l.bonds, bond, (l.bonds[bond] ?? score) - n, score) : l.bonds }, n, ok };
 }
+export const spendWillpower = (c: Character, l: Live, bond: number, rng: Rng = Math.random) => spendRolledWillpower(c, l, bond, dice('1D4', rng));
 
-export function project(c: Character, l: Live, pending: PendingSan, bond: number, rng: Rng = Math.random): { live: Live; pending: PendingSan; notes: string[] } {
-  const s = spendWillpower(c, l, bond, rng);
+/** Project a pending SAN loss onto a Bond with an already rolled `n` WP (p. 74). The Discord bot rolls first, then asks which Bond. */
+export function projectRolled(c: Character, l: Live, pending: PendingSan, bond: number, n: number): { live: Live; pending: PendingSan; notes: string[] } {
+  const s = spendRolledWillpower(c, l, bond, n);
   if (!s.ok) return { live: s.live, pending, notes: [`Spent ${s.n} WP but none is left: the loss stands.`] };
   return {
     live: s.live,
@@ -102,6 +105,8 @@ export function project(c: Character, l: Live, pending: PendingSan, bond: number
     notes: [`Projected onto a Bond: spent ${s.n} WP, SAN loss reduced by ${s.n}, Bond reduced by ${s.n}. Describe the strain (p. 74).`],
   };
 }
+
+export const project = (c: Character, l: Live, pending: PendingSan, bond: number, rng: Rng = Math.random) => projectRolled(c, l, pending, bond, dice('1D4', rng));
 
 /** `test` makes the SAN roll with the WP left after the spend (low WP still carries its penalty). */
 export function repress(c: Character, l: Live, bond: number, test: (wp: number) => boolean, rng: Rng = Math.random): Result {

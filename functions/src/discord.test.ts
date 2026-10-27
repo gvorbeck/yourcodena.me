@@ -71,13 +71,18 @@ describe('formatEntry', () => {
     expect(formatEntry({ ...base, kind: 'dice', label: '2D6+1', dice: [4, 4], mod: 1, roll: 9 })).toBe('**Drew Rook** · 2D6+1 (4+4+1) → **9**');
     expect(formatEntry({ ...base, kind: 'dice', label: '1D10', dice: [7], mod: 0, roll: 7 })).toBe('**Drew Rook** · 1D10 → **7**');
   });
-  it('formats damage taken with what it means (p. 55)', () => {
-    expect(formatEntry({ ...base, kind: 'damage', label: '1D10', dice: [3], mod: 0, roll: 3, hpFrom: 11, hpTo: 8 }))
-      .toBe('**Drew Rook** takes **3** damage · 1D10 · HP 11 → 8');
-    expect(formatEntry({ ...base, kind: 'damage', label: '7', dice: [], mod: 0, roll: 7, hpFrom: 11, hpTo: 4 }))
-      .toBe('**Drew Rook** takes **7** damage · HP 11 → 4 · Stunned (p. 55)');
+  it('formats HP and SAN lost, with what the rules say', () => {
+    const loss = { ...base, kind: 'loss' as const, dice: [] as number[], mod: 0 };
+    expect(formatEntry({ ...loss, stat: 'HP', label: '1D10', dice: [3], roll: 3, from: 11, to: 8, notes: [] }))
+      .toBe('**Drew Rook** loses **3** HP · 1D10 · HP 11 → 8');
+    expect(formatEntry({ ...loss, stat: 'HP', label: '7', roll: 7, from: 11, to: 4, notes: ['Stunned (p. 55)'] }))
+      .toBe('**Drew Rook** loses **7** HP · HP 11 → 4 · Stunned (p. 55)');
+    expect(formatEntry({ ...loss, stat: 'SAN', label: '0/1D6', roll: 4, from: 50, to: 46, cause: 'violence', notes: ['Failed the SAN test (rolled 63 against 50%).'] }))
+      .toBe('**Drew Rook** loses **4** SAN (violence) · 0/1D6 · SAN 50 → 46 · Failed the SAN test (rolled 63 against 50%).');
+  });
+  it('still reads damage entries logged before the shared shape', () => {
     expect(formatEntry({ ...base, kind: 'damage', label: '2D6', dice: [6, 5], mod: 0, roll: 11, hpFrom: 11, hpTo: 0 }))
-      .toBe('**Drew Rook** takes **11** damage · 2D6 (6+5) · HP 11 → 0 · Dead (p. 55)');
+      .toBe('**Drew Rook** loses **11** HP · 2D6 (6+5) · HP 11 → 0 · Dead (p. 55)');
   });
   it('leaves d% tests to formatRoll', () => {
     expect(formatEntry({ agentName: 'Drew Rook', label: 'd%', chance: 45, penalty: 0, roll: 23, outcome: 'success' })).toMatch(/^\*\*Drew Rook\*\* · d% 45% → 23/);

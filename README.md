@@ -108,13 +108,14 @@ Functions deploy before Hosting, so a new build never calls a Function that isn'
 | --- | --- | --- |
 | `budgetKillSwitch` | us-east1 | Turns billing off at the $5 budget (next section) |
 | `discordWebhook` | us-central1 | Game page Discord panel: connect, disconnect, status |
-| `rollToDiscord` | us-central1 | Posts each new roll-log entry (d% tests, `/dg roll` dice, `/dg damage`) to the game's Discord webhook, unless the bot already answered in the channel |
+| `rollToDiscord` | us-central1 | Posts each new roll-log entry (d% tests, `/dg roll` dice, `/dg damage` and `/dg san` losses) to the game's Discord webhook, unless the bot already answered in the channel |
 | `discordBot` | us-central1 | Discord's Interactions Endpoint for `/dg` (link, claim, roll, sheet) |
 
 Firestore triggers have to run in `us-central1`, because the database is in `nam5`. Three collections are Functions-only, and the rules deny browsers entirely:
 
 - `gameSecrets/{gameId}`: the game's webhook URL.
 - `discordGuilds/{guildId}`: which game a Discord server plays (`/dg link`).
+- `discordPending/{agentId}`: a SAN loss held while its player decides whether to project it onto a Bond.
 - `discordChannels/{channelId}`: older per-channel links, still honoured and checked first.
 - `discordClaims/{gameId}_{userId}`: which Agent a Discord user plays.
 

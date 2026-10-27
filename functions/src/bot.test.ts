@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { answer, handle, rollerName } from './bot';
+import { FieldPath, FieldValue } from 'firebase-admin/firestore';
+import { REMOVED } from '../../src/lib/diff';
+import { newCharacter } from '../../src/model/character';
+import { freshLive } from '../../src/model/live';
+import { agentOf } from './dg';
+import { answer, handle, rollerName, sanChoice, toPairs } from './bot';
 import { DG } from './commands';
 
 describe('handle', () => {
@@ -41,5 +46,39 @@ describe('rollerName', () => {
     expect(rollerName(null, { ...member, nick: null })).toBe('Daniel');
     expect(rollerName(null, { ...member, nick: null, user: { id: '1', username: 'dan', global_name: null } })).toBe('dan');
     expect(rollerName(null)).toBe('Someone');
+  });
+});
+
+describe('toPairs', () => {
+  it('turns agent-doc leaves into update arguments, keeping dotted keys whole and deleting removed ones', () => {
+    const pairs = toPairs([[['live', 'hp'], 4], [['live', 'advance', 'Science(St. Louis)'], REMOVED]]);
+    expect(pairs[0]).toEqual(new FieldPath('live', 'hp'));
+    expect(pairs[1]).toBe(4);
+    expect(pairs[2]).toEqual(new FieldPath('live', 'advance', 'Science(St. Louis)'));
+    expect(pairs[3]).toEqual(FieldValue.delete());
+    expect(toPairs([])).toEqual([]);
+  });
+});
+
+describe('sanChoice', () => {
+  const c = newCharacter();
+  c.bonds = [{ name: 'Mom', note: '' }];
+  const a = agentOf({ character: c, live: freshLive(c) });
+  const held = { kind: 'violence' as const, expr: '1/1D8', amount: 6, note: '', gameId: 'g', agentId: 'A1', userId: 'u', testLine: '**Drew Rook** · SAN (loss) 50% → 63 · Failure', createdAt: 0 };
+  it('first asks whether to project', () => {
+    const r = sanChoice(held, a, 'Drew Rook');
+    expect(r.content).toContain('about to lose **6 SAN** (violence) · SAN 50 → 44');
+    expect(r.components[0].components.map((b) => b.custom_id)).toEqual(['san:project:A1', 'san:take:A1']);
+  });
+  it('after the 1D4, offers Bonds with enough points', () => {
+    const r = sanChoice({ ...held, n: 3 }, a, 'Drew Rook');
+    expect(r.content).toContain('Rolled **3**: spend 3 WP (10 → 7) and lose 3 less SAN (6 → 3)');
+    expect(r.components[0].components).toEqual([{ type: 2, style: 1, label: 'Mom (10 → 7)', custom_id: 'san:bond:A1:0' }]);
+  });
+  it('falls back to any Bond with points, warning it drops to 0', () => {
+    const low = agentOf({ character: c, live: { ...freshLive(c), bonds: [2] } });
+    const r = sanChoice({ ...held, n: 3 }, low, 'Drew Rook');
+    expect(r.content).toContain('drops to 0');
+    expect(r.components[0].components[0].label).toBe('Mom (2 → 0)');
   });
 });

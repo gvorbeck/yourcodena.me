@@ -148,7 +148,9 @@ export function loseStat(c: Character, l: Live, s: Stat, amount: number): { live
   return { live: { ...live, hp: Math.min(live.hp, d.hp), wp: Math.min(live.wp, d.wp) }, lost };
 }
 
-export type SanKind = 'violence' | 'helplessness' | 'unnatural';
+/** What caused a SAN loss; adaptation (p. 74) tracks violence and helplessness. */
+export const SAN_KINDS = ['violence', 'helplessness', 'unnatural'] as const;
+export type SanKind = (typeof SAN_KINDS)[number];
 
 /** p. 74: three SAN-losing hits of one kind in a row adapt the Agent; insanity or a Breaking Point resets the count. */
 export const adapt = (count: number, reset: boolean) => {

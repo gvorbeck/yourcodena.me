@@ -8,7 +8,7 @@ export const testText = (label: string, chance: number, pen: number) => `${label
 export const d100Text = (roll: number) => String(roll).padStart(2, '0');
 
 // ---- Roll-log entries. Tests have no `kind`; the Discord bot also logs plain dice and HP lost.
-export type RollKind = 'dice' | 'damage';
+export type RollKind = 'dice' | 'loss' | 'damage';
 interface EntryBase { agentName: string; label: string; roll: number; chance: number; penalty: number; outcome: string }
 /** A d% test: `chance` is after the penalty. */
 export type TestEntry = EntryBase & { kind?: undefined };
@@ -17,9 +17,23 @@ export type TestEntry = EntryBase & { kind?: undefined };
  * game pages opened before these entries existed still render them instead of crashing.
  */
 export type DiceEntry = EntryBase & { kind: 'dice'; dice: number[]; mod: number };
-/** HP lost through /dg damage: a DiceEntry plus the HP before and after. */
+export type LossStat = 'HP' | 'SAN';
+/**
+ * HP or SAN lost through /dg damage or /dg san: `label` is what was rolled ("1D10", "0/1D6"), `roll` the amount lost,
+ * `from`/`to` the stat before and after, `notes` what the rules say happened (stunned, temporary insanity…), and
+ * `cause` the kind of SAN loss (violence, helplessness, unnatural).
+ */
+export type LossEntry = EntryBase & {
+  kind: 'loss'; stat: LossStat; dice: number[]; mod: number; from: number; to: number; notes: string[]; cause?: string;
+  /** HP losses only: the old damage fields, so game pages opened before loss entries existed still show them right. */
+  hpFrom?: number; hpTo?: number;
+};
+/** HP lost, as /dg damage logged it before LossEntry (Oct 2026). Still in some roll logs, so still read. */
 export type DamageEntry = EntryBase & { kind: 'damage'; dice: number[]; mod: number; hpFrom: number; hpTo: number };
-export type RollEntry = TestEntry | DiceEntry | DamageEntry;
+export type RollEntry = TestEntry | DiceEntry | LossEntry | DamageEntry;
+/** Any loss entry in the current shape, so readers handle one kind. */
+export const asLoss = (r: LossEntry | DamageEntry): LossEntry =>
+  r.kind === 'loss' ? r : { ...r, kind: 'loss', stat: 'HP', from: r.hpFrom, to: r.hpTo, notes: [hurtNote(r.hpFrom, r.hpTo)].filter(Boolean) };
 /** A modifier as written after dice: "+1", "-2", or nothing. */
 export const modText = (mod: number) => (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : '');
 /** "(4+4+1)" when the total came from more than one number; '' for a single die or a flat number. */

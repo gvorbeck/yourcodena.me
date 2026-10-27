@@ -20,6 +20,10 @@ service cloud.firestore {
     match /discordChannels/{channelId} {
       allow read, write: if false;
     }
+    // A SAN loss held while its player decides whether to project it onto a Bond (functions/src/bot.ts).
+    match /discordPending/{agentId} {
+      allow read, write: if false;
+    }
     match /discordGuilds/{guildId} {
       allow read, write: if false;
     }

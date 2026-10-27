@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { d100Text, diceLabel, hurtNote, outcomeClass, testText } from '../rules/outcome';
+import { asLoss, d100Text, diceLabel, outcomeClass, testText } from '../rules/outcome';
 import { agentLabel } from '../model/names';
 import { useRun } from '../lib/useRun';
 import { copyLabel, copyNote, useCopy } from '../lib/useCopy';
@@ -13,7 +13,7 @@ import { Page } from './Page';
 // Lazy: ui/index brings in the rules and react-aria, which this page otherwise doesn't load. Delete loads it through run() first, so a failed load shows an inline error instead of crashing the page.
 const ConfirmDialog = lazy(() => import('../ui').then((m) => ({ default: m.ConfirmDialog })));
 
-/** Test, Roll and Result cells: a d% test, plain dice from Discord ("2D6+1 (4+4+1) → 9"), or HP lost ("HP 11 → 4"). */
+/** Test, Roll and Result cells: a d% test, plain dice from Discord ("2D6+1 (4+4+1) → 9"), or HP/SAN lost ("HP 11 → 4"). */
 function EntryCells({ r }: { r: RollDoc }) {
   if (!r.kind) return (<>
     <td>{testText(r.label, r.chance, r.penalty)}</td>
@@ -22,11 +22,11 @@ function EntryCells({ r }: { r: RollDoc }) {
   </>);
   const dice = diceLabel(r.label, r.dice, r.mod);
   if (r.kind === 'dice') return <><td>{dice}</td><td className="num"><b>{r.roll}</b></td><td className="dim">DICE</td></>;
-  const note = hurtNote(r.hpFrom, r.hpTo);
+  const l = asLoss(r);
   return (<>
-    <td>Damage {dice}</td>
-    <td className="num"><b>{r.roll}</b></td>
-    <td className="warn">HP {r.hpFrom} → {r.hpTo}{note && <><br /><small>{note}</small></>}</td>
+    <td>{l.stat} loss {dice}{l.cause && ` (${l.cause})`}</td>
+    <td className="num"><b>{l.roll}</b></td>
+    <td className="warn">{l.stat} {l.from} → {l.to}{l.notes.map((n) => <small key={n}><br />{n}</small>)}</td>
   </>);
 }
 
