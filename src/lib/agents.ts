@@ -36,6 +36,8 @@ type Pairs = (string | FieldPath | unknown)[];
 function saveField(g: string, a: string, field: 'character' | 'live', value: unknown, extra: Record<string, unknown> = {}) {
   const k = slot(g, a, field);
   const before = known.has(k) ? known.get(k) : undefined;
+  // shortcut: with no live sheet on the server yet, the first one is written whole, so if the Discord bot or another device writes
+  // one in the same second, the last write wins (watchLive merges any that arrive first). A transaction would close it, but not offline.
   const leaves = before === undefined ? [[[], value] as [string[], unknown]] : diffPaths(before, value);
   const main: Pairs = [], removals: Pairs = [];
   for (const [path, v] of leaves) {
@@ -58,15 +60,17 @@ function saveField(g: string, a: string, field: 'character' | 'live', value: unk
  * Calls `onRemote(remote, base)` whenever the agent's `live` on the server differs from what this tab last read or
  * wrote: someone else saved it (Discord damage, a skill checked from Discord, another device). The caller merges.
  * Own writes still in flight are skipped; their echo merges harmlessly because those leaves are local changes too.
+ * `base` is null when this tab has no live sheet on the server yet: the remote one is someone else's first (the Discord bot
+ * starts one from the fresh sheet), and remembering it makes this tab's next save send only its own changes, not a whole sheet.
  */
-export function watchLive(g: string, a: string, onRemote: (remote: Live, base: Live) => void): Unsubscribe {
+export function watchLive(g: string, a: string, onRemote: (remote: Live, base: Live | null) => void): Unsubscribe {
   const k = slot(g, a, 'live');
   return onSnapshot(agentRef(g, a), (snap) => {
     const base = known.get(k) as Live | null | undefined;
-    if (snap.metadata.hasPendingWrites || !snap.exists() || !base) return; // no base yet: nothing to merge against
+    if (snap.metadata.hasPendingWrites || !snap.exists() || base === undefined) return; // not loaded yet
     let remote: Live;
     try { remote = parseLive(snap.get('live')); } catch { return; } // missing or unreadable: keep what's on screen
-    if (!diffPaths(base, remote).length) return; // nothing new (key order doesn't matter)
+    if (base && !diffPaths(base, remote).length) return; // nothing new (key order doesn't matter)
     known.set(k, remote);
     onRemote(remote, base);
   }, () => {}); // offline or denied: the page keeps working from its own state

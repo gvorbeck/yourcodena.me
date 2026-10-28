@@ -17,7 +17,7 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix functions # the bot's tests import firebase-admin
       - run: npm run lint
-      - run: npm test
+      - run: npm run test:coverage # unit tests; fails if coverage drops below the floor in vite.config.ts
       # Runs firestore.rules in the emulator (Java is preinstalled on ubuntu-latest) before they can be deployed.
       - run: npm run test:rules
       # Browser tests: the app against the emulator, through Playwright.
