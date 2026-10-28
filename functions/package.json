@@ -4,10 +4,10 @@
   "type": "module",
   "main": "lib/index.js",
   "engines": {
-    "node": "22"
+    "node": "24"
   },
   "scripts": {
-    "build": "rm -rf lib && tsc --noEmit && esbuild src/index.ts src/webhookTest.ts src/registerCommands.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outdir=lib --log-level=warning",
+    "build": "rm -rf lib && tsc --noEmit && esbuild src/index.ts src/webhookTest.ts src/registerCommands.ts --bundle --platform=node --format=esm --target=node24 --packages=external --outdir=lib --log-level=warning",
     "webhook:test": "npm run build && node lib/webhookTest.js",
     "discord:register": "npm run build && node lib/registerCommands.js"
   },

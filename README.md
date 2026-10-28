@@ -33,7 +33,7 @@ React 19, TypeScript, Vite, React Router, React Aria Components, Zod, Firebase (
 
 ## Running locally
 
-Use Node 22, since that's what CI runs.
+Use Node 24, since that's what CI runs.
 
 ```bash
 npm install
