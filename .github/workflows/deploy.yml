@@ -2,6 +2,8 @@ name: Check and deploy
 on:
   push:
     branches: [main, dev] # dev only runs the checks, so a PR to main shows them before anything ships
+  pull_request:
+    branches: [dev] # Dependabot's PRs; they get no secrets, which the checks don't need
   workflow_dispatch:
 permissions:
   contents: read

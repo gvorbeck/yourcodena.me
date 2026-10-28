@@ -5,3 +5,13 @@ updates:
     directory: /
     schedule:
       interval: monthly
+  # npm, for the app and the Discord bot (separate lockfiles). PRs go to dev and must pass the checks job like any change.
+  # Minor and patch updates come as one PR a week; each major version gets its own PR, since those can break things.
+  - package-ecosystem: npm
+    directories: [/, /functions]
+    target-branch: dev
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
