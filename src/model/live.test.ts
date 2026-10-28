@@ -191,6 +191,12 @@ describe('skill advancement and Unnatural (pp. 15, 28)', () => {
     const top = advanceSkills(x, { ...l, checked: ['Alertness'], advance: { Alertness: 38 } }, () => 0.99); // 60 + 38 = 98
     expect(top.gains).toEqual([['Alertness', 1]]);
   });
+  it('skips old checks on Unnatural or a 0% skill (p. 29)', () => {
+    const x = c();
+    const r = advanceSkills(x, { ...freshLive(x), checked: ['Unnatural', 'Anthropology', 'Law'] }, () => 0.99);
+    expect(r.gains).toEqual([['Law', 4]]);
+    expect(r.live).toMatchObject({ checked: [], advance: { Law: 4 } });
+  });
   it('Unnatural lowers maximum SAN and pulls SAN down with it', () => {
     const x = c();
     const l = freshLive(x);

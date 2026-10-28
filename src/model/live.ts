@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { parseCharacter, type Character } from './character';
-import { bondCount, derived, disorderOf, rollExpr, skillsOf, veteranOf } from '../rules';
+import { bondCount, canImprove, derived, disorderOf, rollExpr, skillsOf, veteranOf } from '../rules';
 import { STATS, STAT_NAMES, type Stat } from '../rules/data/creation';
 import { MAX_SKILL } from '../rules/data/skills';
 
@@ -68,7 +68,9 @@ export function setUnnatural(c: Character, l: Live, value: number): Live {
 export function advanceSkills(c: Character, l: Live, rng = Math.random): { live: Live; gains: [string, number][] } {
   const totals = skillsOf(c, l.advance);
   const gains = l.checked.flatMap((key): [string, number][] => {
-    const n = Math.min(rollExpr('1D4', rng)!, MAX_SKILL - (totals.find((s) => s.key === key)?.total ?? 0));
+    const total = totals.find((s) => s.key === key)?.total ?? 0;
+    if (!canImprove(key, total)) return []; // checks saved before the rule was enforced
+    const n = Math.min(rollExpr('1D4', rng)!, MAX_SKILL - total);
     return n > 0 ? [[key, n]] : [];
   });
   const advance = { ...l.advance };

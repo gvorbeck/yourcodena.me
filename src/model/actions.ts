@@ -1,5 +1,5 @@
 import type { Character } from './character';
-import { clamp, parseLoss, rollExpr, rollLoss, type Outcome } from '../rules';
+import { canImprove, clamp, parseLoss, rollExpr, rollLoss, type Outcome } from '../rules';
 import type { Stat } from '../rules/data/creation';
 import { capsOf as caps, loseStat, withBond, type Live, type SanKind } from './live';
 
@@ -116,7 +116,7 @@ export function addDisorder(l: Live, name: string, lostMotivation: string): Resu
 }
 
 /** A failed skill roll earns a check toward end-of-session advancement (p. 28). */
-export const checkSkill = (l: Live, key: string): Live => (l.checked.includes(key) ? l : { ...l, checked: [...l.checked, key] });
+export const checkSkill = (l: Live, key: string, rating: number): Live => (l.checked.includes(key) || !canImprove(key, rating) ? l : { ...l, checked: [...l.checked, key] });
 
 /** Take a check back, e.g. for a roll that shouldn't count toward advancement. */
 export const uncheckSkill = (l: Live, key: string): Live => ({ ...l, checked: l.checked.filter((k) => k !== key) });

@@ -177,6 +177,9 @@ export const duplicatesKit = (c: Character, o: Slot) => {
 // ---- Skills
 export interface SkillLine { key: string; base: number; professional: number | null; bonus: number; veteran: number; adjust: number; total: number }
 
+/** Only a skill at 1% or more, and never Unnatural, earns a check when failed (p. 29). */
+export const canImprove = (key: string, rating: number) => key !== 'Unnatural' && rating >= 1;
+
 /** `advance` is play-time skill growth (p. 28), keyed by skill. */
 export function skillsOf(c: Character, advance: Record<string, number> = {}): SkillLine[] {
   const kit = new Map<string, number>();

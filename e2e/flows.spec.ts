@@ -1,7 +1,7 @@
 // Core player flows, run against the Firestore emulator (see playwright.config.ts).
 // Checks that need "did it reach the server?" use a second browser context: it has its own offline cache, so it can only see saved data.
 import { expect, test } from '@playwright/test';
-import { createAgent, freshPage, hp, savedHp } from './helpers';
+import { agentDoc, createAgent, freshPage, hp, savedHp } from './helpers';
 
 test('a new agent goes through creation and shows on the game page', async ({ page }) => {
   const { gameUrl } = await createAgent(page);
@@ -47,4 +47,19 @@ test('an open sheet picks up changes saved from another device', async ({ page, 
 
   await page.getByRole('button', { name: 'Decrease HP' }).click();
   await expect(hp(other)).toHaveText('12 / 13');
+});
+
+test('the game page advances every checked skill at the end of a session', async ({ page }) => {
+  const { gameId, agentId, gameUrl } = await createAgent(page);
+  await savedHp(gameId, agentId, 13);
+  await (await agentDoc(gameId, agentId)).ref.update({ 'live.checked': ['Medicine', 'Unnatural'] }); // as if failed from Discord
+
+  await page.goto(gameUrl);
+  await page.getByRole('button', { name: 'End session: advance all checked skills' }).click();
+  await page.getByRole('button', { name: 'Advance all', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Skills advanced' })).toContainText(/LAMP: Medicine \+[1-4]\./);
+
+  await expect.poll(async () => (await agentDoc(gameId, agentId)).get('live.checked')).toEqual([]);
+  const advance = (await agentDoc(gameId, agentId)).get('live.advance');
+  expect(Object.keys(advance)).toEqual(['Medicine']); // Unnatural never advances (p. 29)
 });

@@ -7,6 +7,7 @@ import { freshLive, type Live } from '../model/live';
 type Pairs = Record<string, unknown>;
 const writes: { set: Pairs[]; add: Pairs[]; tx: Pairs[]; updates: Pairs[][] } = { set: [], add: [], tx: [], updates: [] };
 let commit = async () => {};
+const docs = new Map<string, Pairs>(); // what getDoc reads, by path
 
 vi.mock('./firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => {
@@ -19,6 +20,7 @@ vi.mock('firebase/firestore', () => {
     deleteField: () => ({ deleted: true }),
     collection: (_db: unknown, path: string) => ({ path }),
     doc: (parent: { path?: string }, path?: string) => ({ id: 'new', path: path ?? `${parent.path}/new` }),
+    getDoc: async (ref: { path: string }) => ({ exists: () => docs.has(ref.path), data: () => docs.get(ref.path) }),
     setDoc: async (_ref: unknown, v: Pairs) => { writes.set.push(v); },
     addDoc: async (_ref: unknown, v: Pairs) => { writes.add.push(v); },
     runTransaction: async (_db: unknown, fn: (tx: unknown) => Promise<void>) =>
@@ -37,7 +39,7 @@ vi.mock('firebase/firestore', () => {
   };
 });
 
-const { createAgent, saveCharacter, saveLive } = await import('./agents');
+const { advanceAll, createAgent, saveCharacter, saveLive } = await import('./agents');
 const { createGame, logRoll } = await import('./games');
 
 /** The hasOnly list of the first match block whose path starts with `path`. */
@@ -113,5 +115,32 @@ describe('saveLive sends only what changed', () => {
     land();
     await Promise.all([first, second]);
     expect(writes.updates).toContainEqual([{ 'live.hp': freshLive(newCharacter()).hp, updatedAt: expect.any(Number) }]);
+  });
+});
+
+describe('advanceAll ends the session for every agent (p. 28)', () => {
+  it('advances checked skills, skips agents with none or a damaged sheet, and sends only the changes', async () => {
+    const c = newCharacter();
+    docs.set('games/g/agents/b1', { character: c, live: { ...freshLive(c), checked: ['Alertness'] } });
+    docs.set('games/g/agents/b2', { character: c, live: freshLive(c) });
+    docs.set('games/g/agents/b3', { character: c, live: null });
+    docs.set('games/g/agents/b4', { character: 'not a sheet', live: null });
+    const { gains, failed } = await advanceAll('g', ['b1', 'b2', 'b3', 'b4', 'gone']);
+    expect(gains).toEqual({ b1: [['Alertness', expect.any(Number)]] });
+    expect(failed).toEqual([]);
+    expect(writes.updates).toEqual([[
+      { 'live.checked': { remove: ['Alertness'] } },
+      { 'live.advance.Alertness': gains.b1[0][1], updatedAt: expect.any(Number) },
+    ]]);
+  });
+  it('a failed save is reported for that agent and the others still advance', async () => {
+    const c = newCharacter();
+    docs.set('games/g/agents/c1', { character: c, live: { ...freshLive(c), checked: ['Alertness'] } });
+    docs.set('games/g/agents/c2', { character: c, live: { ...freshLive(c), checked: ['Alertness'] } });
+    let first = true;
+    commit = async () => { if (first) { first = false; throw new Error('offline'); } };
+    const { gains, failed } = await advanceAll('g', ['c1', 'c2']);
+    expect(failed).toEqual(['c1']);
+    expect(Object.keys(gains)).toEqual(['c2']);
   });
 });

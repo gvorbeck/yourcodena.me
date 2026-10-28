@@ -117,7 +117,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const roll = (label: string, chance: number) => { test(label, chance); };
   /** A failed skill roll earns a check toward end-of-session advancement (p. 28). */
   const rollSkill = (key: string, chance: number) => {
-    if (!test(key, chance).ok) setL((p) => play.checkSkill(p, key));
+    if (!test(key, chance).ok) setL((p) => play.checkSkill(p, key, chance));
   };
   const endSession = () => {
     const r = advanceSkills(c, l);
