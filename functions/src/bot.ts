@@ -28,7 +28,7 @@ const db = () => getFirestore();
 const NO_PINGS = { allowed_mentions: { parse: [] } };
 const message = (content: string, flags: number, components?: unknown[]) => ({ type: 4, data: { content, flags, ...(components && { components }), ...NO_PINGS } });
 /** A message in answer to a command, for everyone in the channel. */
-export const reply = (content: string) => message(content, 0);
+const reply = (content: string) => message(content, 0);
 /** A message only the player sees, optionally with buttons. */
 export const privately = (content: string, components?: unknown[]) => message(content, 64, components);
 const choices = (list: { name: string; value: string }[]) => ({ type: 8, data: { choices: list } });
@@ -194,7 +194,7 @@ function sanSettled(out: Loss | { error: string } | null, testLine: string, viaW
  * Who may settle a held loss: the player who rolled it, whoever claims that Agent now (the old player may have left),
  * or anyone with Manage Channels (the Handler), so a held loss can never get stuck.
  */
-export const maySettle = (h: { userId: string }, presser: string, claimsAgent: boolean, manage: boolean) => h.userId === presser || claimsAgent || manage;
+const maySettle = (h: { userId: string }, presser: string, claimsAgent: boolean, manage: boolean) => h.userId === presser || claimsAgent || manage;
 
 /** A press on one of sanChoice's buttons. */
 async function sanButton(i: Interaction, now: number): Promise<object> {

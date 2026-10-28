@@ -29,11 +29,11 @@ export function testOutcome(roll: number, chance: number): Outcome {
   if (roll <= chance) return 'success';
   return match ? 'fumble' : 'failure';
 }
-export { isSuccess, outcomeClass } from './outcome';
+export { isSuccess } from './outcome';
 export const rollD100 = () => 1 + Math.floor(Math.random() * 100);
 
 /** p. 47: 1–2 WP is −20% to everything; at 0 WP no test can succeed. `extra` is any other flat penalty. */
-export const wpPenalty = (wp: number) => (wp > 0 && wp <= 2 ? 20 : 0);
+const wpPenalty = (wp: number) => (wp > 0 && wp <= 2 ? 20 : 0);
 export function liveOutcome(roll: number, chance: number, wp: number, extra = 0) {
   const pen = wpPenalty(wp) + extra;
   const eff = Math.max(0, chance - pen);
@@ -133,7 +133,7 @@ export interface Alt { family: string; type?: string; askType: boolean; rating: 
 export interface Slot { id: string; alts: Alt[] }
 
 const ENTRY = /^([^*(]+?)(?:\(([^)]*)\))?(\*)?\s+(\d+)$/;
-export function parseSlot(id: string, src: string): Slot {
+function parseSlot(id: string, src: string): Slot {
   return {
     id,
     alts: src.split('|').map((s) => {

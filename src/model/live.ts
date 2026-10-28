@@ -56,7 +56,7 @@ export function reconcile(l: Live, c: Character): Live {
 export const unnaturalOf = (c: Character, l: Live) => skillsOf(c, l.advance).find((s) => s.key === 'Unnatural')?.total ?? 0;
 export const maxSanOf = (c: Character, l: Live) => 99 - unnaturalOf(c, l);
 /** SAN pulled down to the current maximum. */
-export const capSan = (c: Character, l: Live): Live => ({ ...l, san: Math.min(l.san, maxSanOf(c, l)) });
+const capSan = (c: Character, l: Live): Live => ({ ...l, san: Math.min(l.san, maxSanOf(c, l)) });
 
 /** Set the Unnatural skill (never below the veteran's starting gain); SAN is pulled down to the new maximum. */
 export function setUnnatural(c: Character, l: Live, value: number): Live {
@@ -136,7 +136,7 @@ export class UndoStack {
 
 const mod = (l: Live, s: Stat) => l.statMod[s] ?? 0;
 /** The Agent with permanent stat changes applied; derive HP / WP caps from this. */
-export const permStats = (c: Character, l: Live): Character => ({ ...c, stats: Object.fromEntries(STATS.map((s) => [s, c.stats[s] + mod(l, s)])) as Character['stats'] });
+const permStats = (c: Character, l: Live): Character => ({ ...c, stats: Object.fromEntries(STATS.map((s) => [s, c.stats[s] + mod(l, s)])) as Character['stats'] });
 /** Score to test against: permanent changes and temporary loss applied. */
 export const effStat = (c: Character, l: Live, s: Stat) => Math.max(0, c.stats[s] + mod(l, s) - (l.statLoss[s] ?? 0));
 /** HP, WP, SAN and Bond maximums as played: derived attributes after permanent stat changes. */
@@ -175,7 +175,7 @@ export type SanKind = (typeof SAN_KINDS)[number];
 export const SAN_KIND_LABEL: Record<SanKind, string> = { violence: 'Violence', helplessness: 'Helplessness', unnatural: 'The Unnatural' };
 
 /** p. 74: three SAN-losing hits of one kind in a row adapt the Agent; insanity or a Breaking Point resets the count. */
-export const adapt = (count: number, reset: boolean) => {
+const adapt = (count: number, reset: boolean) => {
   if (count >= 3) return { count: 3, adapted: false };
   if (reset) return { count: 0, adapted: false };
   return { count: count + 1, adapted: count === 2 };

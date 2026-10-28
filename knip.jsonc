@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": { "entry": ["e2e/*.spec.ts", "test/*.test.ts", "vitest.rules.config.ts"] },
+    "functions": {
+      "entry": ["src/webhookTest.ts", "src/registerCommands.ts"],
+      // The bot's bundle leaves packages external and imports ../src/model, which needs zod at runtime.
+      "ignoreDependencies": ["zod"]
+    }
+  }
+}

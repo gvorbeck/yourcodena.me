@@ -73,11 +73,11 @@ describe('formatEntry', () => {
   });
   it('formats HP and SAN lost, with what the rules say', () => {
     const loss = { ...base, kind: 'loss' as const, dice: [] as number[], mod: 0 };
-    expect(formatEntry({ ...loss, stat: 'HP', label: '1D10', dice: [3], roll: 3, from: 11, to: 8, notes: [] }))
+    expect(formatEntry({ ...loss, stat: 'HP' as const, label: '1D10', dice: [3], roll: 3, from: 11, to: 8, notes: [] }))
       .toBe('**Drew Rook** loses **3** HP · 1D10 · HP 11 → 8');
-    expect(formatEntry({ ...loss, stat: 'HP', label: '7', roll: 7, from: 11, to: 4, notes: ['Stunned (p. 55)'] }))
+    expect(formatEntry({ ...loss, stat: 'HP' as const, label: '7', roll: 7, from: 11, to: 4, notes: ['Stunned (p. 55)'] }))
       .toBe('**Drew Rook** loses **7** HP · HP 11 → 4 · Stunned (p. 55)');
-    expect(formatEntry({ ...loss, stat: 'SAN', label: '0/1D6', roll: 4, from: 50, to: 46, cause: 'violence', notes: ['Failed the SAN test (rolled 63 against 50%).'] }))
+    expect(formatEntry({ ...loss, stat: 'SAN' as const, label: '0/1D6', roll: 4, from: 50, to: 46, cause: 'violence', notes: ['Failed the SAN test (rolled 63 against 50%).'] }))
       .toBe('**Drew Rook** loses **4** SAN (violence) · 0/1D6 · SAN 50 → 46 · Failed the SAN test (rolled 63 against 50%).');
   });
   it('still reads damage entries logged before the shared shape', () => {

@@ -20,6 +20,7 @@ vi.mock('firebase-admin/firestore', () => {
     else if (v instanceof Union) parent[last] = [...new Set([...((parent[last] as unknown[]) ?? []), ...v.items])];
     else parent[last] = v;
   };
+  const pathOf = (k: unknown) => (k instanceof FieldPath ? k.segments : String(k).split('.'));
   const snap = (path: string) => {
     const d = store.get(path);
     return { id: path.split('/').at(-1), exists: d !== undefined, data: () => d && structuredClone(d), get: (k: string) => d?.[k] };
@@ -32,7 +33,7 @@ vi.mock('firebase-admin/firestore', () => {
     update: async (...args: unknown[]) => {
       const d = store.get(path)!;
       if (args.length === 1) for (const [k, v] of Object.entries(args[0] as Record<string, unknown>)) setPath(d, k.split('.'), v);
-      else for (let i = 0; i < args.length; i += 2) setPath(d, args[i] instanceof FieldPath ? args[i].segments : String(args[i]).split('.'), args[i + 1]);
+      else for (let i = 0; i < args.length; i += 2) setPath(d, pathOf(args[i]), args[i + 1]);
     },
   });
   type Ref = ReturnType<typeof ref>;

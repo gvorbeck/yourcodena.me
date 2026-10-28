@@ -4,7 +4,7 @@ import { BONUS_PICKS } from '../rules/data/skills';
 import { SAVED_AGENT_BAK, SAVED_AGENT_KEY, store } from '../lib/storage';
 import { fromGreenAgent, isGreenAgent } from './greenagent';
 
-export const CHARACTER_VERSION = 1;
+const CHARACTER_VERSION = 1;
 
 // Limits keep an imported file or a pasted wall of text from outgrowing a Firestore document (1 MiB); the inputs enforce the same maxima.
 export const MAX_LINE = 200, MAX_NAME = 100, MAX_PROSE = 5000; // MAX_NAME is also the cap in firestore.rules
@@ -18,7 +18,7 @@ const stat = z.number().int().min(3).max(18);
 export const CUSTOM_SKILLS = 10;
 const emptyCustom = () => ({ name: '', bonds: 3, skills: Array<string>(CUSTOM_SKILLS).fill(''), points: Array<number>(CUSTOM_SKILLS).fill(0) });
 
-export const characterSchema = z.object({
+const characterSchema = z.object({
   version: z.literal(CHARACTER_VERSION),
   stats: z.object(Object.fromEntries(STATS.map((s) => [s, stat])) as Record<(typeof STATS)[number], typeof stat>),
   statMethod: z.enum(['roll', 'points', 'set']).default('roll'),
