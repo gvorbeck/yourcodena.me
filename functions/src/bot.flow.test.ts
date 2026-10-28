@@ -178,13 +178,23 @@ describe('/dg san projection buttons', () => {
     expect(loss.answered).toBeUndefined();
   });
 
+  const rollSkill = (key: string) => handle({ type: 2, guild_id: 'G', channel_id: 'C', member: { user: { id: DANIEL }, permissions: '0' }, data: { name: 'dg', options: [
+    { name: 'roll', type: 1, options: [{ name: 'test', type: 3, value: `skill:${key}` }] },
+  ] } }, (clock += 10_000)) as Promise<{ data: { content: string } }>;
+
   it('/dg roll ticks a failed skill for improvement', async () => {
     store.set('discordGuilds/G', { gameId: 'g' });
-    const r = await handle({ type: 2, guild_id: 'G', channel_id: 'C', member: { user: { id: DANIEL }, permissions: '0' }, data: { name: 'dg', options: [
-      { name: 'roll', type: 1, options: [{ name: 'test', type: 3, value: 'skill:Unnatural' }] }, // 0%, so the fixed roll of 3 fails
-    ] } }, (clock += 10_000)) as { data: { content: string } };
+    const a = store.get('games/g/agents/A1')!;
+    a.character = { ...(a.character as object), adjust: { Anthropology: 2 } }; // 2%, so the fixed roll of 3 fails
+    const r = await rollSkill('Anthropology');
     expect(r.data.content).toContain('marked for improvement');
-    expect(rolls()).toEqual([expect.objectContaining({ label: 'Unnatural', outcome: 'failure' })]);
-    expect((store.get('games/g/agents/A1')!.live as { checked: string[] }).checked).toEqual(['Unnatural']);
+    expect(rolls()).toEqual([expect.objectContaining({ label: 'Anthropology', outcome: 'failure' })]);
+    expect((store.get('games/g/agents/A1')!.live as { checked: string[] }).checked).toEqual(['Anthropology']);
+  });
+
+  it('/dg roll never ticks Unnatural or a 0% skill (p. 29)', async () => {
+    store.set('discordGuilds/G', { gameId: 'g' });
+    for (const key of ['Unnatural', 'Anthropology']) expect((await rollSkill(key)).data.content).not.toContain('marked for improvement');
+    expect((store.get('games/g/agents/A1')!.live as { checked: string[] }).checked).toEqual([]);
   });
 });

@@ -110,7 +110,10 @@ describe('mind and skills', () => {
     expect(addDisorder(live(), 'Amnesia', '').live.dropped).toEqual([]);
   });
   it('a failed skill is checked once', () => {
-    expect(checkSkill(checkSkill(live(), 'Law'), 'Law').checked).toEqual(['Law']);
+    expect(checkSkill(checkSkill(live(), 'Law', 40), 'Law', 40).checked).toEqual(['Law']);
+  });
+  it('Unnatural and 0% skills are never checked (p. 29)', () => {
+    expect(checkSkill(checkSkill(live(), 'Unnatural', 5), 'Art (Painting)', 0).checked).toEqual([]);
   });
   it('unchecking removes only that skill', () => {
     expect(uncheckSkill(live({ checked: ['Law', 'Art'] }), 'Law').checked).toEqual(['Art']);

@@ -1,5 +1,5 @@
 import type { Character } from './character';
-import { clamp, parseLoss, rollExpr, rollLoss, type Outcome } from '../rules';
+import { canImprove, clamp, parseLoss, rollExpr, rollLoss, type Outcome } from '../rules';
 import type { Stat } from '../rules/data/creation';
 import { capsOf as caps, loseStat, withBond, type Live, type SanKind } from './live';
 
@@ -78,10 +78,6 @@ export function planSanLoss(l: Live, kind: SanKind, expr: string, test: () => { 
   return { kind, amount: rollLoss(ok ? loss[0] : loss[1], rng) ?? 0, result };
 }
 
-/**
- * Spend 1D4 WP and strain a Bond by the same amount (pp. 74–75). If no WP is left afterwards nothing helps and the
- * Bond is spared (`ok` false); the WP is gone either way.
- */
 /** Spend an already rolled `n` WP on a Bond (pp. 74–75): the Bond drops by `n` only if the Agent keeps at least 1 WP. */
 function spendRolledWillpower(c: Character, l: Live, bond: number, n: number): { live: Live; n: number; ok: boolean } {
   const wp = Math.max(0, l.wp - n), score = caps(c, l).bondScore;
@@ -120,7 +116,7 @@ export function addDisorder(l: Live, name: string, lostMotivation: string): Resu
 }
 
 /** A failed skill roll earns a check toward end-of-session advancement (p. 28). */
-export const checkSkill = (l: Live, key: string): Live => (l.checked.includes(key) ? l : { ...l, checked: [...l.checked, key] });
+export const checkSkill = (l: Live, key: string, rating: number): Live => (l.checked.includes(key) || !canImprove(key, rating) ? l : { ...l, checked: [...l.checked, key] });
 
 /** Take a check back, e.g. for a roll that shouldn't count toward advancement. */
 export const uncheckSkill = (l: Live, key: string): Live => ({ ...l, checked: l.checked.filter((k) => k !== key) });

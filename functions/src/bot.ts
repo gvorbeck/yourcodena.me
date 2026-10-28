@@ -5,7 +5,7 @@ import { REMOVED, type Change } from '../../src/lib/diff';
 import { SAN_KINDS, type SanKind } from '../../src/model/live';
 import { isGameId } from '../../src/lib/gameId';
 import { agentLabel } from '../../src/model/names';
-import { diceText, isSuccess, matches, parseDice, sameText } from '../../src/rules';
+import { canImprove, diceText, isSuccess, matches, parseDice, sameText } from '../../src/rules';
 import { agentOf, applyHit, bondsOf, canProject, choicesFor, diceEntry, findTest, finishSan, isDice, planSan, rollAgainst, rollExpression, rollTest, sheetLines, type Agent, type Loss, type SanStake } from './dg.js';
 import { bold, formatEntry, formatRoll, plain, type Roll } from './discord.js';
 import { ALIASES } from './commands.js';
@@ -72,7 +72,6 @@ const linkedGame = cached(async (guild) => (await guildRef(guild).get()).get('ga
 const claimRef = (gameId: string, user: string) => db().doc(`discordClaims/${gameId}_${user}`);
 const claimsQuery = (gameId: string, agentId: string) =>
   db().collection('discordClaims').where('gameId', '==', gameId).where('agentId', '==', agentId);
-const claimsOfAgent = (gameId: string, agentId: string) => claimsQuery(gameId, agentId).get();
 
 const agentsOf = cached(async (gameId) =>
   (await db().collection(agentsPath(gameId)).select('name', 'codename').get()).docs.map((d) => ({ id: d.id, label: labelOf(d) })));
@@ -304,7 +303,7 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     if (value === undefined) { await claimRef(gameId, user).delete(); return reply(`<@${user}> no longer plays an Agent here.`); }
     const a = await findAgent(gameId, String(value));
     if (!a) return privately(NO_SUCH_AGENT);
-    const claims = (await claimsOfAgent(gameId, a.id)).docs;
+    const claims = (await claimsQuery(gameId, a.id).get()).docs;
     if (claims.some((d) => d.get('userId') !== user) && !manage) return privately('Releasing someone else\'s Agent needs the Manage Channels permission.');
     await Promise.all(claims.map((d) => d.ref.delete()));
     return reply(`${bold(a.label)} is free to claim.`);
@@ -391,7 +390,7 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     if (!t) return privately('No stat, skill or test by that name. Pick one from the list.');
     const r = rollTest(me.agent, t, randomInt(1, 101), num('modifier'));
     // Same as the live sheet: a failed skill earns a check toward end-of-session advancement (p. 28).
-    const check = t.skill && !isSuccess(r.outcome) && me.agent.hasLive && !me.agent.l.checked.includes(t.label);
+    const check = t.skill && canImprove(t.label, t.chance) && !isSuccess(r.outcome) && me.agent.hasLive && !me.agent.l.checked.includes(t.label);
     // rollToDiscord posts it when there's a webhook; otherwise `answered` tells it the bot already replied in the channel.
     const viaWebhook = await hasWebhook(gameId);
     const batch = db().batch();

@@ -42,12 +42,15 @@ export default function Game() {
   const { busy, err, run } = useRun('Something went wrong. Check your connection and try again.');
   const [doomed, setDoomed] = useState<AgentCard | null>(null);
   const [deleteFailed, setDeleteFailed] = useState(false);
+  const [advancing, setAdvancing] = useState<AgentCard[] | null>(null); // the agents the confirm dialog will advance
+  const [advanced, setAdvanced] = useState('');
   // Once a deleted agent's row is gone, focus moves to New agent instead of falling back to the page body.
   const removed = useRef<string | null>(null);
   const newAgent = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (removed.current && agents.data && !agents.data.some((a) => a.id === removed.current)) { removed.current = null; newAgent.current?.focus(); }
   }, [agents.data]);
+  const cards = agents.data;
   const has = (id: string) => !agents.data || agents.data.some((a) => a.id === id);
   const link = location.origin + gameUrl(gameId); // no query or hash the visitor arrived with
   useEffect(() => { if (exists.data) rememberGame(gameId); }, [exists.data, gameId]);
@@ -58,6 +61,17 @@ export default function Game() {
     setDeleteFailed(false);
     deleteAgent(gameId, a.id).catch(() => setDeleteFailed(true));
   };
+
+  const advance = (list: AgentCard[]) => run(async () => {
+    const { gains, failed } = await (await import('../lib/agents')).advanceAll(gameId, list.map((a) => a.id));
+    const name = (a: AgentCard) => agentLabel(a.codename, a.name);
+    const lines = list.filter((a) => gains[a.id]?.length).map((a) => `${name(a)}: ${gains[a.id].map(([k, n]) => `${k} +${n}`).join(', ')}`);
+    const missed = list.filter((a) => failed.includes(a.id)).map(name);
+    setAdvanced([
+      lines.length ? `Skills advanced (p. 28). ${lines.join('; ')}.` : !missed.length && 'No agent had checked skills that could advance.',
+      missed.length && `Could not save ${missed.join(', ')}. Check your connection and press again.`,
+    ].filter(Boolean).join(' '));
+  });
 
   // The sheet model is loaded on demand so this page stays small.
   const addAgent = (fromSaved: boolean) => run(async () => {
@@ -110,12 +124,18 @@ export default function Game() {
         <div className="row">
           <button ref={newAgent} className="btn" onClick={() => addAgent(false)} disabled={busy}>New agent</button>
           {hasSavedAgent() && <button className="btn" onClick={() => addAgent(true)} disabled={busy}>Add the agent saved in this browser</button>}
+          {!!cards?.length && <button className="btn" onClick={() => run(async () => { await import('../ui'); setAdvanced(''); setAdvancing(cards); })} disabled={busy}>End session: advance all checked skills</button>}
         </div>
+        <p role="status">{advanced}</p>
         <Alert>{err}</Alert>
         <Alert>{deleteFailed && 'Could not delete the agent. Check your connection and try again.'}</Alert>
         {doomed && <Suspense><ConfirmDialog open title="Delete this agent?" confirm="Delete" onClose={() => setDoomed(null)}
           onConfirm={() => remove(doomed)}>
           Delete {agentLabel(doomed.codename, doomed.name)} for everyone in this game? This cannot be undone. Their past rolls stay in the log.
+        </ConfirmDialog></Suspense>}
+        {advancing && <Suspense><ConfirmDialog open title="End the session?" confirm="Advance all" onClose={() => setAdvancing(null)}
+          onConfirm={() => advance(advancing)}>
+          Every agent in this game gains 1D4 in each checked skill, and the checks are cleared (p. 28). This cannot be undone.
         </ConfirmDialog></Suspense>}
       </Win>
 

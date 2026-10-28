@@ -1,6 +1,6 @@
 import { FieldPath, arrayRemove, arrayUnion, deleteField, doc, getDoc, onSnapshot, setDoc, writeBatch, type Unsubscribe } from 'firebase/firestore';
 import { newCharacter, parseCharacter, type Character } from '../model/character';
-import { parseLive, type Live } from '../model/live';
+import { advanceSkills, parseLive, type Live } from '../model/live';
 import { professionOf } from '../rules';
 import { REMOVED, diffPaths, setDelta } from './diff';
 import { db } from './firebase';
@@ -23,7 +23,8 @@ export const createAgent = (g: string, c: Character = newCharacter()) => {
 /**
  * What this tab last read or wrote, per agent field. Saves send only the leaves that differ from it, so a second
  * device changing other fields isn't overwritten (the same field still goes to whoever writes last). It moves
- * forward only once a write is acknowledged, so a failed or still-queued write is included in the next diff.
+ * forward when a write is sent, so a value put back before the server answers is still sent; a rejected write
+ * moves it back, so its changes go out again with the next diff.
  */
 const known = new Map<string, unknown>();
 const slot = (g: string, a: string, field: string) => `${g}/${a}/${field}`;
@@ -53,7 +54,8 @@ function saveField(g: string, a: string, field: 'character' | 'live', value: unk
   const update = (p: Pairs) => { const [f, v, ...rest] = p as [string | FieldPath, unknown, ...unknown[]]; batch.update(agentRef(g, a), f, v, ...rest); };
   if (removals.length) update(removals);
   update([...main, 'updatedAt', Date.now(), ...Object.entries(extra).flat()]);
-  return batch.commit().then(() => { known.set(k, value); });
+  known.set(k, value);
+  return batch.commit().catch((e) => { if (known.get(k) === value) known.set(k, before); throw e; });
 }
 
 /**
@@ -93,3 +95,22 @@ export const loadAgent = async (g: string, a: string): Promise<{ c: Character; l
   known.set(slot(g, a, 'live'), live);
   return { c, live };
 };
+
+/**
+ * End of session for every agent in the game (p. 28): each checked skill gains 1D4. Returns the gains of agents that had any,
+ * and the agents that failed to load or save; those keep their checks, so running it again is safe.
+ */
+export async function advanceAll(g: string, ids: string[]) {
+  const gains: Record<string, [string, number][]> = {}, failed: string[] = [];
+  await Promise.all(ids.map(async (id) => {
+    try {
+      const a = await loadAgent(g, id).catch((e) => { if (e instanceof DamagedAgent) return null; throw e; });
+      if (!a?.live?.checked.length) return;
+      const r = advanceSkills(a.c, a.live);
+      // shortcut: awaited, so offline the button stays busy until the writes reach the server; fine while the Handler runs it online.
+      await saveLive(g, id, r.live); // a diff: checks added from Discord meanwhile survive
+      gains[id] = r.gains;
+    } catch { failed.push(id); }
+  }));
+  return { gains, failed };
+}
