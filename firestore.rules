@@ -16,14 +16,11 @@ service cloud.firestore {
     match /gameSecrets/{gameId} {
       allow read, write: if false;
     }
-    // Discord bot: which channel plays which game, and which Discord user plays which Agent. Functions only.
-    match /discordChannels/{channelId} {
-      allow read, write: if false;
-    }
     // A SAN loss held while its player decides whether to project it onto a Bond (functions/src/bot.ts).
     match /discordPending/{agentId} {
       allow read, write: if false;
     }
+    // Discord bot: which server plays which game, and which Discord user plays which Agent. Functions only.
     match /discordGuilds/{guildId} {
       allow read, write: if false;
     }

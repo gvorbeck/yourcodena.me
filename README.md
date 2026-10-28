@@ -90,19 +90,19 @@ The rules don't let anyone list games or delete anything. Cleanup has to be done
 
 The rules can't count documents, so there's no cap on Agents or rolls per game. App Check is the only thing that helps with that.
 
-If you add a field to a document you have to add it to that document's `hasOnly` list in `firestore.rules`. If you don't, the writes get rejected and you'll probably notice later than you'd like.
+If you add a field to a document you have to add it to that document's `hasOnly` list in `firestore.rules`. If you don't, the writes get rejected in production. `src/lib/agents.test.ts` catches this: it records what the app writes and fails when a field isn't in the rules' list, or a sheet goes past the rules' 30-key cap.
 
 When an Agent saves, it only sends the fields that changed since that tab last read or wrote them. Two people editing different parts of one sheet won't overwrite each other. If they edit the same field, whoever saves last wins.
 
 ## Deploying
 
-Pushing to `main` runs [the workflow](.github/workflows/deploy.yml): lint, test, build, deploy Firestore rules, deploy Functions (only when `src/rules`, `src/model` or `functions/` changed), deploy Hosting to `codename-dg`. A manual run of the workflow always deploys Functions.
+Pushing to `main` runs [the workflow](.github/workflows/deploy.yml): lint, test, build, deploy Firestore rules, deploy Functions (only when `functions/` or a `src/` file the bot bundles changed, per esbuild's metafile), deploy Hosting to `codename-dg`. A manual run of the workflow always deploys Functions.
 
 Rules go out before the new build. Tabs that are already open keep running the old build for a while, so the rules have to accept writes from both versions at once. That means adding a field takes two releases (allow it, then use it) and removing one also takes two (stop writing it, then stop allowing it).
 
 After a deploy, an old tab may ask for a file that no longer exists. When that happens the app reloads once. If it fails again within a few seconds it shows the error instead of reloading forever.
 
-The workflow needs these secrets: the `VITE_FIREBASE_*` values, `VITE_APPCHECK_SITE_KEY`, and `FIREBASE_SERVICE_ACCOUNT_CODENAME_DG`. That service account needs the Firebase Rules Admin role or the rules step fails. For the Functions step it also needs Cloud Functions Developer, Service Account User and Cloud Datastore Index Admin. Index Admin lets the CLI look up the database's location for Firestore triggers without being able to read game data. It also has Service Usage Consumer. If a deploy fails with a permission error, the error names the missing permission. Add the matching role in Cloud console → IAM. The `firebase-tools` version and the hosting action are pinned and have to be bumped by hand. Dependabot does the other Actions.
+The workflow needs these secrets: the `VITE_FIREBASE_*` values, `VITE_APPCHECK_SITE_KEY`, and `FIREBASE_SERVICE_ACCOUNT_CODENAME_DG`. That service account needs the Firebase Rules Admin role or the rules step fails. For the Functions step it also needs Cloud Functions Developer, Service Account User, Cloud Datastore Index Admin and Cloud Scheduler Admin (for `keepBotWarm`, which pings the bot every 5 minutes so Discord's 3-second limit isn't lost to a cold start; the Cloud Scheduler API must be enabled once in Cloud console). Index Admin lets the CLI look up the database's location for Firestore triggers without being able to read game data. It also has Service Usage Consumer. If a deploy fails with a permission error, the error names the missing permission. Add the matching role in Cloud console → IAM. The `firebase-tools` version and the hosting action are pinned and have to be bumped by hand. Dependabot does the other Actions.
 
 Functions deploy before Hosting, so a new build never calls a Function that isn't live yet. The deploy runs `--non-interactive` without `--force`: a Function deleted from the code fails the deploy instead of being removed. Delete it by hand with `firebase functions:delete`. Deploying by hand with `firebase deploy --only functions` still works.
 
@@ -112,16 +112,16 @@ Functions deploy before Hosting, so a new build never calls a Function that isn'
 | `discordWebhook` | us-central1 | Game page Discord panel: connect, disconnect, status |
 | `rollToDiscord` | us-central1 | Posts each new roll-log entry (d% tests, `/dg roll` dice, `/dg damage` and `/dg san` losses) to the game's Discord webhook, unless the bot already answered in the channel |
 | `discordBot` | us-central1 | Discord's Interactions Endpoint for `/dg` (link, claim, roll, damage, san, sheet) and its buttons |
+| `keepBotWarm` | us-central1 | Pings `discordBot` every 5 minutes so a cold start doesn't blow Discord's 3-second limit |
 
-Firestore triggers have to run in `us-central1`, because the database is in `nam5`. Three collections are Functions-only, and the rules deny browsers entirely:
+Firestore triggers have to run in `us-central1`, because the database is in `nam5`. These collections are Functions-only, and the rules deny browsers entirely:
 
 - `gameSecrets/{gameId}`: the game's webhook URL.
 - `discordGuilds/{guildId}`: which game a Discord server plays (`/dg link`).
 - `discordPending/{agentId}`: a SAN loss held while its player decides whether to project it onto a Bond.
-- `discordChannels/{channelId}`: older per-channel links, still honoured and checked first.
 - `discordClaims/{gameId}_{userId}`: which Agent a Discord user plays.
 
-The Functions build bundles `src/rules` and `src/model` with esbuild, so `/dg roll` uses the live sheet's own math. The catch: the bot keeps the copy it was deployed with. The workflow redeploys Functions whenever `src/rules` or `src/model` change, so Discord keeps up with the site. Before that, it once showed stale chances after custom professions and Handler adjustments. `DISCORD_PUBLIC_KEY` is asked for on the first deploy and saved in `functions/.env.codename-dg`. It's a public key, so it's safe to commit. To register or update the `/dg` commands, run this and paste the Application ID and bot token when asked:
+The Functions build bundles `src/rules`, `src/model` and `src/lib` with esbuild, so `/dg roll` uses the live sheet's own math. The catch: the bot keeps the copy it was deployed with. The workflow redeploys Functions whenever any of those change, so Discord keeps up with the site. Before that, it once showed stale chances after custom professions and Handler adjustments. `DISCORD_PUBLIC_KEY` is asked for on the first deploy and saved in `functions/.env.codename-dg`. It's a public key, so it's safe to commit. To register or update the `/dg` commands, run this and paste the Application ID and bot token when asked:
 
 ```bash
 npm --prefix functions run discord:register

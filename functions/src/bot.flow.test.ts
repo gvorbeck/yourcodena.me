@@ -6,18 +6,23 @@ import { freshLive } from '../../src/model/live';
 const store = new Map<string, Record<string, unknown>>();
 const DELETE = Symbol('delete');
 let ids = 0;
+let beforeCommit = () => {}; // runs just before a batch commits, to stage a race
+const exists = (path: string) => Object.assign(new Error(`${path} already exists`), { code: 6 });
 
 vi.mock('node:crypto', async (orig) => ({ ...(await orig<typeof import('node:crypto')>()), randomInt: () => 3 })); // every 1D4 is a 3
 
 vi.mock('firebase-admin/firestore', () => {
+  class Union { constructor(readonly items: unknown[]) {} }
   class FieldPath { segments: string[]; constructor(...s: string[]) { this.segments = s; } }
   const setPath = (o: Record<string, unknown>, path: string[], v: unknown) => {
     const last = path.at(-1)!, parent = path.slice(0, -1).reduce<Record<string, unknown>>((x, k) => (x[k] ??= {}) as Record<string, unknown>, o);
-    if (v === DELETE) delete parent[last]; else parent[last] = v;
+    if (v === DELETE) delete parent[last];
+    else if (v instanceof Union) parent[last] = [...new Set([...((parent[last] as unknown[]) ?? []), ...v.items])];
+    else parent[last] = v;
   };
   const snap = (path: string) => {
     const d = store.get(path);
-    return { exists: d !== undefined, data: () => d && structuredClone(d), get: (k: string) => d?.[k] };
+    return { id: path.split('/').at(-1), exists: d !== undefined, data: () => d && structuredClone(d), get: (k: string) => d?.[k] };
   };
   const ref = (path: string) => ({
     path,
@@ -26,7 +31,7 @@ vi.mock('firebase-admin/firestore', () => {
     delete: async () => { store.delete(path); },
     update: async (...args: unknown[]) => {
       const d = store.get(path)!;
-      if (args.length === 1) Object.assign(d, args[0]);
+      if (args.length === 1) for (const [k, v] of Object.entries(args[0] as Record<string, unknown>)) setPath(d, k.split('.'), v);
       else for (let i = 0; i < args.length; i += 2) setPath(d, args[i] instanceof FieldPath ? args[i].segments : String(args[i]).split('.'), args[i + 1]);
     },
   });
@@ -36,10 +41,24 @@ vi.mock('firebase-admin/firestore', () => {
     collection: (p: string) => ({ doc: () => ref(`${p}/id${++ids}`), add: async (v: Record<string, unknown>) => ref(`${p}/id${++ids}`).set(v) }),
     runTransaction: async <T>(fn: (tx: unknown) => Promise<T>) => fn({
       get: (r: Ref) => r.get(), update: (r: Ref, ...a: unknown[]) => r.update(...a),
-      create: (r: Ref, v: Record<string, unknown>) => r.set(v), delete: (r: Ref) => r.delete(),
+      create: (r: Ref, v: Record<string, unknown>) => { if (store.has(r.path)) throw exists(r.path); return r.set(v); }, delete: (r: Ref) => r.delete(),
     }),
+    batch: () => {
+      const creates: [Ref, Record<string, unknown>][] = [], updates: [Ref, unknown[]][] = [];
+      return {
+        create: (r: Ref, v: Record<string, unknown>) => { creates.push([r, v]); },
+        update: (r: Ref, ...a: unknown[]) => { updates.push([r, a]); },
+        commit: async () => {
+          beforeCommit();
+          const taken = creates.find(([r]) => store.has(r.path));
+          if (taken) throw exists(taken[0].path); // all or nothing, like Firestore
+          for (const [r, v] of creates) await r.set(v);
+          for (const [r, a] of updates) await r.update(...a);
+        },
+      };
+    },
   };
-  return { FieldPath, FieldValue: { delete: () => DELETE, arrayUnion: () => undefined }, getFirestore: () => db };
+  return { FieldPath, FieldValue: { delete: () => DELETE, arrayUnion: (...v: unknown[]) => new Union(v) }, getFirestore: () => db };
 });
 
 const { clearCaches, handle } = await import('./bot');
@@ -52,6 +71,7 @@ const rolls = () => [...store.entries()].filter(([k]) => k.startsWith('games/g/r
 
 beforeEach(() => {
   store.clear();
+  beforeCommit = () => {};
   clearCaches();
   const c = newCharacter();
   c.details.codename = 'Drew Rook';
@@ -113,14 +133,57 @@ describe('/dg san projection buttons', () => {
     expect((await press('san:take:A1', '333', String(1 << 4))).data.content).toContain('loses **6** SAN'); // the Handler
   });
 
+  let clock = Date.now(); // each command 10 s apart, so the 2 s cooldown never trips
+  const san = (loss: string, now = (clock += 10_000)) => handle({ type: 2, guild_id: 'G', channel_id: 'C', member: { user: { id: DANIEL }, permissions: '0' }, data: { name: 'dg', options: [
+    { name: 'san', type: 1, options: [{ name: 'loss', type: 3, value: loss }, { name: 'kind', type: 3, value: 'unnatural' }] },
+  ] } }, now) as Promise<{ data: { content: string; flags: number } }>;
+
   it('/dg san while a loss is waiting says so and rolls nothing new', async () => {
     store.set('discordGuilds/G', { gameId: 'g' });
-    const r = await handle({ type: 2, guild_id: 'G', channel_id: 'C', member: { user: { id: DANIEL }, permissions: '0' }, data: { name: 'dg', options: [
-      { name: 'san', type: 1, options: [{ name: 'loss', type: 3, value: '1/1D10' }, { name: 'kind', type: 3, value: 'unnatural' }] },
-    ] } }) as { data: { content: string; flags: number } };
+    const r = await san('1/1D10');
     expect(r.data.flags).toBe(64);
     expect(r.data.content).toMatch(/already waiting.*1\/1D10.*wasn't rolled/s);
     expect(rolls()).toHaveLength(0);
     expect(live().san).toBe(50);
+  });
+
+  it('/dg san holds a loss together with its SAN test', async () => {
+    store.set('discordGuilds/G', { gameId: 'g' });
+    store.delete('discordPending/A1');
+    expect((await san('1/1D10')).data.content).toContain('Project it onto a Bond?');
+    expect(store.get('discordPending/A1')).toMatchObject({ expr: '1/1D10', testLine: expect.stringContaining('SAN \\(loss\\)') });
+    expect(rolls()).toEqual([expect.objectContaining({ label: 'SAN (loss)' })]);
+  });
+
+  it('two /dg san racing: the second finds the first held loss and logs nothing', async () => {
+    store.set('discordGuilds/G', { gameId: 'g' });
+    store.delete('discordPending/A1');
+    const other = { kind: 'violence', expr: '0/1D6', amount: 4, note: '', gameId: 'g', agentId: 'A1', userId: DANIEL, testLine: '', createdAt: 0 };
+    beforeCommit = () => store.set('discordPending/A1', other); // another instance got there between the check and the write
+    const r = await san('1/1D10');
+    expect(r.data.content).toMatch(/already waiting.*wasn't rolled/s);
+    expect(store.get('discordPending/A1')).toEqual(other);
+    expect(rolls()).toHaveLength(0);
+  });
+
+  it('a SAN loss that cannot be projected posts with its test as one webhook message', async () => {
+    store.set('discordGuilds/G', { gameId: 'g' });
+    store.delete('discordPending/A1');
+    store.set('games/g/agents/A1', { ...store.get('games/g/agents/A1')!, live: { ...live(), wp: 1 } }); // under 2 WP: no projecting
+    await san('1/1D10');
+    const [test, loss] = rolls();
+    expect(test).toMatchObject({ label: 'SAN (loss)', answered: true }); // not posted on its own
+    expect(loss).toMatchObject({ kind: 'loss', testLine: expect.stringContaining('SAN \\(loss\\)') });
+    expect(loss.answered).toBeUndefined();
+  });
+
+  it('/dg roll ticks a failed skill for improvement', async () => {
+    store.set('discordGuilds/G', { gameId: 'g' });
+    const r = await handle({ type: 2, guild_id: 'G', channel_id: 'C', member: { user: { id: DANIEL }, permissions: '0' }, data: { name: 'dg', options: [
+      { name: 'roll', type: 1, options: [{ name: 'test', type: 3, value: 'skill:Unnatural' }] }, // 0%, so the fixed roll of 3 fails
+    ] } }, (clock += 10_000)) as { data: { content: string } };
+    expect(r.data.content).toContain('marked for improvement');
+    expect(rolls()).toEqual([expect.objectContaining({ label: 'Unnatural', outcome: 'failure' })]);
+    expect((store.get('games/g/agents/A1')!.live as { checked: string[] }).checked).toEqual(['Unnatural']);
   });
 });
