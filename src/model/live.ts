@@ -18,14 +18,14 @@ const liveSchema = z.object({
   // Added after v1 links existed, so each has a default.
   penalty: n.max(60).default(0), // sickness, drugs, injury: flat −% to every test
   exhausted: z.boolean().default(false), // −20% to every test until a full night's sleep (p. 47)
-  adapt: z.object({ v: track, h: track }).default({ v: 0, h: 0 }), // p. 74: boxes toward adapting to violence / helplessness
-  statMod: z.record(statKey, z.number().int().min(-18).max(0)).default({}), // permanent stat changes (injury, adaptation)
-  statLoss: z.record(statKey, z.number().int().min(0).max(18)).default({}), // temporary stat loss, restored 1 per night (p. 55)
-  checked: z.array(z.string().max(120)).max(100).default([]), // skills failed this session; each gains 1D4 afterwards (p. 28)
-  advance: z.record(z.string().max(120), n).default({}), // skill growth from play, added to the creation totals
-  disorders: z.array(z.string().max(100)).max(20).default([]), // pp. 38, 69
-  dropped: z.array(z.string().max(200)).max(5).default([]), // motivations lost to disorders
-  spent: spentSchema.default(noneSpent), // once-per-event actions: HP after the last first aid / at the last injury test (null = unused), and today's rest and sleep
+  adapt: z.object({ v: track, h: track }).default(() => ({ v: 0, h: 0 })), // p. 74: boxes toward adapting to violence / helplessness
+  statMod: z.partialRecord(statKey, z.number().int().min(-18).max(0)).default(() => ({})), // permanent stat changes (injury, adaptation)
+  statLoss: z.partialRecord(statKey, z.number().int().min(0).max(18)).default(() => ({})), // temporary stat loss, restored 1 per night (p. 55)
+  checked: z.array(z.string().max(120)).max(100).default(() => []), // skills failed this session; each gains 1D4 afterwards (p. 28)
+  advance: z.record(z.string().max(120), n).default(() => ({})), // skill growth from play, added to the creation totals
+  disorders: z.array(z.string().max(100)).max(20).default(() => []), // pp. 38, 69
+  dropped: z.array(z.string().max(200)).max(5).default(() => []), // motivations lost to disorders
+  spent: spentSchema.default(() => ({ ...noneSpent })), // once-per-event actions: HP after the last first aid / at the last injury test (null = unused), and today's rest and sleep
 });
 export type Live = z.infer<typeof liveSchema>;
 export const parseLive = (raw: unknown): Live => liveSchema.parse(raw);
