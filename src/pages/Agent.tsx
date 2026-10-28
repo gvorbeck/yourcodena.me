@@ -65,9 +65,12 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
   // Changes someone else saves (Discord damage, a skill checked from Discord, another device) merge into the open sheet,
   // so this tab's next save can't write its stale copy over them. Leaves changed here as well keep this tab's value.
   const [remote, setRemote] = useState<RemoteLive | null>(null);
-  useEffect(() => watchLive(gameId, agentId, (r, base) => {
+  // With no sheet of this tab's on the server yet, the remote one (Discord damage before or just after creation finished)
+  // started from the fresh sheet; a sheet still being created takes it whole, so finishing creation can't reset it.
+  useEffect(() => watchLive(gameId, agentId, (r, known) => {
+    const base = known ?? freshLive(prevC.current);
     const merge = (l: Live) => mergeRemote(base, l, r);
-    setLive((l) => l && merge(l));
+    setLive((l) => (l ? merge(l) : r));
     setRemote({ merge });
   }), [gameId, agentId]);
   useAutosave(c, (v) => saveCharacter(gameId, agentId, v), report('c'));

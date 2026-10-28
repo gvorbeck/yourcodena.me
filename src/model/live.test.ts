@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from './character';
-import { reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond } from './live';
+import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond } from './live';
 
 it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   const c = newCharacter();
@@ -229,5 +229,18 @@ describe('reconcile after editing the character', () => {
     c.professionId = 'police-officer';
     const l = freshLive(c);
     expect(reconcile(l, c)).toBe(l);
+  });
+});
+
+describe('the live schema on zod 4', () => {
+  const base = freshLive(newCharacter());
+  it('loads a sheet that only has some stat modifiers (enum-keyed records are partial)', () => {
+    expect(parseLive({ ...base, statMod: { CHA: -2 }, statLoss: { STR: 1 } })).toMatchObject({ statMod: { CHA: -2 }, statLoss: { STR: 1 } });
+  });
+  it('gives every sheet its own default objects, never a shared one', () => {
+    const { checked: _c, adapt: _a, spent: _s, ...old } = base; // an older sheet saved before these fields existed
+    const a = parseLive(old), b = parseLive(old);
+    a.checked.push('Alertness'); a.adapt.v = 2; a.spent.rest = true;
+    expect(b).toMatchObject({ checked: [], adapt: { v: 0 }, spent: { rest: false } });
   });
 });
