@@ -23,7 +23,8 @@ export const createAgent = (g: string, c: Character = newCharacter()) => {
 /**
  * What this tab last read or wrote, per agent field. Saves send only the leaves that differ from it, so a second
  * device changing other fields isn't overwritten (the same field still goes to whoever writes last). It moves
- * forward only once a write is acknowledged, so a failed or still-queued write is included in the next diff.
+ * forward when a write is sent, so a value put back before the server answers is still sent; a rejected write
+ * moves it back, so its changes go out again with the next diff.
  */
 const known = new Map<string, unknown>();
 const slot = (g: string, a: string, field: string) => `${g}/${a}/${field}`;
@@ -53,7 +54,8 @@ function saveField(g: string, a: string, field: 'character' | 'live', value: unk
   const update = (p: Pairs) => { const [f, v, ...rest] = p as [string | FieldPath, unknown, ...unknown[]]; batch.update(agentRef(g, a), f, v, ...rest); };
   if (removals.length) update(removals);
   update([...main, 'updatedAt', Date.now(), ...Object.entries(extra).flat()]);
-  return batch.commit().then(() => { known.set(k, value); });
+  known.set(k, value);
+  return batch.commit().catch((e) => { if (known.get(k) === value) known.set(k, before); throw e; });
 }
 
 /**

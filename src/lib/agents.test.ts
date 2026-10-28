@@ -102,4 +102,16 @@ describe('saveLive sends only what changed', () => {
     await saveLive('g', 'a3', live({ hp: 3, wp: 4 }));
     expect(writes.updates.at(-1)).toEqual([{ 'live.hp': 3, 'live.wp': 4, updatedAt: expect.any(Number) }]);
   });
+
+  it('a value put back while the previous save is still in flight is sent', async () => {
+    await saveLive('g', 'a4', live());
+    let land = () => {};
+    commit = () => new Promise<void>((r) => { land = r; });
+    const first = saveLive('g', 'a4', live({ hp: 3 }));
+    commit = async () => {};
+    const second = saveLive('g', 'a4', live());
+    land();
+    await Promise.all([first, second]);
+    expect(writes.updates).toContainEqual([{ 'live.hp': freshLive(newCharacter()).hp, updatedAt: expect.any(Number) }]);
+  });
 });

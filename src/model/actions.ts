@@ -78,10 +78,6 @@ export function planSanLoss(l: Live, kind: SanKind, expr: string, test: () => { 
   return { kind, amount: rollLoss(ok ? loss[0] : loss[1], rng) ?? 0, result };
 }
 
-/**
- * Spend 1D4 WP and strain a Bond by the same amount (pp. 74–75). If no WP is left afterwards nothing helps and the
- * Bond is spared (`ok` false); the WP is gone either way.
- */
 /** Spend an already rolled `n` WP on a Bond (pp. 74–75): the Bond drops by `n` only if the Agent keeps at least 1 WP. */
 function spendRolledWillpower(c: Character, l: Live, bond: number, n: number): { live: Live; n: number; ok: boolean } {
   const wp = Math.max(0, l.wp - n), score = caps(c, l).bondScore;

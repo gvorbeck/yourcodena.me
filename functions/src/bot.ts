@@ -72,7 +72,6 @@ const linkedGame = cached(async (guild) => (await guildRef(guild).get()).get('ga
 const claimRef = (gameId: string, user: string) => db().doc(`discordClaims/${gameId}_${user}`);
 const claimsQuery = (gameId: string, agentId: string) =>
   db().collection('discordClaims').where('gameId', '==', gameId).where('agentId', '==', agentId);
-const claimsOfAgent = (gameId: string, agentId: string) => claimsQuery(gameId, agentId).get();
 
 const agentsOf = cached(async (gameId) =>
   (await db().collection(agentsPath(gameId)).select('name', 'codename').get()).docs.map((d) => ({ id: d.id, label: labelOf(d) })));
@@ -304,7 +303,7 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     if (value === undefined) { await claimRef(gameId, user).delete(); return reply(`<@${user}> no longer plays an Agent here.`); }
     const a = await findAgent(gameId, String(value));
     if (!a) return privately(NO_SUCH_AGENT);
-    const claims = (await claimsOfAgent(gameId, a.id)).docs;
+    const claims = (await claimsQuery(gameId, a.id).get()).docs;
     if (claims.some((d) => d.get('userId') !== user) && !manage) return privately('Releasing someone else\'s Agent needs the Manage Channels permission.');
     await Promise.all(claims.map((d) => d.ref.delete()));
     return reply(`${bold(a.label)} is free to claim.`);

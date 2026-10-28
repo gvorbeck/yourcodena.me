@@ -60,7 +60,6 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const latest = useRef(start); // newest state, so several changes in one event compose
   const [stack] = useState(() => new UndoStack());
   const [undoLabel, setUndoLabel] = useState<string | null>(null); // what Undo would revert; null = nothing
-  /** Every change goes through here; the stack decides whether it earns an undo step. */
   /** Show `next` as the newest state, with the undo stack as it now stands. */
   const show = (next: Live) => { latest.current = next; setUndoLabel(stack.label); setLive(next); };
   /** Every change goes through here; the stack decides whether it earns an undo step. */
