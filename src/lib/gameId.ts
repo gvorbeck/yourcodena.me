@@ -2,7 +2,7 @@ import { CODENAMES, randomInt } from '../rules/data/random';
 import { SAVED_AGENT_BAK, SAVED_AGENT_KEY, store } from './storage';
 
 export const MIN_ID = 3;
-export const MAX_ID = 100;
+const MAX_ID = 100;
 /** Server-side check (Functions): any ID this app could have made, older short ones included. */
 export const isGameId = (s: string) => new RegExp(`^[a-z0-9-]{1,${MAX_ID}}$`).test(s);
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';

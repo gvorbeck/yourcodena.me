@@ -56,7 +56,8 @@ Other scripts:
 | `npm run build` | Typecheck, then build to `dist/` |
 | `npm run preview` | Serve the build |
 | `npm test` | Run the tests once |
-| `npm run lint` | Lint `src/` |
+| `npm run lint` | Lint everything |
+| `npm run check` | Lint, typecheck, unused code (knip), unit tests with the coverage floor. Run before calling work done |
 
 ## Where things are
 

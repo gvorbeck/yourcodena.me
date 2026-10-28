@@ -1,13 +1,29 @@
-name: Deploy to Firebase Hosting
+name: Check and deploy
 on:
   push:
-    branches: [main]
+    branches: [main, dev] # dev only runs the checks, so a PR to main shows them before anything ships
   workflow_dispatch:
 permissions:
   contents: read
   checks: write
 jobs:
-  build_and_deploy:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm, cache-dependency-path: '**/package-lock.json' }
+      - run: npm ci
+      - run: npm ci --prefix functions # the bot's tests import firebase-admin
+      - run: npm run check # lint, types, unused code, unit tests with the coverage floor in vite.config.ts
+      # Runs firestore.rules in the emulator (Java is preinstalled on ubuntu-latest) before they can be deployed.
+      - run: npm run test:rules
+      # Browser tests: the app against the emulator, through Playwright.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+  deploy:
+    needs: checks
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -15,14 +31,7 @@ jobs:
       - uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm, cache-dependency-path: '**/package-lock.json' }
       - run: npm ci
-      - run: npm ci --prefix functions # the bot's tests import firebase-admin
-      - run: npm run lint
-      - run: npm run test:coverage # unit tests; fails if coverage drops below the floor in vite.config.ts
-      # Runs firestore.rules in the emulator (Java is preinstalled on ubuntu-latest) before they can be deployed.
-      - run: npm run test:rules
-      # Browser tests: the app against the emulator, through Playwright.
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - run: npm ci --prefix functions # esbuild for the Functions check, and the Functions deploy
       - run: npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}

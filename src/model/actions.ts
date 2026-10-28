@@ -83,7 +83,7 @@ export function planSanLoss(l: Live, kind: SanKind, expr: string, test: () => { 
  * Bond is spared (`ok` false); the WP is gone either way.
  */
 /** Spend an already rolled `n` WP on a Bond (pp. 74–75): the Bond drops by `n` only if the Agent keeps at least 1 WP. */
-export function spendRolledWillpower(c: Character, l: Live, bond: number, n: number): { live: Live; n: number; ok: boolean } {
+function spendRolledWillpower(c: Character, l: Live, bond: number, n: number): { live: Live; n: number; ok: boolean } {
   const wp = Math.max(0, l.wp - n), score = caps(c, l).bondScore;
   const ok = wp >= 1;
   return { live: { ...l, wp, bonds: ok ? withBond(l.bonds, bond, (l.bonds[bond] ?? score) - n, score) : l.bonds }, n, ok };

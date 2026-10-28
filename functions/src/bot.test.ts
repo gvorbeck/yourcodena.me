@@ -18,7 +18,7 @@ describe('handle', () => {
 
 describe('commands', () => {
   it('give every alias option a long-form twin', () => {
-    const opts = (n: string) => DG.options.find((o) => o.name === n)!.options!.map((o) => [o.type, o.required ?? false]);
+    const opts = (n: string) => DG.options.find((o) => o.name === n)!.options!.map((o) => [o.type, 'required' in o && !!o.required]);
     expect(opts('r')).toEqual(opts('roll'));
     expect(opts('d')).toEqual(opts('damage'));
   });

@@ -8,7 +8,6 @@ export const testText = (label: string, chance: number, pen: number) => `${label
 export const d100Text = (roll: number) => String(roll).padStart(2, '0');
 
 // ---- Roll-log entries. Tests have no `kind`; the Discord bot also logs plain dice and HP lost.
-export type RollKind = 'dice' | 'loss' | 'damage';
 interface EntryBase { agentName: string; label: string; roll: number; chance: number; penalty: number; outcome: string }
 /** A d% test: `chance` is after the penalty. */
 export type TestEntry = EntryBase & { kind?: undefined };

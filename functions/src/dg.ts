@@ -83,7 +83,7 @@ export interface Loss { leaves: Change[]; entry: LossEntry }
 type AgentDoc = { character?: unknown; live?: { hp?: unknown } | null };
 
 /** Only the `live` leaves that changed; the whole `live` when live play was never saved. */
-export const liveLeaves = (before: Live, after: Live, hasLive: boolean): Change[] =>
+const liveLeaves = (before: Live, after: Live, hasLive: boolean): Change[] =>
   hasLive ? diffPaths(before, after, ['live']) : [[['live'], after]];
 
 const lossEntry = (stat: LossStat, label: string, r: { dice: number[]; mod: number; total: number }, from: number, to: number, notes: string[], agentName: string, cause?: string): LossEntry =>
