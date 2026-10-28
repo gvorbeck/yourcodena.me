@@ -18,6 +18,11 @@ jobs:
       - run: npm ci --prefix functions # the bot's tests import firebase-admin
       - run: npm run lint
       - run: npm test
+      # Runs firestore.rules in the emulator (Java is preinstalled on ubuntu-latest) before they can be deployed.
+      - run: npm run test:rules
+      # Browser tests: the app against the emulator, through Playwright.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - run: npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}

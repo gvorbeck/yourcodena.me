@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { connectFirestoreEmulator, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 // Config field -> the Vite env var it reads (see .env.example). Fail loud at startup rather than as opaque Firestore errors.
 const envVars = {
@@ -19,10 +19,13 @@ if (missing.length) throw new Error(`Missing Firebase env vars: ${missing.join('
 // The persistent cache lets pages open and writes queue while offline; the multi-tab manager keeps several open sheets coherent.
 export const app = initializeApp(config);
 
+// Browser tests (e2e/) point the app at the local emulator, never at production data.
+const emulator = import.meta.env.VITE_FIRESTORE_EMULATOR; // "host:port"
 // App Check keeps scripts that never loaded this site from reading or writing games. Off until a site key is set.
 const siteKey = import.meta.env.VITE_APPCHECK_SITE_KEY;
-if (siteKey) initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
+if (siteKey && !emulator) initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
 
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 });
+if (emulator) { const [host, port] = emulator.split(':'); connectFirestoreEmulator(db, host, Number(port)); }
