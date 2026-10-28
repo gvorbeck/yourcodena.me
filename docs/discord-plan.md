@@ -22,7 +22,7 @@ Every phase must leave today's experience unchanged. Nobody signs up, nobody typ
 - **Untouched:** open games, `/#sheet=` links, the recent-games list, offline play and the roll log.
 - **CSP:** domains are only ever added.
 
-End state: browsers only touch game data (`games`, `agents`, `rolls`, `members`), and only as the rules allow. Secrets and links (`gameSecrets`, `discordChannels`, `discordClaims`) can only be reached by Functions, which use the Admin SDK.
+End state: browsers only touch game data (`games`, `agents`, `rolls`, `members`), and only as the rules allow. Secrets and links (`gameSecrets`, `discordGuilds`, `discordClaims`, `discordPending`) can only be reached by Functions, which use the Admin SDK.
 
 ## Phase 0: Cost guardrails
 
@@ -31,6 +31,7 @@ End state: browsers only touch game data (`games`, `agents`, `rolls`, `members`)
 - [x] **Me:** kill switch (`functions/src/index.ts`, recovery steps in the README): when the budget is passed, a Function turns billing off. The site goes offline until you turn billing back on. Google's built-in spend caps were checked on 2026-10-25 and can't do this job: they cover one service per budget, from a list of 4 that doesn't include Firestore.
 - [x] **You:** set `VITE_APPCHECK_SITE_KEY` and deploy. Leave enforcement **off**. (Live since 2026-10-18.)
 - [ ] **You:** on or after 2026-11-01, check the App Check metrics in the console. Enforce only if unverified requests are near zero. Some privacy browsers block reCAPTCHA, and enforcing would lock those players out.
+- [ ] **Me:** once enforcing is OK, set `enforceAppCheck: true` on `discordWebhook` too, so scripts can't call it in a loop. It only backs the game page's Discord panel, so a blocked browser would lose that panel, not play.
 - [x] **Me:** cap every Function at 5 instances, a 10-second timeout and 256 MiB of memory.
 - [x] **You:** turn on the Cloud Billing API (Cloud console → APIs & Services → Library → "Cloud Billing API" → Enable).
 - [x] **You:** run `firebase deploy --only functions` (done 2026-10-25, region us-east1). This also creates the `budget-alerts` Pub/Sub topic.
@@ -47,7 +48,7 @@ Normal play stays in the free tier. Spam is the risk: App Check enforcement and 
 - [x] **Me:** `discordWebhook` callable: checks the URL with Discord, posts a hello, saves it to `gameSecrets` (browsers denied in `firestore.rules`). Never returns the URL.
 - [x] **Me:** `rollToDiscord` posts each new roll: `**Agent Smith** · Firearms 45% → 23 · Success`. @-pings blocked, Markdown in names defused.
 - [x] **Me:** Discord panel on the game page: paste URL, connect, disconnect.
-- [x] **Me:** tests for the message format, URL check and ping blocking. `gameSecrets` denial is a plain `if false` rule; no emulator test.
+- [x] **Me:** tests for the message format, URL check and ping blocking. `gameSecrets` denial is a plain `if false` rule; no emulator test. `src/lib/agents.test.ts` checks every browser write against the rules' `hasOnly` lists and key caps, without an emulator.
 - [x] **Me:** `npm --prefix functions run webhook:test` posts sample rolls from your terminal.
 - [x] **You:** `firebase deploy --only functions,firestore:rules`, then push the app.
 - [x] **You:** delete the "Captain Hook" webhook (its URL was pasted in chat), make a new one, paste it into the game page panel.
@@ -99,9 +100,9 @@ All commands sit under `/dg`, so they don't clash with Dice Maiden's `/roll`.
     - `/dg roll test [modifier]`: stats, Luck, SAN and skills autocomplete with current %. With a webhook connected, the result posts to the webhook's channel and the player gets a private copy where they typed. Same math as the live sheet (WP, exhaustion, penalty). Rolled on the server, saved to the roll log, and a failed skill is ticked for improvement.
     - `/dg r t: [m:]`: short form of `/dg roll test: [modifier:]`. `test` also takes dice (`2D6+1`) for anything rolled outward, damage dealt included, or a number (`45`) for a plain d% roll against it; both land in the roll log too.
     - `/dg damage dice:` (short `/dg d d:`): your claimed Agent gets hurt. `1D10`, `2D6+1` or a number comes off their HP on the site, logged in the roll log with what it means (stunned, unconscious, dead; p. 55).
-    - `/dg san loss: kind:`: your claimed Agent loses SAN with the live sheet's rules: `0/1D6` makes the SAN test (adaptation passes it automatically), `1D6` just loses it; then temporary insanity, Breaking Point and adaptation apply (pp. 66–74). When projecting could reduce the loss (a loss, 2+ WP, a Bond with points), the bot asks privately with buttons: project or take it; after the 1D4 WP roll, which Bond (ones with enough points). Then it applies and posts for everyone. The SAN test is logged and posted at once, so it can't be re-rolled. The player, whoever claims that Agent now, or anyone with Manage Channels can settle a held loss, so it can't get stuck; the 1D4 is rolled once even on a double click, and `/dg san` while one is held says so instead of rolling. HP and SAN loss share one code path (`commitLoss` in bot.ts, `Loss` in dg.ts).
+    - `/dg san loss: kind:`: your claimed Agent loses SAN with the live sheet's rules: `0/1D6` makes the SAN test (adaptation passes it automatically), `1D6` just loses it; then temporary insanity, Breaking Point and adaptation apply (pp. 66–74). When projecting could reduce the loss (a loss, 2+ WP, a Bond with points), the bot asks privately with buttons: project or take it; after the 1D4 WP roll, which Bond (ones with enough points). Then it applies and posts for everyone. The SAN test is logged and posted at once, in the same write that holds or applies the loss, so it can't be re-rolled, and a second `/dg san` racing the first can't replace its held loss. The player, whoever claims that Agent now, or anyone with Manage Channels can settle a held loss, so it can't get stuck; the 1D4 is rolled once even on a double click, and `/dg san` while one is held says so instead of rolling. HP and SAN loss share one code path (`commitLoss` in bot.ts, `Loss` in dg.ts).
     - `/dg sheet`: HP, WP, SAN and BP, shown only to you.
-- [x] **Me:** the bot reuses `src/rules` and `src/model`, bundled into the Functions build.
+- [x] **Me:** the bot reuses `src/rules`, `src/model` and `src/lib`, bundled into the Functions build.
 - [x] **Me:** `npm --prefix functions run discord:register` registers the commands. It asks for the bot token, so the token never goes in the repo, chat or Firebase.
 - [x] **Me:** bot rolls go through the phase 1 webhook like site rolls; the player gets a private copy, so nothing posts twice.
 - [x] **You:** create an app in the Discord Developer Portal. Copy its Application ID and Public Key, and reset/copy the bot token.
@@ -110,7 +111,7 @@ All commands sit under `/dg`, so they don't clash with Dice Maiden's `/roll`.
 **Done when:** `/dg roll` in Discord shows up in the app's roll log. Done 2026-10-26.
 
 Known gaps:
-- A cold start can miss Discord's 3-second deadline ("The application did not respond"). Retry. Keeping an instance warm would cost about as much as the whole budget.
+- ~~A cold start can miss Discord's 3-second deadline~~ fixed 2026-10-27: the logs showed every request over 3 s was a cold start after 17+ idle minutes (2–9 s), and a write could land after Discord gave up, so a retry doubled it. `keepBotWarm` pings the bot every 5 minutes, inside the free tier. A minimum instance would have cost about $6/month, over the budget. Two commands at the very same moment can still start a second, cold instance.
 - ~~Changes from Discord lost to an open sheet tab~~ fixed: open sheets merge changes saved elsewhere (Discord damage, ticked skills, another device); a field changed in the tab too keeps the tab's value.
 
 ## Decisions needed

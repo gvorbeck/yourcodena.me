@@ -38,8 +38,9 @@ jobs:
           printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@15.34.1 deploy --only firestore:rules --project codename-dg
           rm -f "$RUNNER_TEMP/sa.json"
-      # The bot bundles src/rules and src/model at deploy time, so it must redeploy when they change or Discord shows
-      # stale chances. Manual runs and pushes with no usable "before" commit always deploy.
+      # The bot bundles shared files from src/ at deploy time, so it must redeploy when they change or Discord shows stale
+      # chances. esbuild's metafile lists exactly which ones, so a UI-only change doesn't redeploy every Function.
+      # Manual runs and pushes with no usable "before" commit always deploy.
       - name: Check whether Functions changed
         id: functions
         env:
@@ -48,7 +49,10 @@ jobs:
         run: |
           if [ "$EVENT" != push ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$BEFORE" HEAD -- src/rules src/model functions; then
+          elif npx --prefix functions esbuild functions/src/index.ts --bundle --platform=node --format=esm --packages=external \
+                 --metafile="$RUNNER_TEMP/meta.json" --outfile="$RUNNER_TEMP/bot.js" --log-level=error \
+               && SHARED=$(node -e "console.log(Object.keys(require(process.argv[1]).inputs).filter((f) => !f.startsWith('functions/')).join(' '))" "$RUNNER_TEMP/meta.json") \
+               && git diff --quiet "$BEFORE" HEAD -- functions $SHARED; then
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           else
             echo "deploy=true" >> "$GITHUB_OUTPUT"

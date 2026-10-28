@@ -6,6 +6,7 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { overBudget, type BudgetAlert } from './budget.js';
 import { handle, privately, type Interaction } from './bot.js';
 import { gamePath, secretPath } from '../../src/lib/paths';
@@ -47,7 +48,7 @@ const secretRef = (gameId: string) => db.doc(secretPath(gameId));
  * Otherwise check the URL with Discord, post a hello, and save it. The URL is never sent back.
  * shortcut: anyone with the game link can change the webhook until phase 2b adds a Handler role.
  */
-export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>(async (req) => {
+export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>(async (req) => { // shortcut: no enforceAppCheck until the Nov 1 metrics check (docs/discord-plan.md, phase 0)
   const { gameId, url } = req.data ?? {};
   if (typeof gameId !== 'string' || !isGameId(gameId)) throw new HttpsError('invalid-argument', 'Bad game ID.');
   if (!(await db.doc(gamePath(gameId)).get()).exists) throw new HttpsError('not-found', 'No such game.');
@@ -87,9 +88,10 @@ async function toDiceChannel(gameId: string, content: string) {
 
 /** Posts each new roll-log entry (d% tests, plain dice, damage taken) to the game's Discord channel. */
 export const rollToDiscord = onDocumentCreated('games/{gameId}/rolls/{rollId}', async (event) => {
-  const roll = event.data?.data() as (Roll & { answered?: boolean }) | undefined;
+  const roll = event.data?.data() as (Roll & { answered?: boolean; testLine?: string }) | undefined;
   if (!roll || roll.answered) return; // /dg rolls with no webhook: the bot already answered in its channel
-  await toDiceChannel(event.params.gameId, formatEntry(roll));
+  // A SAN loss carries the SAN test that decided it, so the two post as one message in the right order.
+  await toDiceChannel(event.params.gameId, roll.testLine ? `${roll.testLine}\n${formatEntry(roll)}` : formatEntry(roll));
 });
 
 const discordPublicKey = defineString('DISCORD_PUBLIC_KEY', { description: 'Discord app public key (Developer Portal → General Information → Public Key)' });
@@ -107,4 +109,13 @@ export const discordBot = onRequest({ invoker: 'public' }, async (req, res) => {
     logger.error('discordBot failed', e);
     res.json(privately('Something went wrong. Try again.'));
   }
+});
+
+/**
+ * Discord gives the bot 3 seconds, and a cold start alone took 2–9 s in the Oct 2026 logs (every one after 17+ idle
+ * minutes), so the first command after a break often failed while its write still landed. Cloud Run keeps an idle
+ * instance for about 15 minutes; a ping every 5 keeps one warm. Each ping is a 405, well inside the free tier.
+ */
+export const keepBotWarm = onSchedule({ schedule: 'every 5 minutes', retryCount: 0, maxInstances: 1 }, async () => {
+  await fetch(`https://us-central1-${projectID.value()}.cloudfunctions.net/discordBot`, { signal: AbortSignal.timeout(8000) });
 });
