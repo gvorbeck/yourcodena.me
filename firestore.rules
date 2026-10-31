@@ -73,7 +73,8 @@ service cloud.firestore {
           && request.resource.data.penalty is number && request.resource.data.penalty >= 0 && request.resource.data.penalty <= 200
           && request.resource.data.roll is number && request.resource.data.roll >= 1 && request.resource.data.roll <= 100
           && request.resource.data.outcome in ['critical success', 'success', 'failure', 'fumble']
-          && request.resource.data.createdAt is number;
+          // shortcut: numbers are still accepted from tabs opened before server times shipped (2026-10-31); drop `is number` after 2026-11-14.
+          && (request.resource.data.createdAt == request.time || request.resource.data.createdAt is number);
         allow update, delete: if false;
       }
     }

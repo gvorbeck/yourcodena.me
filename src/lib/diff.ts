@@ -17,6 +17,9 @@ export function diffPaths(prev: unknown, next: unknown, path: string[] = []): Ch
   return JSON.stringify(prev) === JSON.stringify(next) ? [] : [[path, next]];
 }
 
+/** The value at `path` inside `v`, or undefined. */
+export const at = (v: unknown, path: string[]) => path.reduce<unknown>((o, k) => (o as Record<string, unknown> | null)?.[k], v);
+
 /** For an array used as a set: what was added and removed, so a write can leave other writers' additions in place. */
 export function setDelta(prev: unknown, next: unknown) {
   const a = Array.isArray(prev) ? prev : [], b = Array.isArray(next) ? next : [];
@@ -35,9 +38,16 @@ function setPath(obj: unknown, path: string[], v: unknown): unknown {
 /**
  * Three-way merge for a value someone else saved while this tab had it open: `local` plus every leaf that `remote`
  * changed from `base` (what this tab last read or wrote), except leaves `local` changed too, which stay local.
+ * Arrays at `sets` (dotted paths) are sets: local keeps its own additions and removals and takes remote's too.
  */
-export function mergeRemote<T>(base: T, local: T, remote: T): T {
+export function mergeRemote<T>(base: T, local: T, remote: T, sets: string[] = []): T {
   const mine = diffPaths(base, local).map(([p]) => p);
   const overlaps = (p: string[]) => mine.some((m) => m.length <= p.length ? m.every((k, i) => k === p[i]) : p.every((k, i) => k === m[i]));
-  return diffPaths(base, remote).reduce<unknown>((out, [p, v]) => (overlaps(p) ? out : setPath(out, p, v)), local) as T;
+  const merged = diffPaths(base, remote).reduce<unknown>((out, [p, v]) => (overlaps(p) ? out : setPath(out, p, v)), local);
+  return sets.reduce((out, s) => {
+    const p = s.split('.'), { add, remove } = setDelta(at(base, p), at(remote, p)), own = at(local, p);
+    if (!add.length && !remove.length) return out;
+    const kept = Array.isArray(own) ? own.filter((x) => !remove.includes(x)) : [];
+    return setPath(out, p, [...kept, ...add.filter((x) => !kept.includes(x))]);
+  }, merged) as T;
 }

@@ -59,7 +59,7 @@ vi.mock('firebase-admin/firestore', () => {
       };
     },
   };
-  return { FieldPath, FieldValue: { delete: () => DELETE, arrayUnion: (...v: unknown[]) => new Union(v) }, getFirestore: () => db };
+  return { FieldPath, FieldValue: { delete: () => DELETE, arrayUnion: (...v: unknown[]) => new Union(v) }, Timestamp: { fromMillis: (ms: number) => ({ ms }) }, getFirestore: () => db };
 });
 
 const { clearCaches, handle } = await import('./bot');

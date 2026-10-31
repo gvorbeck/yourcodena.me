@@ -23,6 +23,8 @@ export const app = initializeApp(config);
 const emulator = import.meta.env.VITE_FIRESTORE_EMULATOR; // "host:port"
 // App Check keeps scripts that never loaded this site from reading or writing games. Off until a site key is set.
 const siteKey = import.meta.env.VITE_APPCHECK_SITE_KEY;
+// Dev only (never in a build): a debug token registered in the console lets localhost pass App Check against production.
+if (import.meta.env.DEV && import.meta.env.VITE_APPCHECK_DEBUG_TOKEN) Object.assign(self, { FIREBASE_APPCHECK_DEBUG_TOKEN: import.meta.env.VITE_APPCHECK_DEBUG_TOKEN });
 if (siteKey && !emulator) initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
 
 export const db = initializeFirestore(app, {

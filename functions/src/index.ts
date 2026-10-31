@@ -48,7 +48,7 @@ const secretRef = (gameId: string) => db.doc(secretPath(gameId));
  * Otherwise check the URL with Discord, post a hello, and save it. The URL is never sent back.
  * shortcut: anyone with the game link can change the webhook until phase 2b adds a Handler role.
  */
-export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>(async (req) => { // shortcut: no enforceAppCheck until the Nov 1 metrics check (docs/discord-plan.md, phase 0)
+export const discordWebhook = onCall<{ gameId?: unknown; url?: unknown }>({ enforceAppCheck: true }, async (req) => {
   const { gameId, url } = req.data ?? {};
   if (typeof gameId !== 'string' || !isGameId(gameId)) throw new HttpsError('invalid-argument', 'Bad game ID.');
   if (!(await db.doc(gamePath(gameId)).get()).exists) throw new HttpsError('not-found', 'No such game.');
