@@ -2,7 +2,7 @@
 html { font: 14px/1.5 var(--font); }
 body { margin: 0; background: var(--bg); color: var(--fg); letter-spacing: .02em; }
 /* Terminal-style caps for chrome and short labels only; sentences and typed text keep their case so they stay readable. */
-h1, h2, h3, .menubar, .statusbar, .steps, .choice, .lbl, .field > label, th, td, .rollbar, .stamp, .agents, .btn, .option, option, legend { text-transform: uppercase; }
+h1, h2, h3, .menubar, .statusbar, .steps, .choice, .lbl, .field > label, th, td, .rollbar, .stamp, .agents, .btn, .option, option, legend, .bond-list { text-transform: uppercase; }
 .statusbar .legal, .alerts p, .dossier p, .modal p { text-transform: none; }
 #root { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
 h1, h2, h3, p { margin: 0; font-weight: normal; }
@@ -189,7 +189,7 @@ td.num, th.num { text-align: right; }
 
 
 /* Landing, game and notice pages */
-.page { display: grid; gap: var(--gap); padding: var(--gap); align-content: start; width: 100%; max-width: 64rem; margin: 0 auto; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr); /* wide content (the roll log) scrolls in its box instead of widening the page */ gap: var(--gap); padding: var(--gap); align-content: start; width: 100%; max-width: 64rem; margin: 0 auto; }
 .page a { color: inherit; }
 a.btn { display: inline-block; text-decoration: none; color: inherit; }
 .idform { display: flex; gap: .75rem; flex-wrap: wrap; } .idform input { flex: 1 1 16ch; width: auto; }
@@ -199,6 +199,15 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; }
 /* The details wrap among themselves; the Delete button keeps its own column. */
 .agents .info { flex: 1; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .25rem 1.5rem; }
 .agents .info > :first-child { flex: 1 1 16ch; }
+/* Handler boxes: two balanced columns. Inline-block keeps each box's bottom margin at a column's end (block margins are dropped there); the negative margin then cancels it so the page grid's gap stays even. */
+.masonry { columns: 2 18rem; column-gap: var(--gap); margin-bottom: calc(-1 * var(--gap)); }
+.masonry > .win { display: inline-block; vertical-align: top; width: 100%; break-inside: avoid; margin-bottom: var(--gap); }
+.masonry td { padding-top: .4rem; padding-bottom: .4rem; } .masonry td.num { white-space: nowrap; }
+/* Same padding and dotted rule as the table rows in the other boxes. */
+.bond-list li { padding: .4rem .5rem; border-bottom: 1px dotted var(--dim); }
+.bond-list .pair { display: flex; justify-content: space-between; gap: 1rem; }
+.masonry tbody tr:last-child td, .bond-list li:last-child { border-bottom: none; }
+@media (max-width: 800px) { .masonry { columns: 1; } } /* after the rule above, so it wins */
 .log { max-height: 24rem; overflow-y: auto; }
 .log td { padding-top: .4rem; padding-bottom: .4rem; } /* same row height as the live sheet tables */
 

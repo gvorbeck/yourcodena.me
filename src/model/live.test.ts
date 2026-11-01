@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from './character';
-import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond } from './live';
+import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond, topSkills, sheetOf } from './live';
 
 it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   const c = newCharacter();
@@ -249,4 +249,21 @@ describe('the live schema on zod 4', () => {
     a.checked.push('Alertness'); a.adapt.v = 2; a.spent.rest = true;
     expect(b).toMatchObject({ checked: [], adapt: { v: 0 }, spent: { rest: false } });
   });
+});
+
+it('lists each skill an agent has with the best rating and everyone tied at it', () => {
+  const c = newCharacter();
+  const a = { name: 'A', c, l: freshLive(c) }, b = { name: 'B', c, l: { ...freshLive(c), advance: { Alertness: 4 } } };
+  const top = topSkills([a, b]);
+  expect(top.find((s) => s.key === 'Alertness')).toEqual({ key: 'Alertness', total: 24, names: ['B'] });
+  expect(top.find((s) => s.key === 'Athletics')).toEqual({ key: 'Athletics', total: 30, names: ['A', 'B'] });
+  expect(top.some((s) => s.key === 'Unnatural')).toBe(false); // 0%
+  expect(top.map((s) => s.key)).toEqual(top.map((s) => s.key).sort((x, y) => x.localeCompare(y)));
+});
+
+it('reads a stored sheet, or null while in creation or damaged', () => {
+  const c = newCharacter();
+  expect(sheetOf(c, freshLive(c))).toEqual({ c, l: freshLive(c) });
+  expect(sheetOf(c, null)).toBeNull();
+  expect(sheetOf({ bad: true }, freshLive(c))).toBeNull();
 });

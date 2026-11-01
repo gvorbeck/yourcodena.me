@@ -28,7 +28,7 @@ test('damage from Discord lands on an open live sheet and in the roll log', asyn
 
   await expect(hp(page)).toHaveText('10 / 13'); // no reload: the open sheet merges the bot's write
   await page.goto(gameUrl);
-  await expect(page.getByRole('listitem').filter({ hasText: 'LAMP' })).toContainText('HP 10');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Ada Rourke' })).toContainText('HP 10');
   await expect(page.getByRole('row').filter({ hasText: 'HP loss' })).toContainText('HP 13 → 10');
 });
 

@@ -33,10 +33,11 @@ export type RollDoc = RollEntry & { id: string; agentId: string; createdAt: numb
 /** The live sheet only logs d% tests; dice and damage entries come from the Discord bot. Server time, so devices with wrong clocks still log in order. */
 export const logRoll = (g: string, r: Omit<TestEntry, 'kind'> & { agentId: string }) => addDoc(rollsCol(g), { ...r, createdAt: serverTimestamp() });
 
-export interface AgentCard { id: string; name: string; codename: string; profession: string; vitals: { hp: number; wp: number; san: number } | null }
+export interface AgentCard { id: string; name: string; codename: string; profession: string; vitals: { hp: number; wp: number; san: number } | null; character: unknown; live: unknown }
 const toAgent = (id: string, d: DocumentData): AgentCard => ({
   id, name: d.name ?? '', codename: d.codename ?? '', profession: d.profession ?? '',
   vitals: d.live ? { hp: d.live.hp, wp: d.live.wp, san: d.live.san } : null,
+  character: d.character, live: d.live, // raw: HandlerPanels parses them
 });
 
 // Older rolls hold a millisecond number, newer ones a Timestamp. Firestore sorts every number before every Timestamp, which is also oldest first.

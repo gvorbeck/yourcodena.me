@@ -39,6 +39,13 @@ export const modText = (mod: number) => (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}
 export const diceDetail = (dice: number[], mod: number) => (dice.length > 1 || (dice.length && mod) ? `(${dice.join('+')}${modText(mod)})` : '');
 /** "2D6+1 (4+4+1)": the dice and how the total was made, as the roll log and Discord show them. */
 export const diceLabel = (label: string, dice: number[], mod: number) => `${label} ${diceDetail(dice, mod)}`.trim();
+/** p. 55: an Agent's HP for the Handler at a glance; '' when above half. */
+export const hpNote = (hp: number, max: number) =>
+  hp === 0 ? 'Dead' : hp <= 2 ? 'Unconscious, CON×5 test for permanent injury' : hp * 2 < max ? 'Below half HP' : '';
+/** p. 47: what low WP means; '' above 2. */
+export const wpNote = (wp: number) => (wp === 0 ? 'lost control' : wp <= 2 ? 'breakdown' : '');
+/** p. 68: how near SAN is to the Breaking Point. Within 5 is flagged: one ordinary 1D6 loss can cross it. */
+export const bpNote = (san: number, bp: number) => (san <= bp ? 'At Breaking Point' : san - bp <= 5 ? `${san - bp} from Breaking Point` : '');
 /** p. 55: what a hit taking an Agent from `from` to `to` HP means. '' when nothing special happens. */
 export function hurtNote(from: number, to: number): string {
   if (to === 0) return 'Dead (p. 55)';
