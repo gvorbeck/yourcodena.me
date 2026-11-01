@@ -29,6 +29,10 @@ const liveSchema = z.object({
 });
 export type Live = z.infer<typeof liveSchema>;
 export const parseLive = (raw: unknown): Live => liveSchema.parse(raw);
+/** A stored agent's sheet; null while still in creation (no live sheet) or when the document is damaged. */
+export function sheetOf(character: unknown, live: unknown) {
+  try { return { c: parseCharacter(character), l: parseLive(live) }; } catch { return null; }
+}
 
 export const freshLive = (c: Character): Live => {
   const d = derived(c);
@@ -50,6 +54,18 @@ export function reconcile(l: Live, c: Character): Live {
   const bonds = Array.from({ length: bondCount(c) }, (_, i) => Math.min(l.bonds[i] ?? d.bondScore, d.bondScore));
   const next = { ...l, hp: Math.min(l.hp, d.hp), wp: Math.min(l.wp, d.wp), san: Math.min(l.san, maxSanOf(c, l)), bonds };
   return next.hp === l.hp && next.wp === l.wp && next.san === l.san && next.bonds.length === l.bonds.length && next.bonds.every((b, i) => b === l.bonds[i]) ? l : next;
+}
+
+/** Each skill some agent has at 1% or more, with the best rating and every agent tied at it. */
+export function topSkills(agents: { name: string; c: Character; l: Live }[]) {
+  const best = new Map<string, { total: number; names: string[] }>();
+  for (const a of agents) for (const s of skillsOf(a.c, a.l.advance)) {
+    const b = best.get(s.key);
+    if (s.total < 1 || (b && s.total < b.total)) continue;
+    if (b?.total === s.total) b.names.push(a.name);
+    else best.set(s.key, { total: s.total, names: [a.name] });
+  }
+  return [...best].map(([key, b]) => ({ key, ...b })).sort((x, y) => x.key.localeCompare(y.key));
 }
 
 /** Unnatural skill as played (veteran gain plus growth); it caps SAN at 99 minus itself (pp. 15, 68). */

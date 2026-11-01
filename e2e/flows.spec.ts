@@ -9,9 +9,12 @@ test('a new agent goes through creation and shows on the game page', async ({ pa
 
   await page.getByRole('link', { name: '< Game' }).click();
   await expect(page).toHaveURL(new RegExp(`${gameUrl}$`));
-  const row = page.getByRole('listitem').filter({ hasText: 'LAMP' });
+  const row = page.getByRole('listitem').filter({ hasText: 'Ada Rourke' });
   await expect(row).toContainText('Physician');
   await expect(row).toContainText('HP 13 · WP 11 · SAN 55');
+  await expect(page.getByRole('region', { name: 'INITIATIVE' }).getByRole('row').filter({ hasText: 'LAMP' })).toContainText(/DEX \d\d/);
+  await expect(page.getByRole('region', { name: 'TOP SKILLS' }).getByRole('row').filter({ hasText: 'Medicine' })).toContainText('LAMP');
+  await expect(page.getByRole('region', { name: 'SANITY' })).toContainText('SAN 55 / BP 44');
 });
 
 test('live sheet changes are saved to the server', async ({ page, browser }) => {
@@ -33,7 +36,7 @@ test('a roll on the live sheet appears in the game roll log', async ({ page, bro
 
   const other = await freshPage(browser);
   await other.goto(gameUrl);
-  const entry = other.getByRole('row').filter({ hasText: 'Medicine' });
+  const entry = other.getByRole('region', { name: 'ROLL LOG' }).getByRole('row').filter({ hasText: 'Medicine' });
   await expect(entry).toContainText('LAMP');
   await expect(entry).toContainText(/critical success|success|failure|fumble/i);
 });
@@ -62,4 +65,16 @@ test('the game page advances every checked skill at the end of a session', async
   await expect.poll(async () => (await agentDoc(gameId, agentId)).get('live.checked')).toEqual([]);
   const advance = (await agentDoc(gameId, agentId)).get('live.advance');
   expect(Object.keys(advance)).toEqual(['Medicine']); // Unnatural never advances (p. 29)
+});
+
+test('initiative uses DEX as played: permanent injury and temporary loss count', async ({ page }) => {
+  const { gameId, agentId, gameUrl } = await createAgent(page);
+  await savedHp(gameId, agentId, 13);
+  const doc = await agentDoc(gameId, agentId);
+  const dex: number = doc.get('character.stats.DEX');
+  await doc.ref.update({ 'live.statMod': { DEX: -2 }, 'live.statLoss': { DEX: 1 } }); // as if hurt from Discord
+
+  await page.goto(gameUrl);
+  const row = page.getByRole('region', { name: 'INITIATIVE' }).getByRole('row').filter({ hasText: 'LAMP' });
+  await expect(row).toContainText(`DEX ${String(dex - 3).padStart(2, '0')}`);
 });

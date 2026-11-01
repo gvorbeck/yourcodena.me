@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { asLoss, d100Text, diceLabel, testText } from '../rules/outcome';
+import { asLoss, d100Text, diceLabel, testText, wpNote } from '../rules/outcome';
 import { agentLabel } from '../model/names';
 import { useRun } from '../lib/useRun';
 import { createGame, deleteAgent, useAgents, type AgentCard, useGameExists, useRolls, type RollDoc } from '../lib/games';
@@ -13,6 +13,8 @@ import { agentUrl, gameUrl } from '../lib/paths';
 
 // Lazy: ui/index brings in the rules and react-aria, which this page otherwise doesn't load. Delete loads it through run() first, so a failed load shows an inline error instead of crashing the page.
 const ConfirmDialog = lazy(() => import('../ui').then((m) => ({ default: m.ConfirmDialog })));
+// Lazy too: it needs the rules to read each sheet.
+const HandlerPanels = lazy(() => import('../HandlerPanels'));
 
 /** Test, Roll and Result cells: a d% test, plain dice from Discord ("2D6+1 (4+4+1) → 9"), or HP/SAN lost ("HP 11 → 4"). */
 function EntryCells({ r }: { r: RollDoc }) {
@@ -115,7 +117,7 @@ export default function Game() {
                 <div className="info">
                   <Link to={agentUrl(gameId, a.id)}>{agentLabel(a.codename, a.name)}</Link>
                   <span className="dim">{[a.codename && a.name, a.profession].filter(Boolean).join(' · ') || 'Not started'}</span>
-                  {a.vitals ? <span>HP {a.vitals.hp} · WP {a.vitals.wp} · SAN {a.vitals.san}</span> : <span className="dim">Creation incomplete</span>}
+                  {a.vitals ? <span>HP {a.vitals.hp} · <span className={wpNote(a.vitals.wp) ? 'warn' : undefined}>WP {a.vitals.wp}{wpNote(a.vitals.wp) && ` (${wpNote(a.vitals.wp)})`}</span> · SAN {a.vitals.san}</span> : <span className="dim">Creation incomplete</span>}
                 </div>
                 <button className="btn" onClick={() => run(async () => { await import('../ui'); setDoomed(a); })} disabled={busy} aria-label={`Delete ${agentLabel(a.codename, a.name)}`}>Delete</button>
               </li>
@@ -158,6 +160,8 @@ export default function Game() {
           </div>
         )}</SubList>
       </Win>
+
+      <Suspense><HandlerPanels gameId={gameId} agents={cards ?? []} /></Suspense>
 
       <DiscordPanel gameId={gameId} />
     </Page>
