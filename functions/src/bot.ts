@@ -1,6 +1,6 @@
 // /dg command handling. Discord sends each command (and each autocomplete keystroke) here; the reply goes back in the HTTP response.
 import { randomInt } from 'node:crypto';
-import { FieldPath, FieldValue, getFirestore, type DocumentData, type DocumentReference } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, getFirestore, Timestamp, type DocumentData, type DocumentReference } from 'firebase-admin/firestore';
 import { REMOVED, type Change } from '../../src/lib/diff';
 import { SAN_KINDS, type SanKind } from '../../src/model/live';
 import { isGameId } from '../../src/lib/gameId';
@@ -121,9 +121,9 @@ const hasWebhook = async (gameId: string) => Boolean((await db().doc(secretPath(
 export const answer = (text: string, viaWebhook: boolean) =>
   (viaWebhook ? privately(text + POSTED) : reply(text));
 
-/** A roll-log entry as written; `answered` tells rollToDiscord the bot already posted it in the channel. */
+/** A roll-log entry as written; `answered` tells rollToDiscord the bot already posted it in the channel. A Timestamp, like the site's rolls, so both sort together. */
 const logged = (e: Roll, agentId: string, viaWebhook: boolean, now: number) =>
-  ({ ...e, agentId, createdAt: now, source: 'discord', ...(viaWebhook ? {} : { answered: true }) });
+  ({ ...e, agentId, createdAt: Timestamp.fromMillis(now), source: 'discord', ...(viaWebhook ? {} : { answered: true }) });
 const rollsOf = (gameId: string) => db().collection(rollsPath(gameId));
 
 /**

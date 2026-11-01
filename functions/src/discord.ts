@@ -61,9 +61,10 @@ export function verifyDiscord(publicKeyHex: string, signatureHex: string, timest
  */
 export function formatEntry(r: Roll): string {
   if (!r.kind) return formatRoll(r);
+  // Notes can carry a player's Bond name, so they go through `plain` like every other typed text.
   const who = bold(r.agentName, 'Someone'), dice = diceLabel(plain(r.label), r.dice, r.mod); // the detail is only digits and signs
   if (r.kind === 'dice') return `${who} · ${dice} → **${r.roll}**`;
   const l = asLoss(r);
   const rolled = l.label === String(l.roll) ? '' : ` · ${dice}`; // a flat "7" would only repeat the amount
-  return `${who} loses **${l.roll}** ${l.stat}${l.cause ? ` (${plain(l.cause)})` : ''}${rolled} · ${l.stat} ${l.from} → ${l.to}${l.notes.map((n) => ` · ${n}`).join('')}`;
+  return `${who} loses **${l.roll}** ${l.stat}${l.cause ? ` (${plain(l.cause)})` : ''}${rolled} · ${l.stat} ${l.from} → ${l.to}${l.notes.map((n) => ` · ${plain(n, 300)}`).join('')}`;
 }

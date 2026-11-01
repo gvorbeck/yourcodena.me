@@ -2,7 +2,7 @@
 // Documents are built with the app's own model code, so a schema change that the rules would reject fails here.
 import { readFileSync } from 'node:fs';
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { newCharacter } from '../src/model/character';
 import { freshLive } from '../src/model/live';
@@ -128,5 +128,9 @@ describe('rolls', () => {
     for (const outcome of ['critical success', 'success', 'failure', 'fumble']) await assertSucceeds(add({ outcome }));
     await assertSucceeds(add({ roll: 1, chance: 0, penalty: 200 }));
     await assertSucceeds(add({ roll: 100, chance: 100 }));
+  });
+  it('take the server clock, not a made-up time', async () => {
+    await assertSucceeds(add({ createdAt: serverTimestamp() }));
+    await assertFails(add({ createdAt: Timestamp.fromMillis(1) }));
   });
 });

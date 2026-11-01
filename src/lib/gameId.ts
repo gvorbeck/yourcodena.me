@@ -4,7 +4,8 @@ import { SAVED_AGENT_BAK, SAVED_AGENT_KEY, store } from './storage';
 export const MIN_ID = 3;
 const MAX_ID = 100;
 /** Server-side check (Functions): any ID this app could have made, older short ones included. */
-export const isGameId = (s: string) => new RegExp(`^[a-z0-9-]{1,${MAX_ID}}$`).test(s);
+const GAME_ID = new RegExp(`^[a-z0-9-]{1,${MAX_ID}}$`);
+export const isGameId = (s: string) => GAME_ID.test(s);
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
 /** What the Open box accepts: lowercase letters, digits and single dashes, so an ID is always a safe URL segment. */

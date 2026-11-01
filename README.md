@@ -45,6 +45,8 @@ cp .env.example .env
 
 Put your own Firebase project's values in `.env`. `VITE_APPCHECK_SITE_KEY` is optional. If you set it, App Check starts up with reCAPTCHA Enterprise, but it doesn't do much until you also enable it in the Firebase console and enforce it for Firestore.
 
+App Check is enforced in production, so `npm run dev` against production data needs a debug token: in the Firebase console, App Check → Apps → your web app → ⋮ → Manage debug tokens → Add debug token. Put it in `.env` as `VITE_APPCHECK_DEBUG_TOKEN`. It's only used by the dev server, never in a build. Anyone with it can pass App Check, so keep it out of git and revoke it in the same dialog if it leaks.
+
 ```bash
 npm run dev
 ```
@@ -87,7 +89,7 @@ games/{gameId}/rolls/{rollId}     { agentId, agentName, label, chance, penalty, 
                                     roll, outcome, createdAt }
 ```
 
-The rules don't let anyone list games or delete anything. Cleanup has to be done by hand with admin access. Every write is checked against an allowed set of keys, string lengths, and number ranges, so a roll can't come in as 147.
+The rules don't let anyone list games or delete a game or a roll. Anyone with the link can delete an Agent, and that can't be undone. Cleanup has to be done by hand with admin access. Every write is checked against an allowed set of keys, string lengths, and number ranges, so a roll can't come in as 147.
 
 The rules can't count documents, so there's no cap on Agents or rolls per game. App Check is the only thing that helps with that.
 

@@ -30,8 +30,8 @@ End state: browsers only touch game data (`games`, `agents`, `rolls`, `members`)
 - [x] **You:** set a $5/month budget with email alerts in Google Cloud Billing.
 - [x] **Me:** kill switch (`functions/src/index.ts`, recovery steps in the README): when the budget is passed, a Function turns billing off. The site goes offline until you turn billing back on. Google's built-in spend caps were checked on 2026-10-25 and can't do this job: they cover one service per budget, from a list of 4 that doesn't include Firestore.
 - [x] **You:** set `VITE_APPCHECK_SITE_KEY` and deploy. Leave enforcement **off**. (Live since 2026-10-18.)
-- [ ] **You:** on or after 2026-11-01, check the App Check metrics in the console. Enforce only if unverified requests are near zero. Some privacy browsers block reCAPTCHA, and enforcing would lock those players out.
-- [ ] **Me:** once enforcing is OK, set `enforceAppCheck: true` on `discordWebhook` too, so scripts can't call it in a loop. It only backs the game page's Discord panel, so a blocked browser would lose that panel, not play.
+- [x] **You:** on or after 2026-11-01, check the App Check metrics in the console. Enforce only if unverified requests are near zero. Some privacy browsers block reCAPTCHA, and enforcing would lock those players out.
+- [x] **Me:** once enforcing is OK, set `enforceAppCheck: true` on `discordWebhook` too, so scripts can't call it in a loop. It only backs the game page's Discord panel, so a blocked browser would lose that panel, not play.
 - [x] **Me:** cap every Function at 5 instances, a 10-second timeout and 256 MiB of memory.
 - [x] **You:** turn on the Cloud Billing API (Cloud console → APIs & Services → Library → "Cloud Billing API" → Enable).
 - [x] **You:** run `firebase deploy --only functions` (done 2026-10-25, region us-east1). This also creates the `budget-alerts` Pub/Sub topic.

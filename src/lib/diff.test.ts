@@ -41,6 +41,11 @@ describe('mergeRemote', () => {
   it('keeps the local value when both changed the same leaf', () => {
     expect(mergeRemote(base, { ...base, hp: 10 }, { ...base, hp: 4 })).toEqual({ ...base, hp: 10 });
   });
+  it('merges a set both sides changed: each keeps its additions and removals', () => {
+    const b = { ...base, checked: ['Alertness', 'Law'] };
+    expect(mergeRemote(b, { ...b, checked: ['Alertness', 'Law', 'Search'] }, { ...b, checked: ['Law', 'Firearms'] }, ['checked']))
+      .toEqual({ ...b, checked: ['Law', 'Search', 'Firearms'] });
+  });
   it('merges inside nested objects and drops removed keys', () => {
     const b = { advance: { Law: 1, Drive: 2 }, spent: { rest: false, sleep: false } };
     expect(mergeRemote(b, { ...b, spent: { rest: true, sleep: false } }, { ...b, advance: { Law: 1 }, spent: { rest: false, sleep: true } }))

@@ -5,7 +5,7 @@ import { Loading } from '../ui/bits';
 import { Link, useParams } from 'react-router-dom';
 import { Editor } from '../Editor';
 import { LiveSheet, type RemoteLive } from '../LiveSheet';
-import { DamagedAgent, loadAgent, saveCharacter, saveLive, watchLive } from '../lib/agents';
+import { DamagedAgent, LIVE_SETS, loadAgent, saveCharacter, saveLive, watchLive } from '../lib/agents';
 import { mergeRemote } from '../lib/diff';
 import { logRoll } from '../lib/games';
 import { useAutosave } from '../lib/useAutosave';
@@ -69,7 +69,7 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
   // started from the fresh sheet; a sheet still being created takes it whole, so finishing creation can't reset it.
   useEffect(() => watchLive(gameId, agentId, (r, known) => {
     const base = known ?? freshLive(prevC.current);
-    const merge = (l: Live) => mergeRemote(base, l, r);
+    const merge = (l: Live) => mergeRemote(base, l, r, LIVE_SETS);
     setLive((l) => (l ? merge(l) : r));
     setRemote({ merge });
   }), [gameId, agentId]);

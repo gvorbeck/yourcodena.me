@@ -76,13 +76,17 @@ describe('formatEntry', () => {
     expect(formatEntry({ ...loss, stat: 'HP' as const, label: '1D10', dice: [3], roll: 3, from: 11, to: 8, notes: [] }))
       .toBe('**Drew Rook** loses **3** HP · 1D10 · HP 11 → 8');
     expect(formatEntry({ ...loss, stat: 'HP' as const, label: '7', roll: 7, from: 11, to: 4, notes: ['Stunned (p. 55)'] }))
-      .toBe('**Drew Rook** loses **7** HP · HP 11 → 4 · Stunned (p. 55)');
+      .toBe('**Drew Rook** loses **7** HP · HP 11 → 4 · Stunned \\(p. 55\\)');
     expect(formatEntry({ ...loss, stat: 'SAN' as const, label: '0/1D6', roll: 4, from: 50, to: 46, cause: 'violence', notes: ['Failed the SAN test (rolled 63 against 50%).'] }))
-      .toBe('**Drew Rook** loses **4** SAN (violence) · 0/1D6 · SAN 50 → 46 · Failed the SAN test (rolled 63 against 50%).');
+      .toBe('**Drew Rook** loses **4** SAN (violence) · 0/1D6 · SAN 50 → 46 · Failed the SAN test \\(rolled 63 against 50%\\).');
   });
   it('still reads damage entries logged before the shared shape', () => {
     expect(formatEntry({ ...base, kind: 'damage', label: '2D6', dice: [6, 5], mod: 0, roll: 11, hpFrom: 11, hpTo: 0 }))
-      .toBe('**Drew Rook** loses **11** HP · 2D6 (6+5) · HP 11 → 0 · Dead (p. 55)');
+      .toBe('**Drew Rook** loses **11** HP · 2D6 (6+5) · HP 11 → 0 · Dead \\(p. 55\\)');
+  });
+  it("keeps a player's Bond name in a note from making links or mention pills", () => {
+    expect(formatEntry({ ...base, kind: 'loss', dice: [], mod: 0, stat: 'SAN', label: '3', roll: 1, from: 50, to: 49, notes: ['[click](https://evil.example) @everyone 8 → 5'] }))
+      .not.toMatch(/\[click\]\(|@everyone/);
   });
   it('leaves d% tests to formatRoll', () => {
     expect(formatEntry({ agentName: 'Drew Rook', label: 'd%', chance: 45, penalty: 0, roll: 23, outcome: 'success' })).toMatch(/^\*\*Drew Rook\*\* · d% 45% → 23/);

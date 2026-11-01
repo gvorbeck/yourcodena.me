@@ -120,7 +120,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
     if (!test(key, chance).ok) setL((p) => play.checkSkill(p, key, chance));
   };
   const endSession = () => {
-    const r = advanceSkills(c, l);
+    const r = advanceSkills(c, latest.current); // the newest state, like act(), so a change merged in this render isn't dropped
     setL(r.live);
     say(r.gains.length ? `Skills advanced (p. 28): ${r.gains.map(([k, n]) => `${k} +${n}`).join(', ')}.` : 'No checked skills could advance.');
   };

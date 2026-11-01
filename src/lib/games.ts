@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, runTransaction, type DocumentData } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, type DocumentData } from 'firebase/firestore';
 import { useSub, type Sub } from './useSub';
 import { db } from './firebase';
 import { agentPath, agentsPath, gamePath, rollsPath } from './paths';
@@ -30,9 +30,8 @@ export const createGame = (id: string) =>
 
 /** A roll-log entry (a d% test, or plain dice / HP lost from the Discord bot; see rules/outcome.ts). agentId is '' when no Agent was claimed. */
 export type RollDoc = RollEntry & { id: string; agentId: string; createdAt: number };
-// shortcut: client clock, so rolls from different devices can order a few seconds off; use serverTimestamp if that matters.
-/** The live sheet only logs d% tests; dice and damage entries come from the Discord bot. */
-export const logRoll = (g: string, r: Omit<TestEntry, 'kind'> & { agentId: string }) => addDoc(rollsCol(g), { ...r, createdAt: Date.now() });
+/** The live sheet only logs d% tests; dice and damage entries come from the Discord bot. Server time, so devices with wrong clocks still log in order. */
+export const logRoll = (g: string, r: Omit<TestEntry, 'kind'> & { agentId: string }) => addDoc(rollsCol(g), { ...r, createdAt: serverTimestamp() });
 
 export interface AgentCard { id: string; name: string; codename: string; profession: string; vitals: { hp: number; wp: number; san: number } | null }
 const toAgent = (id: string, d: DocumentData): AgentCard => ({
@@ -40,11 +39,14 @@ const toAgent = (id: string, d: DocumentData): AgentCard => ({
   vitals: d.live ? { hp: d.live.hp, wp: d.live.wp, san: d.live.san } : null,
 });
 
+// Older rolls hold a millisecond number, newer ones a Timestamp. Firestore sorts every number before every Timestamp, which is also oldest first.
+const toRoll = (id: string, d: DocumentData) => ({ ...d, id, createdAt: typeof d.createdAt === 'number' ? d.createdAt : d.createdAt.toMillis() }) as RollDoc;
+
 const subGame: Sub<boolean> = (g, ok, bad) => onSnapshot(gameRef(g), (s) => ok(s.exists()), bad);
 const subAgents: Sub<AgentCard[]> = (g, ok, bad) =>
   onSnapshot(query(agentsCol(g), orderBy('createdAt')), (s) => ok(s.docs.map((d) => toAgent(d.id, d.data()))), bad);
 const subRolls: Sub<RollDoc[]> = (g, ok, bad) =>
-  onSnapshot(query(rollsCol(g), orderBy('createdAt', 'desc'), limit(50)), (s) => ok(s.docs.map((d) => ({ ...d.data(), id: d.id }) as RollDoc)), bad);
+  onSnapshot(query(rollsCol(g), orderBy('createdAt', 'desc'), limit(50)), (s) => ok(s.docs.map((d) => toRoll(d.id, d.data({ serverTimestamps: 'estimate' })))), bad);
 
 /** data: whether the game exists. */
 export const useGameExists = (g: string) => useSub(g, subGame);

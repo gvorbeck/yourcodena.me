@@ -31,7 +31,8 @@ function EntryCells({ r }: { r: RollDoc }) {
   </>);
 }
 
-const when = (t: number) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+// UTC and 24-hour, so the whole table agrees across time zones and the time fits on one line.
+const when = (t: number) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
 
 export default function Game() {
   const { gameId = '' } = useParams();
@@ -143,7 +144,7 @@ export default function Game() {
         <SubList sub={rolls} error="Could not load the roll log. Reload to retry." empty="No rolls yet. Rolls made on an agent's live sheet appear here for everyone.">{(list) => (
           <div className="log">
             <table>
-              <thead><tr><th>When</th><th>Agent</th><th>Test</th><th className="num">Roll</th><th>Result</th></tr></thead>
+              <thead><tr><th>When (UTC)</th><th>Agent</th><th>Test</th><th className="num">Roll</th><th>Result</th></tr></thead>
               <tbody>
                 {list.map((r) => (
                   <tr key={r.id}>

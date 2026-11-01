@@ -18,6 +18,7 @@ vi.mock('firebase/firestore', () => {
     arrayUnion: (...v: unknown[]) => ({ union: v }),
     arrayRemove: (...v: unknown[]) => ({ remove: v }),
     deleteField: () => ({ deleted: true }),
+    serverTimestamp: () => ({ serverTime: true }),
     collection: (_db: unknown, path: string) => ({ path }),
     doc: (parent: { path?: string }, path?: string) => ({ id: 'new', path: path ?? `${parent.path}/new` }),
     getDoc: async (ref: { path: string }) => ({ exists: () => docs.has(ref.path), data: () => docs.get(ref.path) }),

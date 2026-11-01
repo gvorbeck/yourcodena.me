@@ -2,7 +2,7 @@ import { FieldPath, arrayRemove, arrayUnion, deleteField, doc, getDoc, onSnapsho
 import { newCharacter, parseCharacter, type Character } from '../model/character';
 import { advanceSkills, parseLive, type Live } from '../model/live';
 import { professionOf } from '../rules';
-import { REMOVED, diffPaths, setDelta } from './diff';
+import { REMOVED, at, diffPaths, setDelta } from './diff';
 import { db } from './firebase';
 import { agentRef, agentsCol } from './games';
 
@@ -29,9 +29,8 @@ export const createAgent = (g: string, c: Character = newCharacter()) => {
 const known = new Map<string, unknown>();
 const slot = (g: string, a: string, field: string) => `${g}/${a}/${field}`;
 
-// Arrays that other writers also add to (the Discord bot checks failed skills): saved as additions and removals, not replaced.
-const SETS = ['live.checked'];
-const at = (v: unknown, path: string[]) => path.reduce<unknown>((o, k) => (o as Record<string, unknown> | null)?.[k], v);
+// Arrays in `live` that other writers also add to (the Discord bot checks failed skills): saved and merged as additions and removals, not replaced.
+export const LIVE_SETS = ['checked'];
 type Pairs = (string | FieldPath | unknown)[];
 
 function saveField(g: string, a: string, field: 'character' | 'live', value: unknown, extra: Record<string, unknown> = {}) {
@@ -43,7 +42,7 @@ function saveField(g: string, a: string, field: 'character' | 'live', value: unk
   const main: Pairs = [], removals: Pairs = [];
   for (const [path, v] of leaves) {
     const fp = new FieldPath(field, ...path);
-    if (v !== REMOVED && SETS.includes([field, ...path].join('.'))) {
+    if (v !== REMOVED && field === 'live' && LIVE_SETS.includes(path.join('.'))) {
       // Union and remove can't touch one field in one update, so removals go in a second write of the same batch.
       const { add, remove } = setDelta(at(before, path), v);
       if (add.length) main.push(fp, arrayUnion(...add));

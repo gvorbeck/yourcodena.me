@@ -200,6 +200,7 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; }
 .agents .info { flex: 1; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .25rem 1.5rem; }
 .agents .info > :first-child { flex: 1 1 16ch; }
 .log { max-height: 24rem; overflow-y: auto; }
+.log td { padding-top: .4rem; padding-bottom: .4rem; } /* same row height as the live sheet tables */
 
 /* Confirm dialog */
 .overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: var(--gap); background: rgb(0 0 0 / .6); }
