@@ -159,6 +159,8 @@ const permStats = (c: Character, l: Live): Character => ({ ...c, stats: Object.f
 export const effStat = (c: Character, l: Live, s: Stat) => Math.max(0, c.stats[s] + mod(l, s) - (l.statLoss[s] ?? 0));
 /** HP, WP, SAN and Bond maximums as played: derived attributes after permanent stat changes. */
 export const capsOf = (c: Character, l: Live) => derived(permStats(c, l));
+/** Bond `i`'s score as played; a slot the saved list doesn't reach yet (a Bond added on another device) is at full. */
+export const bondScoreOf = (c: Character, l: Live, i: number) => l.bonds[i] ?? capsOf(c, l).bondScore;
 /** Flat penalty the sheet puts on every test (p. 47): the set penalty plus 20 while exhausted. Low WP is added by liveOutcome. */
 export const sheetPenalty = (l: Live) => l.penalty + (l.exhausted ? 20 : 0);
 

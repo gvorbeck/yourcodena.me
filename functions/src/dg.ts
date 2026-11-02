@@ -1,6 +1,6 @@
 // Discord-side play: the same tests, chances and outcomes as the live sheet (src/LiveSheet.tsx), built from the app's own rules.
 import { parseCharacter, type Character } from '../../src/model/character';
-import { capsOf, freshLive, loseSan, maxSanOf, parseLive, sheetPenalty, testsOf as sheetTests, SAN_LOSS, type Live, type SanKind, type Test } from '../../src/model/live';
+import { bondScoreOf, capsOf, freshLive, loseSan, maxSanOf, parseLive, sheetPenalty, testsOf as sheetTests, SAN_LOSS, type Live, type SanKind, type Test } from '../../src/model/live';
 import { planSanLoss, projectRolled } from '../../src/model/actions';
 import { diffPaths, type Change } from '../../src/lib/diff';
 import { agentLabel } from '../../src/model/names';
@@ -129,8 +129,7 @@ export function planSan(a: Agent, loss: string, kind: SanKind, rng: () => number
 export interface Bond { i: number; name: string; score: number }
 /** Bonds that can take a projection: named, with points left. */
 export function bondsOf({ c, l }: Agent): Bond[] {
-  const score = capsOf(c, l).bondScore;
-  return activeBonds(c).map((b) => ({ i: b.i, name: b.name, score: l.bonds[b.i] ?? score })).filter((b) => b.score > 0);
+  return activeBonds(c).map((b) => ({ i: b.i, name: b.name, score: bondScoreOf(c, l, b.i) })).filter((b) => b.score > 0);
 }
 /** Step 2's gate: projecting can only help with a loss to reduce, a Bond with points and at least 2 WP (1 must remain after spending 1D4, p. 74). */
 export const canProject = (a: Agent, amount: number) => amount > 0 && a.l.wp >= 2 && bondsOf(a).length > 0;

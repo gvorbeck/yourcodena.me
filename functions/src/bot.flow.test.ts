@@ -37,11 +37,19 @@ vi.mock('firebase-admin/firestore', () => {
     },
   });
   type Ref = ReturnType<typeof ref>;
+  // Equality filters only, which is all bot.ts uses.
+  const query = (p: string, filters: [string, unknown][]) => ({
+    where: (f: string, _op: string, v: unknown) => query(p, [...filters, [f, v]]),
+    get: async () => ({ docs: [...store.keys()].filter((k) => k.startsWith(`${p}/`) && filters.every(([f, v]) => store.get(k)![f] === v)).map((k) => ({ ...snap(k), ref: ref(k) })) }),
+  });
   const db = {
     doc: ref,
-    collection: (p: string) => ({ doc: () => ref(`${p}/id${++ids}`), add: async (v: Record<string, unknown>) => ref(`${p}/id${++ids}`).set(v) }),
+    collection: (p: string) => ({
+      doc: () => ref(`${p}/id${++ids}`), add: async (v: Record<string, unknown>) => ref(`${p}/id${++ids}`).set(v),
+      where: (f: string, op: string, v: unknown) => query(p, []).where(f, op, v), select: () => query(p, []),
+    }),
     runTransaction: async <T>(fn: (tx: unknown) => Promise<T>) => fn({
-      get: (r: Ref) => r.get(), update: (r: Ref, ...a: unknown[]) => r.update(...a),
+      get: (r: Ref) => r.get(), update: (r: Ref, ...a: unknown[]) => r.update(...a), set: (r: Ref, v: Record<string, unknown>) => r.set(v),
       create: (r: Ref, v: Record<string, unknown>) => { if (store.has(r.path)) throw exists(r.path); return r.set(v); }, delete: (r: Ref) => r.delete(),
     }),
     batch: () => {
@@ -196,5 +204,37 @@ describe('/dg san projection buttons', () => {
     store.set('discordGuilds/G', { gameId: 'g' });
     for (const key of ['Unnatural', 'Anthropology']) expect((await rollSkill(key)).data.content).not.toContain('marked for improvement');
     expect((store.get('games/g/agents/A1')!.live as { checked: string[] }).checked).toEqual([]);
+  });
+});
+
+describe('/dg link and claim permissions', () => {
+  const MANAGE = String(1 << 4);
+  let clock = Date.now();
+  const cmd = (name: string, options: [string, string][] = [], permissions = '0') => handle({ type: 2, guild_id: 'G', channel_id: 'C', member: { user: { id: KYLE }, permissions }, data: { name: 'dg', options: [
+    { name, type: 1, options: options.map(([n, value]) => ({ name: n, type: 3, value })) },
+  ] } }, (clock += 10_000)) as Promise<{ data: { content: string } }>;
+
+  beforeEach(() => {
+    store.set('games/g', {});
+    store.set('games/h', {});
+    store.set('discordGuilds/G', { gameId: 'g' });
+    store.set('discordClaims/g_111', { gameId: 'g', userId: DANIEL, agentId: 'A1' });
+  });
+
+  it('linking and unlinking the server need Manage Channels', async () => {
+    expect((await cmd('link', [['game', 'h']])).data.content).toContain('needs the Manage Channels');
+    expect((await cmd('unlink')).data.content).toContain('needs the Manage Channels');
+    expect(store.get('discordGuilds/G')).toEqual({ gameId: 'g' });
+    await cmd('link', [['game', 'h']], MANAGE);
+    expect(store.get('discordGuilds/G')).toMatchObject({ gameId: 'h' });
+  });
+
+  it("taking or releasing someone else's Agent needs Manage Channels", async () => {
+    expect((await cmd('claim', [['agent', 'A1']])).data.content).toContain('is played by <@111>');
+    expect((await cmd('unclaim', [['agent', 'A1']])).data.content).toContain('needs the Manage Channels');
+    expect(store.has('discordClaims/g_111')).toBe(true);
+    await cmd('claim', [['agent', 'A1']], MANAGE);
+    expect(store.has('discordClaims/g_111')).toBe(false);
+    expect(store.get('discordClaims/g_222')).toMatchObject({ agentId: 'A1' });
   });
 });

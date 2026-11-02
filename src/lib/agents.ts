@@ -35,10 +35,10 @@ type Pairs = (string | FieldPath | unknown)[];
 
 function saveField(g: string, a: string, field: 'character' | 'live', value: unknown, extra: Record<string, unknown> = {}) {
   const k = slot(g, a, field);
-  const before = known.has(k) ? known.get(k) : undefined;
+  const before = known.get(k);
   // shortcut: with no live sheet on the server yet, the first one is written whole, so if the Discord bot or another device writes
   // one in the same second, the last write wins (watchLive merges any that arrive first). A transaction would close it, but not offline.
-  const leaves = before === undefined ? [[[], value] as [string[], unknown]] : diffPaths(before, value);
+  const leaves = diffPaths(before, value); // one whole-value leaf when `before` is missing or null
   const main: Pairs = [], removals: Pairs = [];
   for (const [path, v] of leaves) {
     const fp = new FieldPath(field, ...path);

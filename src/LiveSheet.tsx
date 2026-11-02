@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
 import { activeBonds, clamp, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, type Outcome } from './rules';
 import { pad2, testText } from './rules/outcome';
-import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, loseSan, maxSanOf, refreshSpent, setUnnatural, sheetPenalty, coreTests, SAN_KINDS, SAN_KIND_LABEL, SAN_LOSS, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
+import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, loseSan, maxSanOf, refreshSpent, setUnnatural, sheetPenalty, coreTests, SAN_KINDS, SAN_KIND_LABEL, SAN_LOSS, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
 import { nameOf, type Character } from './model/character';
 import { Btn, ConfirmDialog, SkillTable, Win } from './ui';
 import { useFocusMain } from './ui/Win';
@@ -114,7 +114,6 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
     game?.onRoll(entry);
     return { outcome, roll: r, chance, ok: isSuccess(outcome) };
   };
-  const roll = (label: string, chance: number) => { test(label, chance); };
   /** A failed skill roll earns a check toward end-of-session advancement (p. 28). */
   const rollSkill = (key: string, chance: number) => {
     if (!test(key, chance).ok) setL((p) => play.checkSkill(p, key, chance));
@@ -146,7 +145,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const bonds = activeBonds(c);
   // Stats, Luck and SAN roll under the same labels and chances as /dg roll (model/live.ts coreTests).
   const tests = new Map(coreTests({ c, l }).map((t) => [t.id, t]));
-  const rollId = (id: string) => { const t = tests.get(id)!; roll(t.label, t.chance); };
+  const rollId = (id: string) => { const t = tests.get(id)!; test(t.label, t.chance); };
   const bond = bonds.some((b) => b.i === bondPick) ? bondPick : bonds[0]?.i;
   const [find, setFind] = useState('');
   /** Phone shortcut between Status and Skills; honours reduced-motion. */
@@ -351,7 +350,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
 
         <h3>Bonds</h3>
         {bonds.map((b) => (
-          <Counter key={b.i} label={b.name} note={b.note} value={l.bonds[b.i] ?? d.bondScore} max={d.bondScore} onChange={(v) => set('bonds', withBond(l.bonds, b.i, v, d.bondScore))} />
+          <Counter key={b.i} label={b.name} note={b.note} value={bondScoreOf(c, l, b.i)} max={d.bondScore} onChange={(v) => set('bonds', withBond(l.bonds, b.i, v, d.bondScore))} />
         ))}
       </Win>
 

@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Win } from './ui/Win';
-import { capsOf, effStat, sheetOf, topSkills } from './model/live';
+import { bondScoreOf, capsOf, effStat, sheetOf, topSkills } from './model/live';
 import { agentLabel } from './model/names';
 import { activeBonds } from './rules';
 import { bpNote, hpNote, pad2 } from './rules/outcome';
@@ -62,7 +62,7 @@ export default function HandlerPanels({ gameId, agents }: { gameId: string; agen
 
       <Panel title="BONDS & DISORDERS" page="pp. 36, 69" rows={sheets.map((s) => ({
         key: s.id, left: s.link,
-        lines: [...activeBonds(s.c).map((b) => ({ left: b.name, right: pad2(s.l.bonds[b.i] ?? 0) })), ...s.l.disorders.map((d) => ({ left: d, warn: true }))],
+        lines: [...activeBonds(s.c).map((b) => ({ left: b.name, right: pad2(bondScoreOf(s.c, s.l, b.i)) })), ...s.l.disorders.map((d) => ({ left: d, warn: true }))],
       }))} />
 
       <Panel title="TOP SKILLS" page="p. 28" scroll rows={top.map((t) => ({ key: t.key, left: t.key, right: `${pad2(t.total)}%`, lines: [{ left: t.names.join(', ') }] }))} />

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from './character';
-import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond, topSkills, sheetOf } from './live';
+import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond, topSkills, sheetOf, bondScoreOf } from './live';
 
 it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   const c = newCharacter();
@@ -235,6 +235,15 @@ describe('reconcile after editing the character', () => {
     c.professionId = 'police-officer';
     const l = freshLive(c);
     expect(reconcile(l, c)).toBe(l);
+  });
+});
+
+describe('bondScoreOf', () => {
+  it('reads a saved score, and a Bond the saved list does not reach is at full', () => {
+    const c = newCharacter();
+    c.stats = { ...c.stats, CHA: 12 };
+    const l = { ...freshLive(c), bonds: [7] }; // saved by a device that had fewer Bonds
+    expect([bondScoreOf(c, l, 0), bondScoreOf(c, l, 1)]).toEqual([7, 12]);
   });
 });
 
