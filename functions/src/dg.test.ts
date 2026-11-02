@@ -59,7 +59,7 @@ describe('sheetLines', () => {
     const lines = sheetLines(agent({ hp: 7, exhausted: true, checked: ['Alertness'] }));
     expect(lines[0]).toBe('Drew Rook');
     expect(lines[1]).toBe('HP 7/10 · WP 10/10 · SAN 50/99 · BP 40');
-    expect(lines.slice(2)).toEqual(['Exhausted (−20%)', 'Marked for improvement: Alertness']);
+    expect(lines.slice(2)).toEqual(['Exhausted −20%', 'Marked for improvement: Alertness']);
   });
 });
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { parseCharacter, type Character } from './character';
-import { bondCount, canImprove, derived, disorderOf, rollExpr, skillsOf, veteranOf } from '../rules';
+import { bondCount, canImprove, derived, disorderOf, rollExpr, skillsOf, veteranOf, wpPenalty } from '../rules';
 import { STATS, STAT_NAMES, type Stat } from '../rules/data/creation';
 import { MAX_SKILL } from '../rules/data/skills';
 
@@ -163,6 +163,20 @@ export const capsOf = (c: Character, l: Live) => derived(permStats(c, l));
 export const bondScoreOf = (c: Character, l: Live, i: number) => l.bonds[i] ?? capsOf(c, l).bondScore;
 /** Flat penalty the sheet puts on every test (p. 47): the set penalty plus 20 while exhausted. Low WP is added by liveOutcome. */
 export const sheetPenalty = (l: Live) => l.penalty + (l.exhausted ? 20 : 0);
+/** Each part of an Agent's total test penalty (set, exhausted and low WP, p. 47), and WP 0. Shared by the game page and /dg sheet. */
+export function penaltyNotes(l: Live) {
+  const parts: [string, number][] = [['Penalty', l.penalty], ['Exhausted', l.exhausted ? 20 : 0], ['Low WP', wpPenalty(l.wp)]];
+  return [...parts.filter(([, n]) => n).map(([k, n]) => `${k} −${n}%`), ...(l.wp === 0 ? ['WP 0: every test fails'] : [])];
+}
+/** Everything that changes an Agent's tests besides HP and SAN: the penalty notes, then stat changes, temporary first (p. 55). */
+export function conditionsOf(l: Live) {
+  const lines = [
+    ...penaltyNotes(l),
+    ...STATS.filter((s) => l.statLoss[s]).map((s) => `${s} −${l.statLoss[s]} (temporary)`),
+    ...STATS.filter((s) => mod(l, s)).map((s) => `${s} −${-mod(l, s)} (permanent)`),
+  ];
+  return { penalty: sheetPenalty(l) + wpPenalty(l.wp), lines };
+}
 
 /** One rollable thing on the sheet. `label` is what the roll log shows; `name` is the longer name to search by. */
 export interface Test { id: string; label: string; name: string; chance: number; skill: boolean }

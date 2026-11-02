@@ -33,7 +33,7 @@ export { isSuccess } from './outcome';
 export const rollD100 = () => 1 + Math.floor(Math.random() * 100);
 
 /** p. 47: 1–2 WP is −20% to everything; at 0 WP no test can succeed. `extra` is any other flat penalty. */
-const wpPenalty = (wp: number) => (wp > 0 && wp <= 2 ? 20 : 0);
+export const wpPenalty = (wp: number) => (wp > 0 && wp <= 2 ? 20 : 0);
 export function liveOutcome(roll: number, chance: number, wp: number, extra = 0) {
   const pen = wpPenalty(wp) + extra;
   const eff = Math.max(0, chance - pen);

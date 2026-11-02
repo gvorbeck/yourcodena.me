@@ -1,6 +1,6 @@
 // Discord-side play: the same tests, chances and outcomes as the live sheet (src/LiveSheet.tsx), built from the app's own rules.
 import { parseCharacter, type Character } from '../../src/model/character';
-import { bondScoreOf, capsOf, freshLive, loseSan, maxSanOf, parseLive, sheetPenalty, testsOf as sheetTests, SAN_LOSS, type Live, type SanKind, type Test } from '../../src/model/live';
+import { bondScoreOf, capsOf, freshLive, loseSan, maxSanOf, parseLive, penaltyNotes, sheetPenalty, testsOf as sheetTests, SAN_LOSS, type Live, type SanKind, type Test } from '../../src/model/live';
 import { planSanLoss, projectRolled } from '../../src/model/actions';
 import { diffPaths, type Change } from '../../src/lib/diff';
 import { agentLabel } from '../../src/model/names';
@@ -42,7 +42,7 @@ export function rollTest({ l }: Agent, t: Test, roll: number, modifier = 0) {
 /** /dg sheet: current and maximum values, the same ones the live sheet shows. */
 export function sheetLines({ name, c, l }: Agent): string[] {
   const d = capsOf(c, l);
-  const notes = [l.exhausted && 'Exhausted (−20%)', l.penalty && `Penalty −${l.penalty}%`, l.wp > 0 && l.wp <= 2 && 'Low WP (−20%)', l.wp === 0 && 'WP 0: every test fails'].filter(Boolean);
+  const notes = penaltyNotes(l);
   return [
     name,
     `HP ${l.hp}/${d.hp} · WP ${l.wp}/${d.wp} · SAN ${l.san}/${maxSanOf(c, l)} · BP ${l.bp}`,
