@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
 import { activeBonds, clamp, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, type Outcome } from './rules';
-import { d100Text, testText } from './rules/outcome';
+import { pad2, testText } from './rules/outcome';
 import { MAX_NOTES, UndoStack, advanceSkills, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, loseSan, maxSanOf, refreshSpent, setUnnatural, sheetPenalty, coreTests, SAN_KINDS, SAN_KIND_LABEL, SAN_LOSS, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
 import { nameOf, type Character } from './model/character';
 import { Btn, ConfirmDialog, SkillTable, Win } from './ui';
@@ -36,7 +36,7 @@ const Pips = ({ label, n }: { label: string; n: number }) => (
 interface Roll { id: number; label: string; chance: number; penalty: number; roll: number; outcome: Outcome }
 
 const RollLine = ({ r }: { r: Roll }) => (
-  <>{testText(r.label, r.chance, r.penalty)}: <b>{d100Text(r.roll)}</b> <OutcomeText o={r.outcome} /></>
+  <>{testText(r.label, r.chance, r.penalty)}: <b>{pad2(r.roll)}</b> <OutcomeText o={r.outcome} /></>
 );
 
 /** A merge to apply to the live sheet's own state; a new object each time someone else saves (pages/Agent.tsx). */

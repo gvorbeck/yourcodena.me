@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { asLoss, d100Text, diceLabel, testText, wpNote } from '../rules/outcome';
+import { asLoss, pad2, diceLabel, testText, wpNote } from '../rules/outcome';
 import { agentLabel } from '../model/names';
 import { useRun } from '../lib/useRun';
 import { createGame, deleteAgent, useAgents, type AgentCard, useGameExists, useRolls, type RollDoc } from '../lib/games';
@@ -20,7 +20,7 @@ const HandlerPanels = lazy(() => import('../HandlerPanels'));
 function EntryCells({ r }: { r: RollDoc }) {
   if (!r.kind) return (<>
     <td>{testText(r.label, r.chance, r.penalty)}</td>
-    <td className="num"><b>{d100Text(r.roll)}</b></td>
+    <td className="num"><b>{pad2(r.roll)}</b></td>
     <td><OutcomeText o={r.outcome} /></td>
   </>);
   const dice = diceLabel(r.label, r.dice, r.mod);
@@ -161,7 +161,8 @@ export default function Game() {
         )}</SubList>
       </Win>
 
-      <Suspense><HandlerPanels gameId={gameId} agents={cards ?? []} /></Suspense>
+      {/* Only once some agent has a live sheet: before that the boxes are empty and their rules code need not load. */}
+      {cards?.some((a) => a.vitals) && <Suspense><HandlerPanels gameId={gameId} agents={cards} /></Suspense>}
 
       <DiscordPanel gameId={gameId} />
     </Page>

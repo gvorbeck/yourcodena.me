@@ -1,6 +1,7 @@
 import { STATS } from '../rules/data/creation';
 import { activeBonds, derived, disorderOf, featureOf, motivationsOf, professionOf, skillsOf, veteranOf } from '../rules';
 import type { Character } from './character';
+import { pad2 } from '../rules/outcome';
 
 export const MAX_COL = 30;
 
@@ -35,7 +36,6 @@ const short = (key: string) =>
 /** Plain-text character sheet, hard-wrapped at MAX_COL columns, for pasting into chat or notes. */
 export function asciiSheet(c: Character): string {
   const det = c.details, d = derived(c), p = professionOf(c), v = veteranOf(c);
-  const pad = (n: number) => String(n).padStart(2, '0');
   const field = (label: string, val: string) => (val.trim() ? [`${label}: ${val.trim()}`] : []);
   const section = (title: string, ...body: string[]) => (body.length ? ['', title, '---', ...body] : []);
   const prose = (title: string, val: string) => (val.trim() ? section(title, val.trim()) : []);
@@ -53,14 +53,14 @@ export function asciiSheet(c: Character): string {
 
     ...section('STATS      SCORE   x5', ...STATS.map((s) => {
       const f = featureOf(s, c.stats[s]);
-      return [`${s}: ${pad(c.stats[s])}`.padEnd(13) + `${c.stats[s] * 5}%`.padStart(4)].concat(f ? [`  (${f})`] : []);
+      return [`${s}: ${pad2(c.stats[s])}`.padEnd(13) + `${c.stats[s] * 5}%`.padStart(4)].concat(f ? [`  (${f})`] : []);
     }).flat()),
 
     ...section('DERIVED ATTRIBUTES',
-      'Hit Points (HP):', `MAX: ${pad(d.hp)}   CURRENT: ${pad(d.hp)}`, '',
-      'Willpower (WP):', `MAX: ${pad(d.wp)}   CURRENT: ${pad(d.wp)}`, '',
-      'Sanity (SAN):', `MAX: ${pad(d.maxSan)}   CURRENT: ${pad(d.san)}`, '',
-      'Breaking Point (BP):', `MAX: ${pad(d.bp)}`),
+      'Hit Points (HP):', `MAX: ${pad2(d.hp)}   CURRENT: ${pad2(d.hp)}`, '',
+      'Willpower (WP):', `MAX: ${pad2(d.wp)}   CURRENT: ${pad2(d.wp)}`, '',
+      'Sanity (SAN):', `MAX: ${pad2(d.maxSan)}   CURRENT: ${pad2(d.san)}`, '',
+      'Breaking Point (BP):', `MAX: ${pad2(d.bp)}`),
 
     ...section('BONDS', ...activeBonds(c).map((b, n) => `${n + 1}. ${b.name}: ${d.bondScore}${b.note ? ` (${b.note})` : ''}`)),
     ...section('MOTIVATIONS', ...motivationsOf(c).map((m) => `- ${m}`)),

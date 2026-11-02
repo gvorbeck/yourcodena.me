@@ -1,5 +1,5 @@
 import { createPublicKey, verify } from 'node:crypto';
-import { asLoss, d100Text, diceLabel, testText, type RollEntry, type TestEntry } from '../../src/rules/outcome';
+import { asLoss, pad2, diceLabel, testText, type RollEntry, type TestEntry } from '../../src/rules/outcome';
 
 /** A roll-log entry as stored at games/{gameId}/rolls/{rollId} (see src/rules/outcome.ts for the kinds). */
 export type Roll = RollEntry;
@@ -21,7 +21,7 @@ const OUTCOME: Record<string, string> = { 'critical success': '**CRITICAL SUCCES
 
 /** Same facts as the game page's roll log: `**Agent Smith** · Firearms 45% (−20) → 23 · Success` */
 export function formatRoll(r: Omit<TestEntry, 'kind'>): string {
-  return `${bold(r.agentName, 'Unnamed agent')} · ${testText(plain(r.label), r.chance, r.penalty)} → ${d100Text(r.roll)} · ${OUTCOME[r.outcome] ?? plain(r.outcome)}`;
+  return `${bold(r.agentName, 'Unnamed agent')} · ${testText(plain(r.label), r.chance, r.penalty)} → ${pad2(r.roll)} · ${OUTCOME[r.outcome] ?? plain(r.outcome)}`;
 }
 
 /** Posts one message. Returns Discord's HTTP status: 204 sent, 404 webhook deleted, 429 rate limited. */

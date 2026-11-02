@@ -12,8 +12,8 @@ test('a new agent goes through creation and shows on the game page', async ({ pa
   const row = page.getByRole('listitem').filter({ hasText: 'Ada Rourke' });
   await expect(row).toContainText('Physician');
   await expect(row).toContainText('HP 13 · WP 11 · SAN 55');
-  await expect(page.getByRole('region', { name: 'INITIATIVE' }).getByRole('row').filter({ hasText: 'LAMP' })).toContainText(/DEX \d\d/);
-  await expect(page.getByRole('region', { name: 'TOP SKILLS' }).getByRole('row').filter({ hasText: 'Medicine' })).toContainText('LAMP');
+  await expect(page.getByRole('region', { name: 'INITIATIVE' }).getByRole('listitem').filter({ hasText: 'LAMP' })).toContainText(/DEX \d\d/);
+  await expect(page.getByRole('region', { name: 'TOP SKILLS' }).getByRole('listitem').filter({ hasText: 'Medicine' })).toContainText('LAMP');
   await expect(page.getByRole('region', { name: 'SANITY' })).toContainText('SAN 55 / BP 44');
 });
 
@@ -75,6 +75,20 @@ test('initiative uses DEX as played: permanent injury and temporary loss count',
   await doc.ref.update({ 'live.statMod': { DEX: -2 }, 'live.statLoss': { DEX: 1 } }); // as if hurt from Discord
 
   await page.goto(gameUrl);
-  const row = page.getByRole('region', { name: 'INITIATIVE' }).getByRole('row').filter({ hasText: 'LAMP' });
+  const row = page.getByRole('region', { name: 'INITIATIVE' }).getByRole('listitem').filter({ hasText: 'LAMP' });
   await expect(row).toContainText(`DEX ${String(dex - 3).padStart(2, '0')}`);
+});
+
+test('the Handler boxes flag a downed agent and list bonds and disorders', async ({ page }) => {
+  const { gameId, agentId, gameUrl } = await createAgent(page);
+  await savedHp(gameId, agentId, 13);
+  await (await agentDoc(gameId, agentId)).ref.update({ 'live.hp': 2, 'live.disorders': ['Insomnia'] }); // as if from Discord
+
+  await page.goto(gameUrl);
+  const health = page.getByRole('region', { name: 'HEALTH' }).getByRole('listitem').filter({ hasText: 'LAMP' });
+  await expect(health).toContainText('HP 02/13');
+  await expect(health).toContainText(/Unconscious, CON×5 test/i);
+  const bonds = page.getByRole('region', { name: 'BONDS & DISORDERS' }).getByRole('listitem').filter({ hasText: 'LAMP' });
+  await expect(bonds).toContainText(/Sister\s*11/i);
+  await expect(bonds).toContainText(/Insomnia/i);
 });
