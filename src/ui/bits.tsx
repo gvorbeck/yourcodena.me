@@ -8,7 +8,6 @@ import { outcomeClass } from '../rules/outcome';
 export const Alert = ({ children, inline }: { children: ReactNode; inline?: boolean }) =>
   children ? (inline ? <span className="warn" role="alert">{children}</span> : <p className="warn" role="alert">{children}</p>) : null;
 
-/** `quiet` for a placeholder inside a page that already announced its own loading. */
 /** A small dim note under a control. */
 export const Hint = ({ children, className }: { children: ReactNode; className?: string }) =>
   <p className={className ? `dim ${className}` : 'dim'}><small>{children}</small></p>;
@@ -16,7 +15,8 @@ export const Hint = ({ children, className }: { children: ReactNode; className?:
 /** A d% result in its colour: SUCCESS, FUMBLE… */
 export const OutcomeText = ({ o }: { o: string }) => <span className={outcomeClass(o)}>{o.toUpperCase()}</span>;
 
-export const Loading = ({ what, className = 'dim', quiet }: { what?: string; className?: string; quiet?: boolean }) =>
+/** `quiet` for a placeholder inside a page that already announced its own loading. */
+export const Loading =({ what, className = 'dim', quiet }: { what?: string; className?: string; quiet?: boolean }) =>
   <p className={className} role={quiet ? undefined : 'status'}>Loading{what && ` ${what}`}…</p>;
 
 /** Copies `text()` (read at click time) and says so, on the button and to screen readers. */

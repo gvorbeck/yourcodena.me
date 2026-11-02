@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
 import { blocking, filterSkills, liveOutcome, parseDice, parseLoss, rollExpr, rollLoss, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { asciiSheet } from '../model/sheet';
-import { asLoss, bpNote, diceDetail, diceLabel, hpNote, hurtNote, wpNote } from './outcome';
+import { asLoss, bpNote, diceDetail, diceLabel, hpNote, hurtNote, outcomeClass, wpNote } from './outcome';
 import { PROFESSIONS } from './data/professions';
 import { PACKAGES } from './data/creation';
 
@@ -363,4 +363,8 @@ it('flags HP and SAN the Handler should watch (pp. 55, 68)', () => {
   expect([0, 2, 6, 7, 13].map((hp) => hpNote(hp, 13))).toEqual(['Dead', 'Unconscious, CON×5 test for permanent injury', 'Below half HP', '', '']);
   expect([40, 45, 46].map((san) => bpNote(san, 40))).toEqual(['At Breaking Point', '5 from Breaking Point', '']);
   expect([0, 1, 2, 3].map(wpNote)).toEqual(['lost control', 'breakdown', 'breakdown', '']); // p. 47
+});
+
+it('colours roll results, underlining the extremes so colour is not the only cue', () => {
+  expect(['critical success', 'success', 'failure', 'fumble'].map(outcomeClass)).toEqual(['ok strong', 'ok', 'warn', 'warn strong']);
 });

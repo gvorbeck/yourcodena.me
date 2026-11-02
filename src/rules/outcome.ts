@@ -4,8 +4,8 @@ export const isSuccess = (o: string) => o === 'success' || o === 'critical succe
 export const outcomeClass = (o: string) => (isSuccess(o) ? 'ok' : 'warn') + (o === 'critical success' || o === 'fumble' ? ' strong' : '');
 /** "Firearms 45% (−20)": a test as the roll log, the live sheet and Discord show it. */
 export const testText = (label: string, chance: number, pen: number) => `${label} ${chance}%${pen ? ` (−${pen})` : ''}`;
-/** A d% result as printed: 07, 100. */
-export const d100Text = (roll: number) => String(roll).padStart(2, '0');
+/** At least two digits ("07", "100"): d% results as printed, and Handler box numbers lining up in monospace. */
+export const pad2 = (n: number) => String(n).padStart(2, '0');
 
 // ---- Roll-log entries. Tests have no `kind`; the Discord bot also logs plain dice and HP lost.
 interface EntryBase { agentName: string; label: string; roll: number; chance: number; penalty: number; outcome: string }
