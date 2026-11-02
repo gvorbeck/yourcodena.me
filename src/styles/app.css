@@ -51,7 +51,7 @@ button.mark { padding: .6rem 1ch; margin: -.6rem -1ch; } /* 1ch keeps the tap ta
 
 .win { border: 2px solid var(--line); background: var(--panel); }
 .win > header { padding: 0 .5rem; display: flex; justify-content: space-between; }
-.win > header h2 { margin: 0; font: inherit; }
+.win > header :is(h2, h3) { margin: 0; font: inherit; }
 .win-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .badge-ok { background: var(--ok); color: var(--panel); padding: 0 .4rem; margin: .15rem 0; align-self: center; }
 .win > .body { padding: var(--gap); }
@@ -204,6 +204,8 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; }
 .masonry > .win { display: inline-block; vertical-align: top; width: 100%; break-inside: avoid; margin-bottom: var(--gap); }
 .panel-rows li { padding: .4rem .5rem; border-bottom: 1px dotted var(--dim); } .panel-rows li:last-child { border-bottom: none; }
 .panel-rows .pair { display: flex; justify-content: space-between; gap: 1rem; } .panel-rows .pair > :last-child:not(:first-child) { white-space: nowrap; }
+/* A title bar only: its boxes carry their own frames. */
+.win.bare { border: 0; background: none; } .win.bare > .body { padding-inline: 0; padding-bottom: 0; } /* top padding still follows .win > .body, phones included */
 @media (max-width: 800px) { .masonry { columns: 1; } } /* after the rule above, so it wins */
 .log { max-height: 24rem; overflow-y: auto; }
 .log td { padding-top: .4rem; padding-bottom: .4rem; } /* same row height as the live sheet tables */
@@ -231,9 +233,9 @@ code.link { font: inherit; overflow-wrap: anywhere; }
   .glitch::before, .glitch::after { content: attr(data-text); position: absolute; inset: 0; background: var(--inv-bg); clip-path: inset(0 0 100% 0); }
   .glitch::before { color: var(--accent); animation: slice 5s steps(1) infinite; }
   .glitch::after { color: var(--warn); animation: slice 7.3s steps(1) infinite -2s; } /* off-beat so bursts never repeat the same way */
-  .win > header h2:not(:focus) { animation: flicker 9s steps(1) infinite; }
-  .win:nth-of-type(even) > header h2 { animation-duration: 13s; animation-delay: -5s; }
-  .live .win > header h2 { animation: none; } /* keep live-play headings steady */
+  .win > header :is(h2, h3):not(:focus) { animation: flicker 9s steps(1) infinite; }
+  .win:nth-of-type(even) > header :is(h2, h3) { animation-duration: 13s; animation-delay: -5s; }
+  .live .win > header :is(h2, h3) { animation: none; } /* keep live-play headings steady */
 }
 @keyframes slice {
   0%, 88%, 100% { clip-path: inset(0 0 100% 0); transform: none; }

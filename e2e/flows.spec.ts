@@ -84,6 +84,17 @@ test('initiative and conditions show DEX as played: permanent injury and tempora
   await expect(conditions).toContainText('Exhausted −20%');
 });
 
+test('the GM screen opens to the rules boxes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Generate game' }).click();
+  const toggle = page.getByRole('button', { name: 'GM SCREEN' });
+  await expect(toggle).toBeVisible(); // so the hidden check below sees the screen, not an empty page
+  const lethality = page.getByRole('region', { name: 'LETHALITY' });
+  await expect(lethality).toBeHidden();
+  await toggle.click();
+  await expect(lethality).toContainText('1D6 per 3%');
+});
+
 test('the Handler boxes flag a downed agent and list bonds and disorders', async ({ page }) => {
   const { gameId, agentId, gameUrl } = await createAgent(page);
   await savedHp(gameId, agentId, 13);

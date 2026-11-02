@@ -1,34 +1,12 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Win } from './ui/Win';
+import { Panel, type Row } from './ui/Panel';
 import { bondScoreOf, capsOf, conditionsOf, effStat, sheetOf, topSkills } from './model/live';
 import { agentLabel } from './model/names';
 import { activeBonds } from './rules';
 import { bpNote, hpNote, pad2 } from './rules/outcome';
 import type { AgentCard } from './lib/games';
 import { agentUrl } from './lib/paths';
-
-/** One line of a row: text on the left, an optional value on the right; `warn` turns it red. */
-interface Line { left: ReactNode; right?: ReactNode; warn?: boolean }
-/** A row is its first line plus any lines under it (bonds, disorders, notes), all above one dotted rule. */
-interface Row extends Line { key: string; lines?: Line[] }
-
-/** Every Handler box: a titled window with a page reference and a list of rows. `scroll` caps its height. */
-function Panel({ title, page, rows, scroll }: { title: string; page: string; rows: Row[]; scroll?: boolean }) {
-  return (
-    <Win title={title} right={page}>
-      <ul className={scroll ? 'plain-list panel-rows log' : 'plain-list panel-rows'}>
-        {rows.map((r) => (
-          <li key={r.key}>
-            {[r, ...(r.lines ?? [])].map((l, i) => (
-              <div key={i} className={l.warn ? 'pair warn' : 'pair'}><span>{l.left}</span>{l.right !== undefined && <span>{l.right}</span>}</div>
-            ))}
-          </li>
-        ))}
-      </ul>
-    </Win>
-  );
-}
 
 /** A row with a red note under it when `note` is set; the whole row turns red with it. */
 const noted = (key: string, left: ReactNode, right: string, note: string): Row =>

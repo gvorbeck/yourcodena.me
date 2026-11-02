@@ -7,6 +7,7 @@ import { createGame, deleteAgent, useAgents, type AgentCard, useGameExists, useR
 import { forgetSavedAgent, hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
 import { DiscordPanel } from '../DiscordPanel';
+import GmScreen from '../GmScreen';
 import { Notice, Page } from './Page';
 import { Alert, CopyButton, Hint, Loading, OutcomeText, SubList } from '../ui/bits';
 import { agentUrl, gameUrl } from '../lib/paths';
@@ -164,6 +165,7 @@ export default function Game() {
       {/* Only once some agent has a live sheet: before that the boxes are empty and their rules code need not load. */}
       {cards?.some((a) => a.vitals) && <Suspense><HandlerPanels gameId={gameId} agents={cards} /></Suspense>}
 
+      <GmScreen />
       <DiscordPanel gameId={gameId} />
     </Page>
   );
