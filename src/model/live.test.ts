@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from './character';
-import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond, topSkills, sheetOf, bondScoreOf } from './live';
+import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond, topSkills, sheetOf, bondScoreOf, conditionsOf } from './live';
 
 it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   const c = newCharacter();
@@ -275,4 +275,13 @@ it('reads a stored sheet, or null while in creation or damaged', () => {
   expect(sheetOf(c, freshLive(c))).toEqual({ c, l: freshLive(c) });
   expect(sheetOf(c, null)).toBeNull();
   expect(sheetOf({ bad: true }, freshLive(c))).toBeNull();
+});
+
+describe('conditionsOf', () => {
+  it('itemizes the total penalty, then temporary and permanent stat changes', () => {
+    const l = { ...freshLive(newCharacter()), penalty: 10, exhausted: true, wp: 2, statLoss: { STR: 2 }, statMod: { CHA: -1, DEX: 0 } };
+    expect(conditionsOf(l)).toEqual({ penalty: 50, lines: ['Penalty −10%', 'Exhausted −20%', 'Low WP −20%', 'STR −2 (temporary)', 'CHA −1 (permanent)'] });
+  });
+  it('flags WP 0, where every test fails', () => expect(conditionsOf({ ...freshLive(newCharacter()), wp: 0 }).lines).toEqual(['WP 0: every test fails']));
+  it('is empty for a fresh sheet', () => expect(conditionsOf(freshLive(newCharacter()))).toEqual({ penalty: 0, lines: [] }));
 });

@@ -1,34 +1,12 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Win } from './ui/Win';
-import { bondScoreOf, capsOf, effStat, sheetOf, topSkills } from './model/live';
+import { Panel, type Row } from './ui/Panel';
+import { bondScoreOf, capsOf, conditionsOf, effStat, sheetOf, topSkills } from './model/live';
 import { agentLabel } from './model/names';
 import { activeBonds } from './rules';
 import { bpNote, hpNote, pad2 } from './rules/outcome';
 import type { AgentCard } from './lib/games';
 import { agentUrl } from './lib/paths';
-
-/** One line of a row: text on the left, an optional value on the right; `warn` turns it red. */
-interface Line { left: ReactNode; right?: ReactNode; warn?: boolean }
-/** A row is its first line plus any lines under it (bonds, disorders, notes), all above one dotted rule. */
-interface Row extends Line { key: string; lines?: Line[] }
-
-/** Every Handler box: a titled window with a page reference and a list of rows. `scroll` caps its height. */
-function Panel({ title, page, rows, scroll }: { title: string; page: string; rows: Row[]; scroll?: boolean }) {
-  return (
-    <Win title={title} right={page}>
-      <ul className={scroll ? 'plain-list panel-rows log' : 'plain-list panel-rows'}>
-        {rows.map((r) => (
-          <li key={r.key}>
-            {[r, ...(r.lines ?? [])].map((l, i) => (
-              <div key={i} className={l.warn ? 'pair warn' : 'pair'}><span>{l.left}</span>{l.right !== undefined && <span>{l.right}</span>}</div>
-            ))}
-          </li>
-        ))}
-      </ul>
-    </Win>
-  );
-}
 
 /** A row with a red note under it when `note` is set; the whole row turns red with it. */
 const noted = (key: string, left: ReactNode, right: string, note: string): Row =>
@@ -37,13 +15,13 @@ const noted = (key: string, left: ReactNode, right: string, note: string): Row =
 /** The Handler's at-a-glance boxes on the game page. Lazy: it needs the rules to read each sheet. */
 export default function HandlerPanels({ gameId, agents }: { gameId: string; agents: AgentCard[] }) {
   // Memoized: the game page re-renders on every new roll, but the sheets only change with `agents`.
-  const { sheets, top } = useMemo(() => {
+  const { sheets, top, conditions } = useMemo(() => {
     const sheets = agents.flatMap((a) => {
       const s = sheetOf(a.character, a.live);
       const name = agentLabel(a.codename, a.name);
       return s ? [{ ...s, id: a.id, name, dex: effStat(s.c, s.l, 'DEX'), link: <Link to={agentUrl(gameId, a.id)}>{name}</Link> }] : [];
     });
-    return { sheets, top: topSkills(sheets) };
+    return { sheets, top: topSkills(sheets), conditions: sheets.map((s) => ({ s, ...conditionsOf(s.l) })).filter((x) => x.lines.length) };
   }, [gameId, agents]);
   if (!sheets.length) return null;
 
@@ -59,6 +37,11 @@ export default function HandlerPanels({ gameId, agents }: { gameId: string; agen
 
       <Panel title="SANITY" page="pp. 64, 68" rows={sheets.map((s) =>
         noted(s.id, s.link, `SAN ${pad2(s.l.san)} / BP ${pad2(s.l.bp)}`, bpNote(s.l.san, s.l.bp)))} />
+
+      {/* Only agents with something to report, so the one that needs attention stands out. */}
+      <Panel title="CONDITIONS" page="pp. 47, 55" rows={conditions.length ? conditions.map(({ s, penalty, lines }) => ({
+        key: s.id, left: s.link, right: penalty ? `−${penalty}% to tests` : undefined, warn: true, lines: lines.map((left) => ({ left, warn: true })),
+      })) : [{ key: 'none', left: 'No penalties or stat changes.' }]} />
 
       <Panel title="BONDS & DISORDERS" page="pp. 36, 69" rows={sheets.map((s) => ({
         key: s.id, left: s.link,
