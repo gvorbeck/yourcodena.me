@@ -28,9 +28,9 @@ h2::before, h3::before { content: '[ '; content: '[ ' / ''; } h2::after, h3::aft
 .menubar .logo { width: 1.1em; height: .66em; margin-right: .75ch; shape-rendering: crispEdges; }
 .menubar :is(button, a) + button::before { content: "|" / ""; display: inline-block; margin: 0 .75ch; } /* inline-block keeps the hover underline off it */
 
-.shell { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--gap); padding: var(--gap); align-items: start; align-content: start; }
+.shell { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--gap); padding: var(--gap); align-items: start; align-content: start; max-width: var(--page-w); margin: 0 auto; } /* same column as the .page screens */
 .counter { flex-wrap: nowrap; margin-bottom: .5rem; } .counter.noted { flex-wrap: wrap; }
-.counter .note { flex: 1 1 14ch; min-width: 0; overflow-wrap: anywhere; } /* a Bond's relationship: beside the score when there's room, below it when not */
+.counter .note { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; } /* own line, so a long note never stretches the stepper */
 .counter strong { flex: none; width: 13ch; overflow-wrap: anywhere; }
 .counter output { flex: none; width: 9ch; text-align: center; }
 .skip { position: absolute; left: .5rem; top: -4rem; z-index: 2; padding: .25rem .75rem; }
@@ -159,6 +159,12 @@ td.num, th.num { text-align: right; }
 /* Live sheet: the play-time controls need air between groups, especially on a phone. */
 .live .win .row { margin: .75rem 0; row-gap: .75rem; }
 .live .win .counter { margin-bottom: .75rem; }
+/* Bonds: player-written name and note on their own lines, so their length never stretches the stepper. */
+.live .win :is(.counter.noted, .live-bonds .counter) { row-gap: .25rem; } /* label/note lines sit snug against their stepper, beating .live .win .row's gap */
+.live-bonds .counter { display: grid; grid-template-columns: auto auto auto 1fr; }
+.live-bonds .counter :is(strong, .note) { grid-column: 1 / -1; width: auto; }
+.live-bonds .note { grid-row: 2; } /* the note comes before the stepper, though it follows it in the DOM */
+.live-bonds .counter + .counter { border-top: 1px dotted var(--dim); padding-top: .75rem; }
 .live .win p:not(.sr-only) { margin: .75rem 0; line-height: 1.5; }
 .live .win h3 { margin: 2.25rem 0 .75rem; }
 .live .win .row select { flex: 1 1 12ch; min-width: 0; width: auto; }
@@ -181,6 +187,7 @@ td.num, th.num { text-align: right; }
   .live-skills { position: sticky; top: 4rem; max-height: calc(100vh - 5rem); display: flex; flex-direction: column; } /* stays in reach while Status scrolls; below the sticky roll bar */
   .live-skills > .body { overflow-y: auto; min-height: 0; } /* only the list scrolls, so the scrollbar stops under the title bar */
 }
+.live-status > header { flex-direction: column; } /* name on one line, profession under it */
 .skill-find { margin-bottom: .5rem; }
 .live-skills { min-width: 0; } .live-skills td:first-child { white-space: normal; } /* long skill names wrap instead of pushing Total out of the box */
 
@@ -189,7 +196,7 @@ td.num, th.num { text-align: right; }
 
 
 /* Landing, game and notice pages */
-.page { display: grid; grid-template-columns: minmax(0, 1fr); /* wide content (the roll log) scrolls in its box instead of widening the page */ gap: var(--gap); padding: var(--gap); align-content: start; width: 100%; max-width: 64rem; margin: 0 auto; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr); /* wide content (the roll log) scrolls in its box instead of widening the page */ gap: var(--gap); padding: var(--gap); align-content: start; width: 100%; max-width: var(--page-w); margin: 0 auto; }
 .page a { color: inherit; }
 a.btn { display: inline-block; text-decoration: none; color: inherit; }
 .idform { display: flex; gap: .75rem; flex-wrap: wrap; } .idform input { flex: 1 1 16ch; width: auto; }
@@ -205,7 +212,7 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; }
 .panel-rows li { padding: .4rem .5rem; border-bottom: 1px dotted var(--dim); } .panel-rows li:last-child { border-bottom: none; }
 .panel-rows .pair { display: flex; justify-content: space-between; gap: 1rem; } .panel-rows .pair > :last-child:not(:first-child) { white-space: nowrap; }
 /* A title bar only: its boxes carry their own frames. */
-.win.bare { border: 0; background: none; } .win.bare > .body { padding-inline: 0; padding-bottom: 0; } /* top padding still follows .win > .body, phones included */
+.win.bare { border: 0; background: none; } .win.bare > header { border: 2px solid var(--line); } /* title bar as tall as a bordered window's */ .win.bare > .body { padding-inline: 0; padding-bottom: 0; } /* top padding still follows .win > .body, phones included */
 @media (max-width: 800px) { .masonry { columns: 1; } } /* after the rule above, so it wins */
 .log { max-height: 24rem; overflow-y: auto; }
 .log td { padding-top: .4rem; padding-bottom: .4rem; } /* same row height as the live sheet tables */
