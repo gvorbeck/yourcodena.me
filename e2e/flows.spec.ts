@@ -6,6 +6,7 @@ import { agentDoc, createAgent, freshPage, hp, savedHp } from './helpers';
 test('a new agent goes through creation and shows on the game page', async ({ page }) => {
   const { gameUrl } = await createAgent(page);
   await expect(hp(page)).toHaveText('13 / 13');
+  await expect(page.getByRole('group', { name: 'Unnatural' })).toHaveAccessibleDescription(/maximum SAN is 99 minus it/); // counter notes reach screen readers
 
   await page.getByRole('link', { name: '< Game' }).click();
   await expect(page).toHaveURL(new RegExp(`${gameUrl}$`));

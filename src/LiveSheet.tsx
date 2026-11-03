@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
 import { activeBonds, clamp, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, type Outcome } from './rules';
@@ -14,13 +14,15 @@ import * as play from './model/actions';
 
 function Counter({ label, note, value, max, step = 1, onChange, onRoll }: { label: string; note?: string; value: number; max?: number; step?: number; onChange: (v: number) => void; onRoll?: () => void }) {
   const set = (v: number) => onChange(clamp(v, 0, max ?? Infinity));
+  const noteId = useId();
   return (
-    <div className={note ? 'row counter noted' : 'row counter'} role="group" aria-label={label}>
+    // describedby: the note is announced with the group, since CSS may show it before the controls it follows in the DOM
+    <div className={note ? 'row counter noted' : 'row counter'} role="group" aria-label={label} aria-describedby={note ? noteId : undefined}>
       <strong>{onRoll ? <button className="rollable" onClick={onRoll}>{label}</button> : label}</strong>
       <Btn label={`Decrease ${label}`} onPress={() => set(value - step)}>−</Btn>
       <output>{value}{max !== undefined && ` / ${max}`}</output>
       <Btn label={`Increase ${label}`} onPress={() => set(value + step)}>+</Btn>
-      {note && <span className="dim note">{note}</span>}
+      {note && <span className="dim note" id={noteId}>{note}</span>}
     </div>
   );
 }
@@ -349,9 +351,11 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         </div>
 
         <h3>Bonds</h3>
-        {bonds.map((b) => (
-          <Counter key={b.i} label={b.name} note={b.note} value={bondScoreOf(c, l, b.i)} max={d.bondScore} onChange={(v) => set('bonds', withBond(l.bonds, b.i, v, d.bondScore))} />
-        ))}
+        <div className="live-bonds">
+          {bonds.map((b) => (
+            <Counter key={b.i} label={b.name} note={b.note} value={bondScoreOf(c, l, b.i)} max={d.bondScore} onChange={(v) => set('bonds', withBond(l.bonds, b.i, v, d.bondScore))} />
+          ))}
+        </div>
       </Win>
 
       <Win className="live-skills" title="SKILLS">

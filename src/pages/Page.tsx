@@ -15,7 +15,7 @@ interface PageProps {
   actions?: ReactNode;
   /** Status bar items before the legal line. */
   status?: ReactNode;
-  /** Full width instead of the centred content column. */
+  /** The page lays out its own column (.shell) instead of the .page one. */
   wide?: boolean;
   children: ReactNode;
 }
