@@ -19,9 +19,11 @@
   --warn: #a4160f;
   --ok: #2c6b2f;
   --gap: 1rem;
+  --border-thin: 1px; /* controls, table rows, dividers */
+  --border: 2px;      /* windows, bars, popovers */
   --page-w: 72rem; /* content column shared by every page */
   --control-padding-y: .125rem;
-  --control-h: calc(1.5em + 2 * var(--control-padding-y) + 2px); /* em resolves where it's used */
+  --control-h: calc(1.5em + 2 * var(--control-padding-y) + 2 * var(--border-thin)); /* em resolves where it's used */
 }
 @media (prefers-color-scheme: dark) {
   :root {
