@@ -38,10 +38,10 @@ h2::before, h3::before { content: '[ '; content: '[ ' / ''; } h2::after, h3::aft
 main:focus { outline: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 html { scroll-padding-top: 4rem; } /* keeps focused controls clear of the sticky roll bar */
-.rollbar { grid-column: 1 / -1; position: sticky; top: 0; z-index: 1; display: flex; gap: 1.5rem; overflow: hidden; white-space: nowrap; padding: .5rem var(--gap); border: 2px solid var(--line); background: var(--panel); }
+.rollbar { grid-column: 1 / -1; position: sticky; top: 0; z-index: 1; display: flex; gap: 1.5rem; overflow: hidden; white-space: nowrap; padding: .5rem var(--gap); border: var(--border) solid var(--line); background: var(--panel); }
 .rollbar .latest::before { content: '> '; content: '> ' / ''; }
 .strong { text-decoration: underline; text-underline-offset: .2em; } /* critical successes and fumbles stand out beyond color */
-.rollable { display: inline-block; padding: .2rem .25rem; margin: -.2rem -.25rem; border-bottom: 1px solid transparent; }
+.rollable { display: inline-block; padding: .2rem .25rem; margin: -.2rem -.25rem; border-bottom: var(--border-thin) solid transparent; }
 .rollable:hover { border-bottom-style: dotted; border-bottom-color: currentColor; } /* dotted underline marks the one thing under the pointer; row rules in the live sheet are solid */
 .rollable:focus-visible, button.mark:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; } /* keyboard focus needs a ring, not just a hairline */
 button.mark { padding: .6rem 1ch; margin: -.6rem -1ch; } /* 1ch keeps the tap target over 24px wide */ button.mark:hover { text-decoration: line-through; }
@@ -49,9 +49,9 @@ button.mark { padding: .6rem 1ch; margin: -.6rem -1ch; } /* 1ch keeps the tap ta
 .live-note { margin-bottom: 1.5rem; }
 .live-notes { width: 100%; }
 
-.win { border: 2px solid var(--line); background: var(--panel); }
+.win { border: var(--border) solid var(--line); background: var(--panel); }
 .win > header { padding: 0 .5rem; display: flex; justify-content: space-between; }
-.win > header :is(h2, h3) { margin: 0; font: inherit; }
+.win > header :is(h2, h3) { margin: 0; font: inherit; color: inherit; } /* the bar's inverted color, not h3's dim */
 .win-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .badge-ok { background: var(--ok); color: var(--panel); padding: 0 .4rem; margin: .15rem 0; align-self: center; }
 .win > .body { padding: var(--gap); }
@@ -70,19 +70,19 @@ button.mark { padding: .6rem 1ch; margin: -.6rem -1ch; } /* 1ch keeps the tap ta
 .field > label, .lbl { font-size: .8rem; color: var(--dim); }
 input, textarea, select {
   font: inherit; color: inherit; text-transform: inherit; background: transparent;
-  border: 1px solid var(--line); border-radius: 0; padding: var(--control-padding-y) .5rem; width: 100%;
+  border: var(--border-thin) solid var(--line); border-radius: 0; padding: var(--control-padding-y) .5rem; width: 100%;
 }
 textarea { min-height: 4.5rem; resize: vertical; }
 input:focus, textarea:focus, select:focus, input[data-focused], textarea[data-focused] { outline: none; background: var(--inv-bg); color: var(--inv-fg); }
 
 .btn, button[data-rac].btn {
   font: inherit; text-transform: uppercase; cursor: pointer; background: transparent; color: inherit;
-  border: 1px solid var(--line); border-radius: 0; padding: .125rem .75rem;
+  border: var(--border-thin) solid var(--line); border-radius: 0; padding: .125rem .75rem;
 }
 /* One hover and focus look for every .btn: react-aria buttons, plain <button>s (forms, Game page) and links. */
 .btn:is(:hover, [data-hovered], :focus-visible, [data-focus-visible]):not(:disabled, [data-disabled]) { background: var(--inv-bg); color: var(--inv-fg); outline: none; }
 .btn[data-disabled], button.btn:disabled { opacity: .4; cursor: not-allowed; }
-.popover { min-width: var(--trigger-width); border: 2px solid var(--line); background: var(--panel); color: var(--fg); }
+.popover { min-width: var(--trigger-width); border: var(--border) solid var(--line); background: var(--panel); color: var(--fg); }
 .listbox { max-height: 14rem; overflow: auto; outline: none; padding: .25rem 0; }
 .option { padding: 0 .5rem; cursor: pointer; outline: none; }
 .row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
@@ -92,16 +92,16 @@ input:focus, textarea:focus, select:focus, input[data-focused], textarea[data-fo
 .choice[data-disabled] { opacity: .4; cursor: not-allowed; }
 .choice .mark::before { content: '[ ]'; content: '[ ]' / ''; } .choice[data-selected] .mark::before { content: '[X]'; content: '[X]' / ''; }
 .choice.radio .mark::before { content: '( )'; content: '( )' / ''; } .choice.radio[data-selected] .mark::before { content: '(•)'; content: '(•)' / ''; }
-.group-list { position: relative; max-height: 22rem; overflow: auto; border: 1px solid var(--line); padding: .25rem; }
+.group-list { position: relative; max-height: 22rem; overflow: auto; border: var(--border-thin) solid var(--line); padding: .25rem; }
 
 table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 0 .5rem; border-bottom: 1px dotted var(--dim); } th { color: var(--dim); font-weight: normal; }
+th, td { text-align: left; padding: 0 .5rem; border-bottom: var(--border-thin) dotted var(--dim); } th { color: var(--dim); font-weight: normal; }
 td.num, th.num { text-align: right; }
 .cols { columns: 2 18rem; column-gap: 2rem; }
 .issues { list-style: none; padding: 0; margin: .5rem 0; } .issues li::before { content: '! '; content: '! ' / ''; color: var(--warn); } .issues li { color: var(--warn); }
 .stamp { display: inline-block; border: 3px double var(--warn); color: var(--warn); padding: 0 .5rem; transform: rotate(-4deg); }
 .redact { background: var(--fg); color: var(--fg); user-select: none; }
-.statusbar { display: flex; gap: 1.5rem; padding: .25rem 1rem; border-top: 2px solid var(--line); flex-wrap: wrap; }
+.statusbar { display: flex; gap: 1.5rem; padding: .25rem 1rem; border-top: var(--border) solid var(--line); flex-wrap: wrap; }
 .statusbar kbd { font: inherit; padding: 0 .25rem; margin-right: .25rem; }
 
 .cursor::after { content: '█'; }
@@ -126,7 +126,7 @@ td.num, th.num { text-align: right; }
   .steps li { flex: none; }
   .steps li:has([aria-current='step']) { flex: 1; min-width: 0; }
   .steps button { gap: .5rem; padding: .25rem .5rem; }
-  .steps button:not([aria-current='step']) .n + span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* hidden visually, still the button's name */
+  .steps button:not([aria-current='step']) .n + span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* copy of .sr-only for phones only; CSS can't reuse a rule inside a media query. Still the button's name */
   .steps button[aria-current='step'] .n + span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .steps .n { min-width: 0; }
   .steps .flag { margin-left: .25rem; }
@@ -145,8 +145,8 @@ td.num, th.num { text-align: right; }
 /* Scrollbars: square track, solid block thumb */
 @supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: var(--line) var(--panel); } }
 ::-webkit-scrollbar { width: 12px; height: 12px; }
-::-webkit-scrollbar-track { background: var(--panel); border-left: 1px solid var(--dim); }
-::-webkit-scrollbar-thumb { background: var(--line); border: 2px solid var(--panel); }
+::-webkit-scrollbar-track { background: var(--panel); border-left: var(--border-thin) solid var(--dim); }
+::-webkit-scrollbar-thumb { background: var(--line); border: var(--border) solid var(--panel); }
 ::-webkit-scrollbar-thumb:hover { background: var(--fg); }
 ::-webkit-scrollbar-corner { background: var(--panel); }
 .statusbar .legal { flex-basis: 100%; font-size: .8rem; line-height: 1.3; }
@@ -155,7 +155,7 @@ td.num, th.num { text-align: right; }
 .with-roll .btn.roll { flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 0; line-height: 0; aspect-ratio: 1; height: var(--control-h); } /* outranks button[data-rac].btn padding */
 .btn.roll svg { flex: none; width: 1.1rem; height: 1.1rem; }
 .grid.wide { grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr)); }
-.alerts { border: 2px solid var(--warn); padding: .5rem var(--gap); margin: .5rem 0; } .alerts p { margin: .25rem 0; }
+.alerts { border: var(--border) solid var(--warn); padding: .5rem var(--gap); margin: .5rem 0; } .alerts p { margin: .25rem 0; }
 /* Live sheet: the play-time controls need air between groups, especially on a phone. */
 .live .win .row { margin: .75rem 0; row-gap: .75rem; }
 .live .win .counter { margin-bottom: .75rem; }
@@ -164,7 +164,7 @@ td.num, th.num { text-align: right; }
 .live-bonds .counter { display: grid; grid-template-columns: auto auto auto 1fr; }
 .live-bonds .counter :is(strong, .note) { grid-column: 1 / -1; width: auto; }
 .live-bonds .note { grid-row: 2; } /* the note comes before the stepper, though it follows it in the DOM */
-.live-bonds .counter + .counter { border-top: 1px dotted var(--dim); padding-top: .75rem; }
+.live-bonds .counter + .counter { border-top: var(--border-thin) dotted var(--dim); padding-top: .75rem; }
 .live .win p:not(.sr-only) { margin: .75rem 0; line-height: 1.5; }
 .live .win h3 { margin: 2.25rem 0 .75rem; }
 .live .win .row select { flex: 1 1 12ch; min-width: 0; width: auto; }
@@ -175,7 +175,7 @@ td.num, th.num { text-align: right; }
 /* One height for every control in a row, however it wraps (same as the roll button above). */
 .live .win .row > :is(input, select, .btn) { align-self: stretch; min-height: var(--control-h); }
 .pips { display: flex; align-items: center; gap: .6rem; margin: .75rem 0; } .pips span { width: 14ch; color: var(--dim); }
-.pips i { width: 1.25rem; height: 1.25rem; border: 2px solid var(--line); } .pips i.on { background: var(--fg); }
+.pips i { width: 1.25rem; height: 1.25rem; border: var(--border) solid var(--line); } .pips i.on { background: var(--fg); }
 .row.even > .btn { flex: 1 1 16ch; }
 
 /* Live sheet layout: phone stacks Status → Skills → Notes (DOM order); wider screens put Skills beside Status. */
@@ -191,7 +191,7 @@ td.num, th.num { text-align: right; }
 .skill-find { margin-bottom: .5rem; }
 .live-skills { min-width: 0; } .live-skills td:first-child { white-space: normal; } /* long skill names wrap instead of pushing Total out of the box */
 
-.live .win table :is(td, th) { border-bottom: 1px solid color-mix(in srgb, var(--dim) 60%, transparent); }
+.live .win table :is(td, th) { border-bottom: var(--border-thin) solid color-mix(in srgb, var(--dim) 60%, transparent); }
 .skilltype { display: block; font-size: inherit; color: var(--dim); } /* qualifier on its own line; the button shrinks to the wider line so the marker stays beside the text */
 
 
@@ -202,24 +202,25 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; }
 .idform { display: flex; gap: .75rem; flex-wrap: wrap; } .idform input { flex: 1 1 16ch; width: auto; }
 .page .row { margin: .75rem 0; }
 .agents { list-style: none; margin: 0; padding: 0; }
-.agents li { display: flex; align-items: baseline; gap: 1rem; padding: .4rem 0; border-bottom: 1px dotted var(--dim); }
+.agents li { display: flex; align-items: baseline; gap: 1rem; padding: .4rem 0; border-bottom: var(--border-thin) dotted var(--dim); }
 /* The details wrap among themselves; the Delete button keeps its own column. */
 .agents .info { flex: 1; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .25rem 1.5rem; }
 .agents .info > :first-child { flex: 1 1 16ch; }
 /* Handler boxes: two balanced columns. Inline-block keeps each box's bottom margin at a column's end (block margins are dropped there); the negative margin then cancels it so the page grid's gap stays even. */
 .masonry { columns: 2 18rem; column-gap: var(--gap); margin-bottom: calc(-1 * var(--gap)); }
 .masonry > .win { display: inline-block; vertical-align: top; width: 100%; break-inside: avoid; margin-bottom: var(--gap); }
-.panel-rows li { padding: .4rem .5rem; border-bottom: 1px dotted var(--dim); } .panel-rows li:last-child { border-bottom: none; }
+.panel-rows li { padding: .4rem .5rem; border-bottom: var(--border-thin) dotted var(--dim); } .panel-rows li:last-child { border-bottom: none; }
 .panel-rows .pair { display: flex; justify-content: space-between; gap: 1rem; } .panel-rows .pair > :last-child:not(:first-child) { white-space: nowrap; }
+.panel-rows .term { display: block; color: var(--accent); } /* GM screen: the rule's name, so long rows scan */
 /* A title bar only: its boxes carry their own frames. */
-.win.bare { border: 0; background: none; } .win.bare > header { border: 2px solid var(--line); } /* title bar as tall as a bordered window's */ .win.bare > .body { padding-inline: 0; padding-bottom: 0; } /* top padding still follows .win > .body, phones included */
+.win.bare { border: 0; background: none; } .win.bare > header { border: var(--border) solid var(--line); } /* title bar as tall as a bordered window's */ .win.bare > .body { padding-inline: 0; padding-bottom: 0; } /* top padding still follows .win > .body, phones included */
 @media (max-width: 800px) { .masonry { columns: 1; } } /* after the rule above, so it wins */
 .log { max-height: 24rem; overflow-y: auto; }
 .log td { padding-top: .4rem; padding-bottom: .4rem; } /* same row height as the live sheet tables */
 
 /* Confirm dialog */
 .overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: var(--gap); background: rgb(0 0 0 / .6); }
-.modal { max-width: min(32rem, 100%); border: 2px solid var(--line); background: var(--panel); color: var(--fg); padding: var(--gap); }
+.modal { max-width: min(32rem, 100%); border: var(--border) solid var(--line); background: var(--panel); color: var(--fg); padding: var(--gap); }
 .dialog { outline: none; } .dialog p { margin: .75rem 0; } .dialog .row { margin-top: 1rem; }
 
 /* Small layout helpers (replacing inline styles) */
@@ -267,7 +268,7 @@ code.link { font: inherit; overflow-wrap: anywhere; }
 
 .row.adjust { align-items: flex-end; flex-wrap: wrap; } .row.adjust > span { flex: 0 1 min(18rem, 100%); min-width: 0; padding-bottom: .4rem; } .row.adjust .field { flex: 0 1 min(14rem, 100%); }
 /* Home hero: pixel-art case file beside the title, stacked on narrow screens. */
-.hero { display: grid; grid-template-columns: minmax(0, 20rem) 1fr; gap: 1.5rem; align-items: center; padding: 1rem 0; border-bottom: 2px solid var(--line); }
+.hero { display: grid; grid-template-columns: minmax(0, 20rem) 1fr; gap: 1.5rem; align-items: center; padding: 1rem 0; border-bottom: var(--border) solid var(--line); }
 .hero h1 { font-size: 1.75rem; line-height: 1.2; margin-bottom: .5rem; }
 .hero svg { width: 100%; height: auto; shape-rendering: crispEdges; }
 .hero .fg { fill: var(--fg); } .hero .panel { fill: var(--panel); } .hero .accent { fill: var(--accent); } .hero path.dim { fill: var(--dim); }

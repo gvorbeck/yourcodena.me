@@ -94,6 +94,7 @@ test('the GM screen opens to the rules boxes', async ({ page }) => {
   await expect(lethality).toBeHidden();
   await toggle.click();
   await expect(lethality).toContainText('1D6 per 3%');
+  await expect(lethality.locator('.term').first()).toHaveText('Hit'); // 'Hit: …' rows show the term as its own heading
 });
 
 test('the Handler boxes flag a downed agent and list bonds and disorders', async ({ page }) => {

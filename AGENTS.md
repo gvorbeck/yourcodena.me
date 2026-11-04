@@ -5,6 +5,7 @@ What the app is and where things are: [README.md](README.md). Read the code you'
 ## Rules
 
 - Make the smallest change that fully works. Reuse what's already here (`src/lib`, `src/rules`, `src/model`) before writing anything new. No abstractions, options, wrappers or "for later" code nobody asked for.
+- UI: use the components in `src/ui` and the tokens in `src/styles/tokens.css`. No inline styles or new hex colors; add a token if one is missing.
 - Ask before adding a dependency.
 - Delete code your change leaves unused. `npm run knip` fails on unused files, exports and dependencies.
 - Bug fix: first write a test that fails, then fix the root cause in the shared code, not at each caller.
