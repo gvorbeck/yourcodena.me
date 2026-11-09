@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
-import { activeBonds, clamp, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, type Outcome } from './rules';
+import { activeBonds, clamp, featureOf, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, type Outcome } from './rules';
 import { pad2, testText } from './rules/outcome';
 import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, loseSan, maxSanOf, refreshSpent, setUnnatural, sheetPenalty, coreTests, SAN_KINDS, SAN_KIND_LABEL, SAN_LOSS, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
-import { nameOf, type Character } from './model/character';
+import { DETAIL_FIELDS, nameOf, type Character } from './model/character';
 import { Btn, ConfirmDialog, SkillTable, Win } from './ui';
 import { useFocusMain } from './ui/Win';
 import { useTitle } from './pages/Page';
@@ -365,6 +365,12 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
           <Btn onPress={endSession} disabled={l.checked.length === 0}>End session: advance {l.checked.length} checked</Btn>
         </div>
         <SkillTable c={c} onRoll={rollSkill} filter={find} advance={l.advance} checked={l.checked} onUncheck={(k) => setL((p) => play.uncheckSkill(p, k))} />
+      </Win>
+      <Win className="live-file-win" title="PERSONNEL FILE" collapsible>
+        {DETAIL_FIELDS.filter((f) => f.key !== 'name' && c.details[f.key].trim()).map((f) => (
+          <p key={f.key}><span className="dim">{f.label.replace(' (optional)', '')}:</span> {c.details[f.key]}</p>
+        ))}
+        {STATS.map((s) => featureOf(s, c.stats[s]) && <p key={s}><span className="dim">{STAT_NAMES[s]}:</span> {featureOf(s, c.stats[s])}</p>)}
       </Win>
       <Win className="live-notes-win" title="NOTES">
         <textarea aria-label="Notes" rows={6} maxLength={MAX_NOTES} className="live-notes" value={l.notes} onChange={(e) => set('notes', e.target.value)} />

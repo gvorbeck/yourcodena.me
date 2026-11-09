@@ -182,8 +182,8 @@ td.num, th.num { text-align: right; }
 @media (min-width: 801px) {
   .shell.live td { white-space: nowrap; }
   .shell > .win:first-child { position: sticky; top: var(--gap); }
-  .shell.live { grid-template-columns: minmax(0, 1fr) 24rem; grid-template-areas: "bar bar" "status skills" "notes skills"; }
-  .live .rollbar { grid-area: bar; } .live-status { grid-area: status; } .live-skills { grid-area: skills; } .live-notes-win { grid-area: notes; }
+  .shell.live { grid-template-columns: minmax(0, 1fr) 24rem; grid-template-areas: "bar bar" "status skills" "file skills" "notes skills"; }
+  .live .rollbar { grid-area: bar; } .live-status { grid-area: status; } .live-skills { grid-area: skills; } .live-file-win { grid-area: file; } .live-notes-win { grid-area: notes; }
   .live-skills { position: sticky; top: 4rem; max-height: calc(100vh - 5rem); display: flex; flex-direction: column; } /* stays in reach while Status scrolls; below the sticky roll bar */
   .live-skills > .body { overflow-y: auto; min-height: 0; } /* only the list scrolls, so the scrollbar stops under the title bar */
 }

@@ -6,6 +6,8 @@ import { agentDoc, createAgent, freshPage, hp, savedHp } from './helpers';
 test('a new agent goes through creation and shows on the game page', async ({ page }) => {
   const { gameUrl } = await createAgent(page);
   await expect(hp(page)).toHaveText('13 / 13');
+  await page.getByRole('button', { name: /PERSONNEL FILE/ }).click(); // starts collapsed
+  await expect(page.getByRole('region', { name: 'PERSONNEL FILE' })).toContainText('Codename: LAMP');
   await expect(page.getByRole('group', { name: 'Unnatural' })).toHaveAccessibleDescription(/maximum SAN is 99 minus it/); // counter notes reach screen readers
 
   await page.getByRole('link', { name: '< Game' }).click();
