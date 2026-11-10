@@ -43,6 +43,16 @@ describe('server-only collections', () => {
   }
 });
 
+describe('pendingSan', () => {
+  it('can be read and listed by the game page, but only Functions write it', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), `${G}/pendingSan/a1`), { amount: 3, kind: 'violence', createdAt: 1 }));
+    await assertSucceeds(getDoc(doc(db(), `${G}/pendingSan/a1`)));
+    await assertSucceeds(getDocs(collection(db(), `${G}/pendingSan`)));
+    await assertFails(setDoc(doc(db(), `${G}/pendingSan/a2`), { amount: 3, kind: 'violence', createdAt: 1 }));
+    await assertFails(deleteDoc(doc(db(), `${G}/pendingSan/a1`)));
+  });
+});
+
 describe('games', () => {
   it('can be read by ID but not listed', async () => {
     await assertSucceeds(getDoc(doc(db(), G)));

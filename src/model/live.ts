@@ -179,13 +179,13 @@ export function conditionsOf(l: Live) {
 }
 
 /** One rollable thing on the sheet. `label` is what the roll log shows; `name` is the longer name to search by. */
-export interface Test { id: string; label: string; name: string; chance: number; skill: boolean }
+export interface Test { id: string; label: string; name: string; chance: number; skill: boolean; /** Pure chance (Luck, p. 44): sheet penalties and low WP don't apply. */ flat?: true }
 /** Roll-log label of the SAN test made for a SAN loss (live sheet and /dg san). */
 export const SAN_LOSS = 'SAN (loss)';
 /** The stat ×5, Luck and SAN tests: cheap, no skill list. */
 export const coreTests = ({ c, l }: { c: Character; l: Live }): Test[] => [
   ...STATS.map((s) => ({ id: `stat:${s}`, label: s, name: `${s} ${STAT_NAMES[s]}`, chance: effStat(c, l, s) * 5, skill: false })),
-  { id: 'luck', label: 'Luck', name: 'Luck', chance: 50, skill: false },
+  { id: 'luck', label: 'Luck', name: 'Luck', chance: 50, skill: false, flat: true },
   { id: 'san', label: 'SAN test', name: 'SAN', chance: l.san, skill: false },
 ];
 /** Everything rollable on the live sheet (and from Discord): the core tests and every skill. */

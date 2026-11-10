@@ -1,5 +1,5 @@
 import { FieldPath, arrayRemove, arrayUnion, deleteField, doc, getDoc, onSnapshot, setDoc, writeBatch, type Unsubscribe } from 'firebase/firestore';
-import { newCharacter, parseCharacter, type Character } from '../model/character';
+import { characterFrom, newCharacter, parseCharacter, type Character } from '../model/character';
 import { advanceSkills, parseLive, type Live } from '../model/live';
 import { professionOf } from '../rules';
 import { REMOVED, at, diffPaths, setDelta } from './diff';
@@ -13,12 +13,20 @@ const summary = (c: Character) => ({ name: c.details.name.trim(), codename: c.de
 
 // shortcut: the write is not awaited (the promise only settles once the server acknowledges it, which never happens offline). The agent page
 // reads it back from the local cache; a write the rules reject shows up there as "no such agent". Add a toast if that proves confusing.
-export const createAgent = (g: string, c: Character = newCharacter()) => {
+export const createAgent = (g: string, c: Character = newCharacter(), live: Live | null = null) => {
   const ref = doc(agentsCol(g));
   const now = Date.now();
-  setDoc(ref, { ...summary(c), character: c, live: null, createdAt: now, updatedAt: now }).catch(console.error);
+  setDoc(ref, { ...summary(c), character: c, live, createdAt: now, updatedAt: now }).catch(console.error);
   return ref.id;
 };
+
+/** A game backup (exportGame), an exported Agent or a Green Agent file → the Agents to add. Throws for anything else, or a backup with no Agents. */
+export function readImport(raw: unknown): { c: Character; live: Live | null }[] {
+  const agents = (raw as { agents?: unknown } | null)?.agents;
+  const found = Array.isArray(agents) ? agents.map((a) => ({ c: parseCharacter(a.character), live: a.live ? parseLive(a.live) : null })) : [{ c: characterFrom(raw), live: null }];
+  if (!found.length) throw new Error('no agents in file');
+  return found;
+}
 
 /**
  * What this tab last read or wrote, per agent field. Saves send only the leaves that differ from it, so a second

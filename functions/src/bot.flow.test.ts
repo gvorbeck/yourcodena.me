@@ -53,15 +53,16 @@ vi.mock('firebase-admin/firestore', () => {
       create: (r: Ref, v: Record<string, unknown>) => { if (store.has(r.path)) throw exists(r.path); return r.set(v); }, delete: (r: Ref) => r.delete(),
     }),
     batch: () => {
-      const creates: [Ref, Record<string, unknown>][] = [], updates: [Ref, unknown[]][] = [];
+      const creates: [Ref, Record<string, unknown>][] = [], sets: [Ref, Record<string, unknown>][] = [], updates: [Ref, unknown[]][] = [];
       return {
         create: (r: Ref, v: Record<string, unknown>) => { creates.push([r, v]); },
+        set: (r: Ref, v: Record<string, unknown>) => { sets.push([r, v]); },
         update: (r: Ref, ...a: unknown[]) => { updates.push([r, a]); },
         commit: async () => {
           beforeCommit();
           const taken = creates.find(([r]) => store.has(r.path));
           if (taken) throw exists(taken[0].path); // all or nothing, like Firestore
-          for (const [r, v] of creates) await r.set(v);
+          for (const [r, v] of [...creates, ...sets]) await r.set(v);
           for (const [r, a] of updates) await r.update(...a);
         },
       };
@@ -92,12 +93,14 @@ beforeEach(() => {
 });
 
 describe('/dg san projection buttons', () => {
-  it('Take the loss applies it, logs it, and clears the hold', async () => {
+  it('Take the loss applies it, logs it, and clears the hold and the site\'s copy of it', async () => {
+    store.set('games/g/pendingSan/A1', { amount: 6, kind: 'violence', createdAt: 0 });
     const r = await press('san:take:A1');
     expect(r.type).toBe(7);
     expect(r.data.content).toContain('loses **6** SAN (violence)');
     expect(live().san).toBe(44);
     expect(store.has('discordPending/A1')).toBe(false);
+    expect(store.has('games/g/pendingSan/A1')).toBe(false);
     expect(rolls()).toEqual([expect.objectContaining({ kind: 'loss', stat: 'SAN', roll: 6, from: 50, to: 44, agentId: 'A1' })]);
   });
 
@@ -161,6 +164,7 @@ describe('/dg san projection buttons', () => {
     store.delete('discordPending/A1');
     expect((await san('1/1D10')).data.content).toContain('Project it onto a Bond?');
     expect(store.get('discordPending/A1')).toMatchObject({ expr: '1/1D10', testLine: expect.stringContaining('SAN \\(loss\\)') });
+    expect(store.get('games/g/pendingSan/A1')).toEqual({ amount: expect.any(Number), kind: 'unnatural', createdAt: expect.any(Number) });
     expect(rolls()).toEqual([expect.objectContaining({ label: 'SAN (loss)' })]);
   });
 
@@ -172,6 +176,7 @@ describe('/dg san projection buttons', () => {
     const r = await san('1/1D10');
     expect(r.data.content).toMatch(/already waiting.*wasn't rolled/s);
     expect(store.get('discordPending/A1')).toEqual(other);
+    expect(store.has('games/g/pendingSan/A1')).toBe(false); // the loser leaves no copy behind
     expect(rolls()).toHaveLength(0);
   });
 

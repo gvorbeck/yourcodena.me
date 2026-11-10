@@ -13,6 +13,8 @@ export function ProfessionStep({ c, up }: StepProps) {
   const kit = p && slotsOf(p);
   const [adjusting, setAdjusting] = useState(''); // skill being picked; added once a typed skill has its type
   const setType = (slot: string, v: string) => up((d) => { d.types[slot] = v; });
+  // A typed skill waits for its Add button: the type input changes on every keystroke, so "S" would be added as "Spanish" starts.
+  const addAdjust = (k: string) => { setAdjusting(''); up((d) => { d.adjust[k] ??= 10; }); };
 
   const typeInput = (slot: string, alt: Alt) =>
     alt.askType ? <TypeInput label={`${alt.family} type`} suggestions={TYPE_SUGGESTIONS[alt.family] ?? []} value={c.types[slot] ?? ''} onChange={(v) => setType(slot, v)} inline /> : null;
@@ -139,11 +141,10 @@ export function ProfessionStep({ c, up }: StepProps) {
           <Btn onPress={() => up((d) => { delete d.adjust[k]; })}>Remove</Btn>
         </div>
       ))}
-      <SkillPicker label="Adjust skill" value={adjusting} onChange={(k) => {
-        if (!k || (TYPED_SKILLS.includes(familyOf(k)) && !typeOf(k))) return setAdjusting(k);
-        setAdjusting('');
-        up((d) => { d.adjust[k] ??= 10; });
-      }} />
+      <div className="row">
+        <SkillPicker label="Adjust skill" value={adjusting} onChange={(k) => (k && !TYPED_SKILLS.includes(familyOf(k)) ? addAdjust(k) : setAdjusting(k))} />
+        {TYPED_SKILLS.includes(familyOf(adjusting)) && <Btn disabled={!typeOf(adjusting).trim()} onPress={() => addAdjust(adjusting)}>Add</Btn>}
+      </div>
       <h3>Skills so far</h3>
       <div className="cols"><SkillTable c={c} onlyTouched /></div>
     </>

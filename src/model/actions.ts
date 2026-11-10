@@ -68,14 +68,17 @@ export const adapted = (l: Live, kind: SanKind) => (kind === 'violence' ? l.adap
  * Work out a SAN loss before it is applied. `test` makes the SAN roll; it is not called when adaptation passes it
  * automatically (an Agent at 0 WP can't succeed at anything, so they still roll).
  */
-export function planSanLoss(l: Live, kind: SanKind, expr: string, test: () => { ok: boolean; roll: number; chance: number }, rng: Rng = Math.random): PendingSan | { error: string } {
+export function planSanLoss(l: Live, kind: SanKind, expr: string, test: () => { ok: boolean; outcome: Outcome; roll: number; chance: number }, rng: Rng = Math.random): PendingSan | { error: string } {
   const loss = parseLoss(expr);
   if (!loss) return { error: 'SAN loss must be written success/failure, like 0/1D4 or 1/1D10.' };
   const auto = adapted(l, kind) && l.wp > 0;
   const t = auto ? null : test();
   const ok = auto || !!t?.ok;
-  const result = auto ? `Adapted to ${kind}: the SAN test automatically succeeds (p. 74).` : `${ok ? 'Passed' : 'Failed'} the SAN test (rolled ${t!.roll} against ${t!.chance}%).`;
-  return { kind, amount: rollLoss(ok ? loss[0] : loss[1], rng) ?? 0, result };
+  // A critical loses the least possible and a fumble the most (p. 66): all-low or all-high dice do that, extra victims still capped.
+  const crit = t?.outcome === 'critical success', fumble = t?.outcome === 'fumble';
+  const result = auto ? `Adapted to ${kind}: the SAN test automatically succeeds (p. 74).`
+    : `${ok ? 'Passed' : 'Failed'} the SAN test (rolled ${t!.roll} against ${t!.chance}%).${crit ? ' Critical success: the least possible loss (p. 66).' : fumble ? ' Fumble: the most possible loss (p. 66).' : ''}`;
+  return { kind, amount: rollLoss(ok ? loss[0] : loss[1], crit ? () => 0 : fumble ? () => 0.999999 : rng) ?? 0, result };
 }
 
 /** Spend an already rolled `n` WP on a Bond (pp. 74–75): the Bond drops by `n` only if the Agent keeps at least 1 WP. */

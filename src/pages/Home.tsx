@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRun } from '../lib/useRun';
-import { MIN_ID, newGameId, recentGames, slugifyGameId } from '../lib/gameId';
+import { isOpenableId, MIN_ID, newGameId, recentGames, slugifyGameId } from '../lib/gameId';
 import { Win } from '../ui/Win';
 import { Page } from './Page';
 import { Alert, Hint } from '../ui/bits';
@@ -32,7 +32,7 @@ export default function Home() {
   const slug = slugifyGameId(raw);
   const recent = recentGames();
 
-  const open = (e: FormEvent) => { e.preventDefault(); if (slug.length >= MIN_ID) nav(gameUrl(slug)); };
+  const open = (e: FormEvent) => { e.preventDefault(); if (isOpenableId(slug)) nav(gameUrl(slug)); };
   // Firestore loads on click, not with the landing page.
   const generate = () => run(async () => { const id = newGameId(); await (await import('../lib/games')).createGame(id); nav(gameUrl(id)); });
 
@@ -42,7 +42,7 @@ export default function Home() {
         <label className="lbl" htmlFor={inputId}>Game ID</label>
         <form className="idform" onSubmit={open}>
           <input id={inputId} placeholder="game id" value={raw} onChange={(e) => setRaw(e.target.value)} autoCapitalize="none" autoComplete="off" spellCheck={false} />
-          <button className="btn" disabled={slug.length < MIN_ID}>Open</button>
+          <button className="btn" disabled={!isOpenableId(slug)}>Open</button>
         </form>
         <Hint>{slug && slug !== raw ? `Opens ${slug}. ` : ''}Letters, numbers and dashes, at least {MIN_ID}. An ID nobody has used yet offers to create that game.</Hint>
         {recent.length > 0 && (

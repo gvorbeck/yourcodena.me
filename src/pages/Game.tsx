@@ -1,10 +1,11 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { asLoss, pad2, diceLabel, testText, wpNote } from '../rules/outcome';
 import { agentLabel } from '../model/names';
 import { useRun } from '../lib/useRun';
-import { createGame, deleteAgent, useAgents, type AgentCard, useGameExists, useRolls, type RollDoc } from '../lib/games';
-import { forgetSavedAgent, hasSavedAgent, MIN_ID, rememberGame, slugifyGameId } from '../lib/gameId';
+import { downloadJson } from '../lib/download';
+import { createGame, deleteAgent, exportGame, useAgents, type AgentCard, useGameExists, useHeldSan, useRolls, type RollDoc } from '../lib/games';
+import { forgetSavedAgent, hasSavedAgent, isOpenableId, MIN_ID, rememberGame } from '../lib/gameId';
 import { Win } from '../ui/Win';
 import { DiscordPanel } from '../DiscordPanel';
 import GmScreen from '../GmScreen';
@@ -30,7 +31,7 @@ function EntryCells({ r }: { r: RollDoc }) {
   return (<>
     <td>{l.stat} loss {dice}{l.cause && ` (${l.cause})`}</td>
     <td className="num"><b>{l.roll}</b></td>
-    <td className="warn">{l.stat} {l.from} → {l.to}{l.notes.map((n) => <small key={n}><br />{n}</small>)}</td>
+    <td className="warn">{l.stat} {l.from} → {l.to}{l.notes.map((n, i) => <small key={i}><br />{n}</small>)}</td>
   </>);
 }
 
@@ -43,11 +44,14 @@ export default function Game() {
   const exists = useGameExists(gameId);
   const agents = useAgents(gameId);
   const rolls = useRolls(gameId);
+  const held = useHeldSan(gameId);
+  const [slow, setSlow] = useState(false); // a never-opened game can't be read offline, and the page can only wait
+  useEffect(() => { setSlow(false); const t = setTimeout(() => setSlow(true), 10_000); return () => clearTimeout(t); }, [gameId]);
   const { busy, err, run } = useRun('Something went wrong. Check your connection and try again.');
   const [doomed, setDoomed] = useState<AgentCard | null>(null);
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [advancing, setAdvancing] = useState<AgentCard[] | null>(null); // the agents the confirm dialog will advance
-  const [advanced, setAdvanced] = useState('');
+  const [notice, setNotice] = useState('');
   // Once a deleted agent's row is gone, focus moves to New agent instead of falling back to the page body.
   const removed = useRef<string | null>(null);
   const newAgent = useRef<HTMLButtonElement>(null);
@@ -71,7 +75,7 @@ export default function Game() {
     const name = (a: AgentCard) => agentLabel(a.codename, a.name);
     const lines = list.filter((a) => gains[a.id]?.length).map((a) => `${name(a)}: ${gains[a.id].map(([k, n]) => `${k} +${n}`).join(', ')}`);
     const missed = list.filter((a) => failed.includes(a.id)).map(name);
-    setAdvanced([
+    setNotice([
       lines.length ? `Skills advanced (p. 28). ${lines.join('; ')}.` : !missed.length && 'No agent had checked skills that could advance.',
       missed.length && `Could not save ${missed.join(', ')}. Check your connection and press again.`,
     ].filter(Boolean).join(' '));
@@ -85,10 +89,38 @@ export default function Game() {
     nav(agentUrl(gameId, id));
   });
 
+  const [bad, setBad] = useState('');
+  const sheetId = useId();
+  const [sheet, setSheet] = useState('');
+  const file = useRef<HTMLInputElement>(null);
+  const backup = () => run(async () => downloadJson(`${gameId}.dg-game.json`, await exportGame(gameId)));
+  // A game backup, an exported Agent or a Green Agent file: each Agent in it is added as a new one.
+  const importFile = (f: File) => run(async () => {
+    setBad(''); setNotice('');
+    const { createAgent, readImport } = await import('../lib/agents');
+    const found = await f.text().then((t) => readImport(JSON.parse(t))).catch(() => null);
+    if (!found) return setBad('That file is not an Agent or a game backup.');
+    found.forEach(({ c, live }) => createAgent(gameId, c, live));
+    setNotice(`Added ${found.length === 1 ? '1 agent' : `${found.length} agents`}.`);
+  });
+  // A standalone sheet's link (the old /#sheet=… kind) becomes an Agent here, live play included.
+  const addSheet = (e: FormEvent) => {
+    e.preventDefault();
+    run(async () => {
+      setBad(''); setNotice('');
+      const [{ createAgent }, { decodeSheet }] = await Promise.all([import('../lib/agents'), import('../model/live')]);
+      const t = sheet.trim();
+      const s = decodeSheet(t.slice(Math.max(0, t.indexOf('#sheet='))));
+      if (!s) return setBad('That is not a sheet link.');
+      createAgent(gameId, s.c, s.l);
+      setSheet(''); setNotice('Added the sheet as a new agent.');
+    });
+  };
+
   if (exists.error) return <Notice page={gameId} title="CANNOT REACH GAME"><p className="warn">Could not load game {gameId}. Check your connection and reload.</p></Notice>;
-  if (exists.data === undefined) return <Page title={gameId}><Loading what="game" /></Page>;
+  if (exists.data === undefined) return <Page title={gameId}><Loading what="game" /><Alert>{slow && 'Still trying to reach the game. Check your connection.'}</Alert></Page>;
   if (!exists.data) {
-    const valid = slugifyGameId(gameId) === gameId && gameId.length >= MIN_ID;
+    const valid = isOpenableId(gameId);
     return (
       <Notice page={gameId} title="NO SUCH GAME">
           <p>No game has the ID <b>{gameId}</b>.</p>
@@ -128,9 +160,23 @@ export default function Game() {
         <div className="row">
           <button ref={newAgent} className="btn" onClick={() => addAgent(false)} disabled={busy}>New agent</button>
           {hasSavedAgent() && <button className="btn" onClick={() => addAgent(true)} disabled={busy}>Add the agent saved in this browser</button>}
-          {!!cards?.length && <button className="btn" onClick={() => run(async () => { await import('../ui'); setAdvanced(''); setAdvancing(cards); })} disabled={busy}>End session: advance all checked skills</button>}
+          {!!cards?.length && <button className="btn" onClick={() => run(async () => { await import('../ui'); setNotice(''); setAdvancing(cards); })} disabled={busy}>End session: advance all checked skills</button>}
         </div>
-        <p role="status">{advanced}</p>
+        <p role="status">{notice}</p>
+        <h3>Backup and import</h3>
+        <div className="row">
+          <button className="btn" onClick={backup} disabled={busy}>Download game backup</button>
+          <button className="btn" onClick={() => file.current?.click()} disabled={busy}>Add agents from a file</button>
+          <input ref={file} type="file" accept=".json,application/json" hidden aria-label="Agent or backup file"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importFile(f); }} />
+        </div>
+        <form className="row" onSubmit={addSheet}>
+          <label htmlFor={sheetId}>Sheet link</label>
+          <input id={sheetId} type="text" inputMode="url" autoComplete="off" spellCheck={false} value={sheet} onChange={(e) => setSheet(e.target.value)} />
+          <button className="btn" disabled={busy || !sheet.trim()}>Add sheet</button>
+        </form>
+        <Hint>A file is a backup of this or another game, or one Agent exported from the Review step. Backups keep every Agent; the roll log is saved in the file but not restored.</Hint>
+        <Alert>{bad}</Alert>
         <Alert>{err}</Alert>
         <Alert>{deleteFailed && 'Could not delete the agent. Check your connection and try again.'}</Alert>
         {doomed && <Suspense><ConfirmDialog open title="Delete this agent?" confirm="Delete" onClose={() => setDoomed(null)}
@@ -152,7 +198,7 @@ export default function Game() {
                 {list.map((r) => (
                   <tr key={r.id}>
                     <td className="dim">{when(r.createdAt)}</td>
-                    <td>{!r.agentId ? r.agentName : has(r.agentId) ? <Link to={agentUrl(gameId, r.agentId)}>{r.agentName}</Link> : <span title="Deleted">{r.agentName}</span>}</td>
+                    <td>{!r.agentId ? r.agentName : has(r.agentId) ? <Link to={agentUrl(gameId, r.agentId)}>{r.agentName}</Link> : <span title="Deleted">{r.agentName}<span className="sr-only"> (deleted)</span></span>}</td>
                     <EntryCells r={r} />
                   </tr>
                 ))}
@@ -163,7 +209,7 @@ export default function Game() {
       </Win>
 
       {/* Only once some agent has a live sheet: before that the boxes are empty and their rules code need not load. */}
-      {cards?.some((a) => a.vitals) && <Suspense><HandlerPanels gameId={gameId} agents={cards} /></Suspense>}
+      {cards?.some((a) => a.vitals) && <Suspense><HandlerPanels gameId={gameId} agents={cards} held={held.data} /></Suspense>}
 
       <GmScreen />
       <DiscordPanel gameId={gameId} />

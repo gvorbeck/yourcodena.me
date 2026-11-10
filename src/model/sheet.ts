@@ -8,7 +8,7 @@ export const MAX_COL = 30;
 /** Greedy word wrap to MAX_COL; words longer than a line are split. Leading spaces are kept on continuation lines. */
 function wrap(line: string): string[] {
   if (line.length <= MAX_COL) return [line];
-  const indent = /^\s*/.exec(line)![0];
+  const indent = /^\s*/.exec(line)![0].slice(0, MAX_COL / 2); // a pasted wall of spaces would leave no room for text and loop forever
   const out: string[] = [];
   let cur = '';
   for (let w of line.trim().split(/\s+/)) {

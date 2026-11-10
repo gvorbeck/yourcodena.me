@@ -35,6 +35,7 @@ export function findTest(a: Agent, value: string): Test | null {
 
 /** Same as the live sheet's test(): WP penalty, the sheet's flat penalty and exhaustion, plus a signed modifier (−20 is a penalty). */
 export function rollTest({ l }: Agent, t: Test, roll: number, modifier = 0) {
+  if (t.flat) return { ...rollAgainst(t.chance, roll, modifier), label: t.label }; // pure chance (p. 44): only a modifier changes it
   const { chance, pen, outcome } = liveOutcome(roll, t.chance, l.wp, sheetPenalty(l) - modifier);
   return { label: t.label, chance, penalty: Math.max(0, pen), roll, outcome };
 }
@@ -66,7 +67,7 @@ export function rollExpression(input: string, rand: (sides: number) => number): 
 export const isDice = (input: string) => Boolean(parseDice(input)?.sides);
 
 /** A plain d% roll against a typed number ("45"), with the same signed modifier as a test. No sheet penalties apply. */
-export function rollAgainst(target: number, roll: number, modifier = 0): Omit<TestEntry, 'agentName'> {
+export function rollAgainst(target: number, roll: number, modifier = 0) {
   const chance = Math.max(0, target + modifier);
   return { label: 'd%', chance, penalty: Math.max(0, -modifier), roll, outcome: testOutcome(roll, chance) };
 }
@@ -113,11 +114,11 @@ export interface SanStake { kind: SanKind; expr: string; amount: number; note: s
 export function planSan(a: Agent, loss: string, kind: SanKind, rng: () => number): { stake: SanStake; test: Omit<TestEntry, 'agentName'> | null } | { error: string } {
   const expr = loss.trim().toUpperCase().replace(/\s+/g, '');
   if (parseLoss(expr)) {
-    let test: Omit<TestEntry, 'agentName'> | null = null;
+    let test: ReturnType<typeof rollTest> | null = null;
     const sanTest: Test = { id: 'san', label: SAN_LOSS, name: 'SAN', chance: a.l.san, skill: false };
     const plan = planSanLoss(a.l, kind, expr, () => {
       test = rollTest(a, sanTest, 1 + Math.floor(rng() * 100));
-      return { ok: isSuccess(test.outcome), roll: test.roll, chance: test.chance };
+      return { ok: isSuccess(test.outcome), outcome: test.outcome, roll: test.roll, chance: test.chance };
     }, rng);
     if ('error' in plan) return plan;
     return { stake: { kind, expr, amount: plan.amount, note: test ? '' : plan.result }, test };

@@ -46,3 +46,21 @@ test('damage taken while the sheet is still being created is kept once it is fin
   await page.reload(); // what the server kept, not just what this tab shows
   await expect(hp(page)).toHaveText('10 / 13');
 });
+
+test('a SAN loss held in Discord shows on the live sheet and the Handler boxes until it is settled', async ({ page }) => {
+  const { gameId, agentId } = await createAgent(page);
+  await savedHp(gameId, agentId, 13);
+  const guild = `guild-${gameId}`;
+  await dg(guild, 'link', { game: gameId });
+  await dg(guild, 'claim', { agent: agentId });
+  expect((await dg(guild, 'san', { loss: '1D6', kind: 'unnatural' })).data?.content).toContain('Project it onto a Bond');
+
+  await expect(page.getByText(/SAN loss \(unnatural\) is waiting on a choice in Discord/)).toBeVisible(); // no reload
+  await page.getByRole('link', { name: '< Game' }).click();
+  const sanity = page.getByRole('region', { name: 'SANITY' });
+  await expect(sanity).toContainText('waits on a Discord choice');
+
+  now += 3000;
+  await handle({ type: 3, data: { custom_id: `san:take:${agentId}` }, guild_id: guild, channel_id: 'c1', member: { user: { id: `u-${guild}` }, permissions: String(1 << 4) } }, now);
+  await expect(sanity).not.toContainText('waits on a Discord choice');
+});

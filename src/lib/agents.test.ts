@@ -40,7 +40,7 @@ vi.mock('firebase/firestore', () => {
   };
 });
 
-const { advanceAll, createAgent, saveCharacter, saveLive } = await import('./agents');
+const { advanceAll, createAgent, readImport, saveCharacter, saveLive } = await import('./agents');
 const { createGame, logRoll } = await import('./games');
 
 /** The hasOnly list of the first match block whose path starts with `path`. */
@@ -62,12 +62,13 @@ describe('writes stay inside firestore.rules', () => {
   it('game, agent and roll documents only use fields their hasOnly lists allow', async () => {
     await createGame('kestrel-lantern-abc123');
     createAgent('g');
+    createAgent('g', newCharacter(), freshLive(newCharacter()));
     await saveCharacter('g', 'rules', newCharacter());
     await saveLive('g', 'rules', freshLive(newCharacter()));
     await logRoll('g', { agentId: 'a', agentName: 'Drew', label: 'Firearms', chance: 45, penalty: 0, roll: 12, outcome: 'success' });
 
     expect(allowed('games/{gameId}')).toEqual(expect.arrayContaining(fieldsOf(writes.tx[0])));
-    for (const p of [writes.set[0], ...writes.updates.flat()]) expect(allowed('agents/{agentId}')).toEqual(expect.arrayContaining(fieldsOf(p)));
+    for (const p of [...writes.set, ...writes.updates.flat()]) expect(allowed('agents/{agentId}')).toEqual(expect.arrayContaining(fieldsOf(p)));
     expect(allowed('rolls/{rollId}')).toEqual(expect.arrayContaining(fieldsOf(writes.add[0])));
   });
 
@@ -143,5 +144,18 @@ describe('advanceAll ends the session for every agent (p. 28)', () => {
     const { gains, failed } = await advanceAll('g', ['c1', 'c2']);
     expect(failed).toEqual(['c1']);
     expect(Object.keys(gains)).toEqual(['c2']);
+  });
+});
+
+describe('readImport', () => {
+  it('reads a game backup and a single exported Agent, and refuses anything else', () => {
+    const c = newCharacter(), live = freshLive(c);
+    const found = readImport({ agents: [{ character: c, live }, { character: c, live: null }] });
+    expect(found).toEqual([{ c, live }, { c, live: null }]);
+    expect(readImport(c)).toEqual([{ c, live: null }]);
+    expect(() => readImport({ agents: [] })).toThrow();
+    expect(() => readImport({ agents: [{ character: { nonsense: true } }] })).toThrow();
+    expect(() => readImport({ nonsense: true })).toThrow();
+    expect(() => readImport(null)).toThrow();
   });
 });

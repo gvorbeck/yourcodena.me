@@ -1,7 +1,10 @@
 // Core player flows, run against the Firestore emulator (see playwright.config.ts).
 // Checks that need "did it reach the server?" use a second browser context: it has its own offline cache, so it can only see saved data.
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { agentDoc, createAgent, freshPage, hp, savedHp } from './helpers';
+import { newCharacter } from '../src/model/character';
+import { encodeSheet, freshLive } from '../src/model/live';
 
 test('a new agent goes through creation and shows on the game page', async ({ page }) => {
   const { gameUrl } = await createAgent(page);
@@ -111,4 +114,99 @@ test('the Handler boxes flag a downed agent and list bonds and disorders', async
   const bonds = page.getByRole('region', { name: 'BONDS & DISORDERS' }).getByRole('listitem').filter({ hasText: 'LAMP' });
   await expect(bonds).toContainText(/Sister\s*11/i);
   await expect(bonds).toContainText(/Insomnia/i);
+});
+
+test('a Handler adjustment takes a typed skill like Foreign Language(Spanish)', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Generate game' }).click();
+  await page.getByRole('button', { name: 'New agent' }).click();
+  await page.waitForURL(/\/a\//);
+  await page.getByRole('button', { name: 'Next >' }).click();
+  await page.getByLabel('Adjust skill', { exact: true }).selectOption('Foreign Language');
+  await page.getByRole('combobox', { name: 'Adjust skill type' }).click();
+  await page.keyboard.type('Spanish');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.locator('.row.adjust')).toContainText('Foreign Language(Spanish)');
+});
+
+test('a game this browser cannot reach is not reported as missing', async ({ page, browser }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Generate game' }).click();
+  await page.waitForURL(/\/g\/[^/]+$/);
+  const blocked = await browser.newContext();
+  await blocked.route(/127\.0\.0\.1:8080/, (r) => r.abort());
+  const p = await blocked.newPage();
+  await p.goto(page.url());
+  await expect(p.getByText('Still trying to reach the game')).toBeVisible({ timeout: 15_000 }); // long after the cache has answered "no such document"
+  await expect(p.getByRole('heading', { name: 'NO SUCH GAME' })).toHaveCount(0);
+  await expect(p.getByText('Loading game…')).toBeVisible();
+});
+
+test('a game ID nobody created says so online, and can be created from there', async ({ page }) => {
+  await page.goto(`/g/never-made-${Date.now()}`);
+  await expect(page.getByRole('heading', { name: 'NO SUCH GAME' })).toBeVisible();
+  await page.getByRole('button', { name: /^Create game/ }).click();
+  await expect(page.getByRole('heading', { name: /^GAME \/\// })).toBeVisible();
+});
+
+test('Luck is pure chance: the sheet\'s penalty does not touch it', async ({ page }) => {
+  await createAgent(page);
+  await page.getByRole('button', { name: 'Increase Penalty %' }).click();
+  await page.getByRole('button', { name: 'Luck', exact: true }).click();
+  await expect(page.locator('.rollbar .latest')).toContainText('Luck 50%:');
+});
+
+test('undo drops a half-resolved SAN loss but keeps the typed loss', async ({ page }) => {
+  await createAgent(page);
+  await page.getByLabel('SAN loss as success/failure, like 0/1D4').fill('0/1D6');
+  await page.getByRole('button', { name: 'Roll SAN loss' }).click();
+  await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Decrease HP' }).click();
+  await page.getByRole('button', { name: /^Undo/ }).click();
+  await expect(page.getByRole('button', { name: 'Apply', exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('SAN loss as success/failure, like 0/1D4')).toHaveValue('0/1D6');
+});
+
+test('a standalone sheet keeps its changes in the link', async ({ page }) => {
+  const c = newCharacter();
+  c.details.name = 'Solo';
+  await page.goto('/' + encodeSheet(c, freshLive(c)));
+  await expect(hp(page)).toHaveText('10 / 10');
+  const before = page.url();
+  await page.getByRole('button', { name: 'Decrease HP' }).click();
+  await expect.poll(() => page.url()).not.toBe(before); // the link is the save file
+  await page.reload();
+  await expect(hp(page)).toHaveText('9 / 10');
+});
+
+test('a SAN loss waiting for a decision keeps its buttons out of the announced region', async ({ page }) => {
+  await createAgent(page);
+  await page.getByRole('button', { name: 'Roll SAN loss' }).click();
+  await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeVisible();
+  await expect(page.locator('[role=status]').getByRole('button')).toHaveCount(0);
+});
+
+test('a game backup downloads and its agents can be added back from the file', async ({ page }) => {
+  await createAgent(page);
+  await page.getByRole('link', { name: '< Game' }).click(); // in-app, so the sheet's autosave flushes first
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download game backup' }).click()]);
+  const path = await download.path();
+  expect(JSON.parse(readFileSync(path, 'utf8')).agents).toHaveLength(1);
+  await page.getByLabel('Agent or backup file').setInputFiles(path);
+  await expect(page.getByRole('status').filter({ hasText: 'Added 1 agent' })).toBeVisible();
+  await expect(page.locator('ul.agents > li').filter({ hasText: 'LAMP' })).toHaveCount(2);
+});
+
+test('a standalone sheet link can be added to a game, live play and all', async ({ page }) => {
+  const c = newCharacter();
+  c.details.name = 'Solo';
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Generate game' }).click();
+  await page.waitForURL(/\/g\/[^/]+$/);
+  await page.getByLabel('Sheet link').fill(`https://yourcodena.me/${encodeSheet(c, { ...freshLive(c), hp: 7 })}`);
+  await page.getByRole('button', { name: 'Add sheet' }).click();
+  await expect(page.locator('ul.agents > li').filter({ hasText: 'Solo' })).toContainText('HP 7');
+  await page.getByLabel('Sheet link').fill('https://example.com/nothing');
+  await page.getByRole('button', { name: 'Add sheet' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'not a sheet link' })).toBeVisible();
 });

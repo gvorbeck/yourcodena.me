@@ -7,7 +7,7 @@ import { Editor } from '../Editor';
 import { LiveSheet, type RemoteLive } from '../LiveSheet';
 import { DamagedAgent, LIVE_SETS, loadAgent, saveCharacter, saveLive, watchLive } from '../lib/agents';
 import { mergeRemote } from '../lib/diff';
-import { logRoll } from '../lib/games';
+import { logRoll, useHeldSan } from '../lib/games';
 import { useAutosave } from '../lib/useAutosave';
 import { freshLive, reconcile, untouched, type Live } from '../model/live';
 import { blocking, validate } from '../rules';
@@ -43,6 +43,7 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
   // One flag per kind of write, so one succeeding never hides another still failing. A roll is never retried,
   // so its warning stays until a later roll is logged.
   const [fails, setFails] = useState({ c: false, live: false, roll: false });
+  const held = useHeldSan(gameId).data?.[agentId];
   const [gone, setGone] = useState(false); // someone deleted this agent from the game while it was open
   const report = (k: keyof typeof fails) => (ok: boolean, e?: unknown) => {
     setFails((f) => (f[k] === !ok ? f : { ...f, [k]: !ok }));
@@ -80,7 +81,7 @@ function AgentBody({ gameId, agentId, init }: { gameId: string; agentId: string;
     // `init` is read once when the sheet mounts; later changes flow back through onChange.
     return (
       <LiveSheet c={c} init={live} game={{
-        gameId, failed, back: () => setMode('edit'), onChange: setLive, remote,
+        gameId, failed, held, back: () => setMode('edit'), onChange: setLive, remote,
         onRoll: (r) => logRoll(gameId, { ...r, agentId, agentName: agentLabel(c.details.codename, c.details.name) }).then(() => report('roll')(true), () => report('roll')(false)),
       }} />
     );

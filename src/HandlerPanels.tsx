@@ -5,7 +5,7 @@ import { bondScoreOf, capsOf, conditionsOf, effStat, sheetOf, topSkills } from '
 import { agentLabel } from './model/names';
 import { activeBonds } from './rules';
 import { bpNote, hpNote, pad2 } from './rules/outcome';
-import type { AgentCard } from './lib/games';
+import type { AgentCard, HeldSan } from './lib/games';
 import { agentUrl } from './lib/paths';
 
 /** A row with a red note under it when `note` is set; the whole row turns red with it. */
@@ -13,7 +13,7 @@ const noted = (key: string, left: ReactNode, right: string, note: string): Row =
   ({ key, left, right, warn: !!note, lines: note ? [{ left: note, warn: true }] : undefined });
 
 /** The Handler's at-a-glance boxes on the game page. Lazy: it needs the rules to read each sheet. */
-export default function HandlerPanels({ gameId, agents }: { gameId: string; agents: AgentCard[] }) {
+export default function HandlerPanels({ gameId, agents, held = {} }: { gameId: string; agents: AgentCard[]; held?: Record<string, HeldSan> }) {
   // Memoized: the game page re-renders on every new roll, but the sheets only change with `agents`.
   const { sheets, top, conditions } = useMemo(() => {
     const sheets = agents.flatMap((a) => {
@@ -35,8 +35,11 @@ export default function HandlerPanels({ gameId, agents }: { gameId: string; agen
         return noted(s.id, s.link, `HP ${pad2(s.l.hp)}/${pad2(max)}`, hpNote(s.l.hp, max));
       })} />
 
-      <Panel title="SANITY" page="pp. 64, 68" rows={sheets.map((s) =>
-        noted(s.id, s.link, `SAN ${pad2(s.l.san)} / BP ${pad2(s.l.bp)}`, bpNote(s.l.san, s.l.bp)))} />
+      <Panel title="SANITY" page="pp. 64, 68" rows={sheets.map((s) => {
+        const h = held[s.id];
+        return noted(s.id, s.link, `SAN ${pad2(s.l.san)} / BP ${pad2(s.l.bp)}`,
+          [bpNote(s.l.san, s.l.bp), h && `${h.amount} SAN loss (${h.kind}) waits on a Discord choice`].filter(Boolean).join(' · '));
+      })} />
 
       {/* Only agents with something to report, so the one that needs attention stands out. */}
       <Panel title="CONDITIONS" page="pp. 47, 55" rows={conditions.length ? conditions.map(({ s, penalty, lines }) => ({

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { STATS } from '../rules/data/creation';
 import { BONUS_PICKS } from '../rules/data/skills';
+import { downloadJson } from '../lib/download';
 import { SAVED_AGENT_BAK, SAVED_AGENT_KEY, store } from '../lib/storage';
 import { fromGreenAgent, isGreenAgent } from './greenagent';
 
@@ -87,15 +88,9 @@ export const loadCharacter = (): Character => {
   return newCharacter();
 };
 
-export const exportJson = (c: Character) => {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(c, null, 2)], { type: 'application/json' }));
-  a.download = `${c.details.name.trim().replace(/\W+/g, '-').toLowerCase() || 'agent'}.dg.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-};
+export const exportJson = (c: Character) => downloadJson(`${c.details.name.trim().replace(/\W+/g, '-').toLowerCase() || 'agent'}.dg.json`, c);
 
-export const importJson = async (file: File): Promise<Character> => {
-  const raw = JSON.parse(await file.text());
-  return parseCharacter(isGreenAgent(raw) ? fromGreenAgent(raw) : raw);
-};
+/** An Agent as this app exports it, or as the Green Agent creator does. */
+export const characterFrom = (raw: unknown): Character => parseCharacter(isGreenAgent(raw) ? fromGreenAgent(raw) : raw);
+
+export const importJson = async (file: File): Promise<Character> => characterFrom(JSON.parse(await file.text()));

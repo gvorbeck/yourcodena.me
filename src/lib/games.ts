@@ -1,7 +1,7 @@
-import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, type DocumentData } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, type DocumentData } from 'firebase/firestore';
 import { useSub, type Sub } from './useSub';
 import { db } from './firebase';
-import { agentPath, agentsPath, gamePath, rollsPath } from './paths';
+import { agentPath, agentsPath, gamePath, pendingSanPath, rollsPath } from './paths';
 import type { RollEntry, TestEntry } from '../rules/outcome';
 
 /*
@@ -28,6 +28,19 @@ export const createGame = (id: string) =>
     tx.set(gameRef(id), { createdAt: Date.now(), schemaVersion: SCHEMA_VERSION });
   });
 
+/**
+ * The whole game as plain data, for a backup file: every Agent (sheet and live play) and the full roll log, oldest first.
+ * shortcut: reads every roll, fine at table size; page it or leave the rolls out if logs grow past a few thousand.
+ */
+export async function exportGame(g: string) {
+  const [agents, rolls] = await Promise.all([getDocs(agentsCol(g)), getDocs(query(rollsCol(g), orderBy('createdAt')))]);
+  return {
+    app: 'yourcodena.me', gameId: g, exportedAt: Date.now(),
+    agents: agents.docs.map((d) => ({ id: d.id, ...d.data() })),
+    rolls: rolls.docs.map((d) => toRoll(d.id, d.data({ serverTimestamps: 'estimate' }))),
+  };
+}
+
 /** A roll-log entry (a d% test, or plain dice / HP lost from the Discord bot; see rules/outcome.ts). agentId is '' when no Agent was claimed. */
 export type RollDoc = RollEntry & { id: string; agentId: string; createdAt: number };
 /** The live sheet only logs d% tests; dice and damage entries come from the Discord bot. Server time, so devices with wrong clocks still log in order. */
@@ -43,13 +56,22 @@ const toAgent = (id: string, d: DocumentData): AgentCard => ({
 // Older rolls hold a millisecond number, newer ones a Timestamp. Firestore sorts every number before every Timestamp, which is also oldest first.
 const toRoll = (id: string, d: DocumentData) => ({ ...d, id, createdAt: typeof d.createdAt === 'number' ? d.createdAt : d.createdAt.toMillis() }) as RollDoc;
 
-const subGame: Sub<boolean> = (g, ok, bad) => onSnapshot(gameRef(g), (s) => ok(s.exists()), bad);
+// Offline, a game this browser never opened is "missing" only because the cache is empty, so wait for the server's word on it.
+const subGame: Sub<boolean> = (g, ok, bad) =>
+  onSnapshot(gameRef(g), { includeMetadataChanges: true }, (s) => { if (s.exists() || !s.metadata.fromCache) ok(s.exists()); }, bad);
 const subAgents: Sub<AgentCard[]> = (g, ok, bad) =>
   onSnapshot(query(agentsCol(g), orderBy('createdAt')), (s) => ok(s.docs.map((d) => toAgent(d.id, d.data()))), bad);
 const subRolls: Sub<RollDoc[]> = (g, ok, bad) =>
   onSnapshot(query(rollsCol(g), orderBy('createdAt', 'desc'), limit(50)), (s) => ok(s.docs.map((d) => toRoll(d.id, d.data({ serverTimestamps: 'estimate' })))), bad);
 
+/** A SAN loss the Discord bot is holding until its player chooses (project onto a Bond or take it). */
+export interface HeldSan { amount: number; kind: string }
+const subHeld: Sub<Record<string, HeldSan>> = (g, ok, bad) =>
+  onSnapshot(collection(db, pendingSanPath(g)), (s) => ok(Object.fromEntries(s.docs.map((d) => [d.id, d.data() as HeldSan]))), bad);
+
 /** data: whether the game exists. */
 export const useGameExists = (g: string) => useSub(g, subGame);
 export const useAgents = (g: string) => useSub(g, subAgents);
 export const useRolls = (g: string) => useSub(g, subRolls);
+/** data: held SAN losses by Agent ID. */
+export const useHeldSan = (g: string) => useSub(g, subHeld);

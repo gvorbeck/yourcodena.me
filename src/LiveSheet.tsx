@@ -1,38 +1,18 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
-import { activeBonds, clamp, featureOf, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, type Outcome } from './rules';
+import { activeBonds, featureOf, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, testOutcome, type Outcome } from './rules';
 import { pad2, testText } from './rules/outcome';
-import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, loseSan, maxSanOf, refreshSpent, setUnnatural, sheetPenalty, coreTests, SAN_KINDS, SAN_KIND_LABEL, SAN_LOSS, unnaturalOf, withBond, type Live, type SanKind } from './model/live';
+import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, refreshSpent, sheetPenalty, coreTests, withBond, type Live } from './model/live';
 import { DETAIL_FIELDS, nameOf, type Character } from './model/character';
-import { Btn, ConfirmDialog, SkillTable, Win } from './ui';
+import { Btn, ConfirmDialog, Counter, SkillTable, Win } from './ui';
+import { SanSection } from './SanSection';
 import { useFocusMain } from './ui/Win';
 import { useTitle } from './pages/Page';
 import { Alert, CopyButton, Hint, OutcomeText } from './ui/bits';
 import { gameUrl } from './lib/paths';
+import type { HeldSan } from './lib/games';
 import * as play from './model/actions';
-
-function Counter({ label, note, value, max, step = 1, onChange, onRoll }: { label: string; note?: string; value: number; max?: number; step?: number; onChange: (v: number) => void; onRoll?: () => void }) {
-  const set = (v: number) => onChange(clamp(v, 0, max ?? Infinity));
-  const noteId = useId();
-  return (
-    // describedby: the note is announced with the group, since CSS may show it before the controls it follows in the DOM
-    <div className={note ? 'row counter noted' : 'row counter'} role="group" aria-label={label} aria-describedby={note ? noteId : undefined}>
-      <strong>{onRoll ? <button className="rollable" onClick={onRoll}>{label}</button> : label}</strong>
-      <Btn label={`Decrease ${label}`} onPress={() => set(value - step)}>−</Btn>
-      <output>{value}{max !== undefined && ` / ${max}`}</output>
-      <Btn label={`Increase ${label}`} onPress={() => set(value + step)}>+</Btn>
-      {note && <span className="dim note" id={noteId}>{note}</span>}
-    </div>
-  );
-}
-
-/** Three boxes toward adapting to a kind of trauma (p. 74). */
-const Pips = ({ label, n }: { label: string; n: number }) => (
-  <div className="pips" role="img" aria-label={`Adaptation to ${label.toLowerCase()}: ${n} of 3`}>
-    <span>{label}</span>{[0, 1, 2].map((i) => <i key={i} className={i < n ? 'on' : ''} />)}
-  </div>
-);
 
 /** A d% test as the roll log stores it (rules/outcome.ts TestEntry), plus a local id. `chance` is after the penalty. */
 interface Roll { id: number; label: string; chance: number; penalty: number; roll: number; outcome: Outcome }
@@ -49,6 +29,8 @@ export interface GameLink {
   gameId: string;
   /** Why the last save failed, or '' when saved. */
   failed: string;
+  /** A SAN loss the Discord bot is holding for this Agent's player. */
+  held?: HeldSan;
   back: () => void;
   onChange: (l: Live) => void;
   /** Someone else's saved change to merge in (see pages/Agent.tsx). */
@@ -74,7 +56,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
     const prev = stack.undo(latest.current);
     if (!prev) return;
     show(prev);
-    setPending(null); // a half-resolved SAN loss was priced against the state just reverted
+    setUndone((n) => n + 1);
   };
   // Someone else saved (Discord damage, another device): merge it in without an undo step, and drop older undo steps
   // so undo can't revert their change.
@@ -100,17 +82,16 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const [dismissed, setDismissed] = useState(-1);
   const [injury, setInjury] = useState<number | null>(null);
   const [injuryStat, setInjuryStat] = useState<Stat>('STR');
-  const [san, setSan] = useState({ kind: 'violence' as SanKind, loss: '0/1D4' });
-  const [pending, setPending] = useState<{ kind: SanKind; amount: number; result: string } | null>(null);
-  const [bondPick, setBondPick] = useState(0);
+  const [undone, setUndone] = useState(0); // tells the SAN section to drop a half-resolved loss priced against the state just reverted
   const d = capsOf(c, l);
   const say = (...m: string[]) => setAlerts((p) => [...m, ...p].slice(0, 8));
   /** Run a pure action on the newest state, then show its notes. */
   const act = (fn: (cur: Live) => play.Result) => { const r = fn(latest.current); setL(r.live); say(...r.notes); };
-  const test = (label: string, base: number, wp = l.wp) => {
+  /** `flat`: pure chance (Luck, p. 44), with no sheet penalties, low WP or distraction. */
+  const test = (label: string, base: number, wp = l.wp, flat?: boolean) => {
     const r = rollD100();
-    const { chance, pen: penalty, outcome } = liveOutcome(r, base, wp, sheetPenalty(l) + once);
-    setOnce(0);
+    const { chance, pen: penalty, outcome } = flat ? { chance: base, pen: 0, outcome: testOutcome(r, base) } : liveOutcome(r, base, wp, sheetPenalty(l) + once);
+    if (!flat) setOnce(0);
     const entry = { label, chance, penalty, roll: r, outcome };
     setRolls((p) => [{ ...entry, id: nextId.current++ }, ...p].slice(0, 10));
     game?.onRoll(entry);
@@ -125,7 +106,6 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
     setL(r.live);
     say(r.gains.length ? `Skills advanced (p. 28): ${r.gains.map(([k, n]) => `${k} +${n}`).join(', ')}.` : 'No checked skills could advance.');
   };
-  const maxSan = maxSanOf(c, l);
   const [disorder, setDisorder] = useState('');
   const [drop, setDrop] = useState('');
   const motivations = motivationsOf(c).filter((m) => !l.dropped.includes(m));
@@ -147,8 +127,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const bonds = activeBonds(c);
   // Stats, Luck and SAN roll under the same labels and chances as /dg roll (model/live.ts coreTests).
   const tests = new Map(coreTests({ c, l }).map((t) => [t.id, t]));
-  const rollId = (id: string) => { const t = tests.get(id)!; test(t.label, t.chance); };
-  const bond = bonds.some((b) => b.i === bondPick) ? bondPick : bonds[0]?.i;
+  const rollId = (id: string) => { const t = tests.get(id)!; test(t.label, t.chance, l.wp, t.flat); };
   const [find, setFind] = useState('');
   /** Phone shortcut between Status and Skills; honours reduced-motion. */
   const jump = (sel: string, focus: string) => {
@@ -185,24 +164,6 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const sleep = () => act((cur) => play.sleep(c, cur));
   const lose = (s: Stat, by: number) => setL((cur) => play.adjustStatLoss(cur, s, by));
 
-  const sanRoll = () => {
-    const r = play.planSanLoss(l, san.kind, san.loss, () => test(SAN_LOSS, l.san));
-    if ('error' in r) return say(r.error);
-    setPending(r);
-  };
-  const applySan = () => {
-    if (!pending) return;
-    const r = loseSan(c, l, pending.amount, pending.kind);
-    setL(r.live); setPending(null); say(`Lost ${pending.amount} SAN.`, ...r.notes);
-  };
-  const project = () => {
-    if (!pending || bond === undefined) return;
-    const r = play.project(c, latest.current, pending, bond);
-    setL(r.live); setPending(r.pending); say(...r.notes);
-  };
-  const repress = () => {
-    if (bond !== undefined) act((cur) => play.repress(c, cur, bond, (wp) => test('SAN (repress)', cur.san, wp).ok));
-  };
 
   return (
     <main id="main" tabIndex={-1}>
@@ -232,6 +193,9 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         </div>
         <p className="noprint live-note"><small>{!game ? "Saved in this page's link: bookmark it to resume. A copied link is a snapshot."
           : game.failed ? <Alert inline>{game.failed}</Alert> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
+        <div role="status" className="noprint">
+          {game?.held && <p className="warn">A {game.held.amount} SAN loss ({game.held.kind}) is waiting on a choice in Discord: project it onto a Bond or take it. SAN drops once it is settled.</p>}
+        </div>
         {fumble && (
           <div className="alerts noprint">
             <p>Fumble on {fumble.label} (p. 44). The Handler picks a cost:</p>
@@ -245,13 +209,9 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
             <p><small>Strain and burnout may instead cost 1D4 of STR, CON or DEX / INT, POW or CHA temporarily (use the stat table). Alienation: an NPC's CHA and Persuade tests auto-fail. Confusion: false information.</small></p>
           </div>
         )}
-        <div role="status" className="noprint">
-          {alerts.length > 0 && (
-            <div className="alerts">
-              {alerts.map((a, i) => <p key={i}>{a}</p>)}
-              <Btn onPress={() => setAlerts([])}>Clear</Btn>
-            </div>
-          )}
+        <div className={alerts.length ? 'alerts noprint' : 'noprint'}>
+          <div role="status">{alerts.map((a, i) => <p key={i}>{a}</p>)}</div>
+          {alerts.length > 0 && <Btn onPress={() => setAlerts([])}>Clear</Btn>}
         </div>
 
         <h3>Vitals</h3>
@@ -302,40 +262,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         </table>
         <Hint className="noprint">Tap a stat or Luck to roll d%. “Lost” is temporary stat loss.</Hint>
 
-        <h3>Sanity</h3>
-        <Counter label="SAN" value={l.san} max={maxSan} onChange={(v) => set('san', v)} onRoll={() => rollId('san')} />
-        <Counter label="Breaking pt" value={l.bp} onChange={(v) => set('bp', v)} />
-        <Counter label="Unnatural" note="Raises with exposure; maximum SAN is 99 minus it (p. 15)." value={unnaturalOf(c, l)} max={99} onChange={(v) => setL((p) => setUnnatural(c, p, v))} />
-        {l.san <= l.bp && <p className="warn">SAN at or below breaking point.</p>}
-        <div className="row noprint">
-          <select aria-label="Trauma type" value={san.kind} onChange={(e) => setSan({ ...san, kind: e.target.value as SanKind })}>
-            {SAN_KINDS.map((k) => <option key={k} value={k}>{SAN_KIND_LABEL[k]}</option>)}
-          </select>
-          <input className="san-loss" aria-label="SAN loss as success/failure, like 0/1D4" title="Success/failure loss as printed in the book (pp. 67–68). Add extra victims to the failure die, like 1D6+2 (the total never exceeds the die's maximum)." value={san.loss} onChange={(e) => setSan({ ...san, loss: e.target.value })} />
-          <Btn onPress={sanRoll}>Roll SAN loss</Btn>
-        </div>
-        <Hint className="noprint">Loss is success/failure, like 0/1D4. Extra victims go on the failure die: 1D6+2, capped at 6. Tap “SAN” above for a plain SAN test.</Hint>
-        <div role="status" className="noprint">
-        {pending && (
-          <div className="alerts">
-            <p>{pending.result} {pending.amount} SAN to lose ({pending.kind}).</p>
-            <div className="row even">
-              <Btn onPress={applySan}>Apply</Btn>
-              <Btn onPress={project} disabled={bond === undefined}>Project onto Bond (1D4 WP)</Btn>
-              <Btn onPress={() => setPending(null)}>Cancel</Btn>
-            </div>
-          </div>
-        )}
-        </div>
-        <div className="row noprint">
-          <label className="lbl" htmlFor="strain-bond">Bond to strain</label>
-          <select id="strain-bond" value={bond ?? ''} onChange={(e) => setBondPick(Number(e.target.value))} disabled={bond === undefined}>
-            {bonds.map((b) => <option key={b.i} value={b.i}>{b.name}</option>)}
-          </select>
-          <Btn onPress={repress} disabled={bond === undefined}>Repress insanity (1D4 WP)</Btn>
-        </div>
-        <Pips label="Violence" n={l.adapt.v} />
-        <Pips label="Helplessness" n={l.adapt.h} />
+        <SanSection undone={undone} c={c} l={l} set={set} setL={setL} act={act} say={say} test={test} onRollSan={() => rollId('san')} />
 
         <h3>Mind</h3>
         <Hint className="noprint">Each time the Breaking Point is reached, a disorder replaces one motivation (pp. 38, 69).</Hint>

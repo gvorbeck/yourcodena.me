@@ -48,6 +48,12 @@ describe('rollTest', () => {
     const a = agent({ exhausted: true, penalty: 10, wp: 2 });
     expect(rollTest(a, str(a), 5)).toMatchObject({ chance: 0, penalty: 50 });
   });
+  it('leaves Luck as pure chance: sheet penalties and low WP do not touch it, a modifier does (p. 44)', () => {
+    const a = agent({ exhausted: true, penalty: 10, wp: 0 });
+    const luck = findTest(a, 'luck')!;
+    expect(rollTest(a, luck, 40)).toMatchObject({ chance: 50, penalty: 0, outcome: 'success' });
+    expect(rollTest(a, luck, 40, -20)).toMatchObject({ chance: 30, penalty: 20 });
+  });
   it('fails everything at 0 WP', () => {
     const a = agent({ wp: 0 });
     expect(rollTest(a, str(a), 2).outcome).toBe('failure');
