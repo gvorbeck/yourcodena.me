@@ -3,6 +3,8 @@ export const gamePath = (g: string) => `games/${g}`;
 export const agentsPath = (g: string) => `games/${g}/agents`;
 export const agentPath = (g: string, a: string) => `${agentsPath(g)}/${a}`;
 export const rollsPath = (g: string) => `games/${g}/rolls`;
+/** SAN losses the Discord bot is holding for a player's choice: amount and kind only, readable by the game page (Functions write it). */
+export const pendingSanPath = (g: string) => `games/${g}/pendingSan`;
 /** The game's Discord webhook (Functions only; the rules deny browsers). */
 export const secretPath = (g: string) => `gameSecrets/${g}`;
 

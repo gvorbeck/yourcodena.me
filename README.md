@@ -12,6 +12,8 @@ It follows the Agent's Handbook in order: statistics, profession and skills, bon
 - A roll log per game: percentile tests with penalties and outcome, plus dice rolls and HP/SAN lost from Discord. You can't edit or delete entries.
 - A live sheet left open picks up changes saved elsewhere (Discord, another device) without overwriting your own.
 - Discord: post a game's rolls to a channel through a webhook, and play from Discord with the `/dg` bot (tests, dice, damage, SAN loss with Bond projection, sheet). See [Discord bot](#discord-bot).
+- Game backup: download a game's Agents (sheets and live play) and roll log as one file. A game page can add Agents back from a backup, from one exported Agent or Green Agent file, or from a standalone sheet link. The roll log is saved in the file but not restored.
+- A SAN loss the Discord bot is holding for a player's projection choice shows on that Agent's live sheet and in the Handler's Sanity box.
 - Standalone sheets that live entirely in the URL hash (`/#sheet=...`). Nothing is stored on a server. If you lose the link you lose the Agent.
 - A plain-text sheet, 30 columns wide, for pasting into chat. Also a print stylesheet.
 - The home page remembers the last five games you opened in this browser.
@@ -87,6 +89,7 @@ games/{gameId}/agents/{agentId}   { name, codename, profession, character, live,
                                     createdAt, updatedAt }
 games/{gameId}/rolls/{rollId}     { agentId, agentName, label, chance, penalty,     create only
                                     roll, outcome, createdAt }
+games/{gameId}/pendingSan/{agentId}  { amount, kind, createdAt }                    Functions write, anyone reads
 ```
 
 The rules don't let anyone list games or delete a game or a roll. Anyone with the link can delete an Agent, and that can't be undone. Cleanup has to be done by hand with admin access. Every write is checked against an allowed set of keys, string lengths, and number ranges, so a roll can't come in as 147.
@@ -121,7 +124,7 @@ Firestore triggers have to run in `us-central1`, because the database is in `nam
 
 - `gameSecrets/{gameId}`: the game's webhook URL.
 - `discordGuilds/{guildId}`: which game a Discord server plays (`/dg link`).
-- `discordPending/{agentId}`: a SAN loss held while its player decides whether to project it onto a Bond.
+- `discordPending/{agentId}`: a SAN loss held while its player decides whether to project it onto a Bond. The bot keeps a copy of just its amount and kind in `games/{gameId}/pendingSan/{agentId}` for the site to show, and clears both together.
 - `discordClaims/{gameId}_{userId}`: which Agent a Discord user plays.
 
 The Functions build bundles `src/rules`, `src/model` and `src/lib` with esbuild, so `/dg roll` uses the live sheet's own math. The catch: the bot keeps the copy it was deployed with. The workflow redeploys Functions whenever any of those change, so Discord keeps up with the site. Before that, it once showed stale chances after custom professions and Handler adjustments. `DISCORD_PUBLIC_KEY` is asked for on the first deploy and saved in `functions/.env.codename-dg`. It's a public key, so it's safe to commit. To register or update the `/dg` commands, run this and paste the Application ID and bot token when asked:

@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p functions",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json && npm --prefix functions run typecheck",
     "knip": "knip",
     "test:rules": "firebase emulators:exec --only firestore --project demo-codename 'vitest run --config vitest.rules.config.ts'",
     "test:e2e": "firebase emulators:exec --only firestore --project demo-codename 'playwright test'",

@@ -8,7 +8,8 @@ export default defineConfig({
     // `npm run test:coverage` fails if coverage drops below these. Raise them as tests are added; never lower them to make CI pass.
     coverage: {
       include: ['src/**', 'functions/src/**'],
-      thresholds: { lines: 53, statements: 51, branches: 46, functions: 43 },
+      exclude: ['**/*.tsx'], // screens are covered by the browser tests in e2e/; this floor guards the logic
+      thresholds: { lines: 77, statements: 74, branches: 68, functions: 78 },
     },
   },
 });

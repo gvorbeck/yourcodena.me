@@ -3,7 +3,7 @@ import { useContext, useId, type ReactNode } from 'react';
 export { Win } from './Win';
 import { MAX_LINE, MAX_PROSE, type Character } from '../model/character';
 import { SKILL_FAMILIES, TYPED_SKILLS, TYPE_SUGGESTIONS, familyOf, makeKey, typeOf } from '../rules/data/skills';
-import { filterSkills, skillsOf } from '../rules';
+import { clamp, filterSkills, skillsOf } from '../rules';
 
 export type Up = (fn: (draft: Character) => void) => void;
 export interface StepProps { c: Character; up: Up }
@@ -38,6 +38,23 @@ export const Num = ({ label, value, onChange, min = 3, max = 18 }: { label: stri
 export const Btn = ({ children, onPress, disabled, className, label }: { children: ReactNode; onPress: () => void; disabled?: boolean; className?: string; label?: string }) => (
   <Button className={className ? `btn ${className}` : 'btn'} onPress={onPress} isDisabled={disabled} aria-label={label}>{children}</Button>
 );
+
+/** A labelled number with − and + buttons; `onRoll` makes the label a button that rolls it. */
+export function Counter({ label, note, value, max, step = 1, onChange, onRoll }: { label: string; note?: string; value: number; max?: number; step?: number; onChange: (v: number) => void; onRoll?: () => void }) {
+  const set = (v: number) => onChange(clamp(v, 0, max ?? Infinity));
+  const noteId = useId();
+  return (
+    // describedby: the note is announced with the group, since CSS may show it before the controls it follows in the DOM
+    <div className={note ? 'row counter noted' : 'row counter'} role="group" aria-label={label} aria-describedby={note ? noteId : undefined}>
+      <strong>{onRoll ? <button className="rollable" onClick={onRoll}>{label}</button> : label}</strong>
+      <Btn label={`Decrease ${label}`} onPress={() => set(value - step)}>−</Btn>
+      <output>{value}{max !== undefined && ` / ${max}`}</output>
+      <Btn label={`Increase ${label}`} onPress={() => set(value + step)}>+</Btn>
+      {note && <span className="dim note" id={noteId}>{note}</span>}
+    </div>
+  );
+}
+
 
 /** In-page replacement for window.confirm(): focus is trapped, Escape and a click outside cancel. */
 export const ConfirmDialog = ({ open, title, children, confirm, onConfirm, onClose }: { open: boolean; title: string; children: ReactNode; confirm: string; onConfirm: () => void; onClose: () => void }) => (

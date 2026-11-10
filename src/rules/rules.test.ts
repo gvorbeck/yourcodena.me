@@ -74,6 +74,14 @@ describe('ascii sheet', () => {
     for (const l of out.split('\n')) expect(l.length, l).toBeLessThanOrEqual(MAX_COL);
     expect(out).toContain('Violence:');
   });
+  it('wraps prose that starts with a screen-wide indent instead of looping forever', async () => {
+    const { asciiSheet, MAX_COL } = await import('../model/sheet');
+    const c = newCharacter();
+    c.details.personality = `${' '.repeat(40)}pasted from a document`;
+    const out = asciiSheet(c);
+    for (const l of out.split('\n')) expect(l.length, l).toBeLessThanOrEqual(MAX_COL);
+    expect(out).toContain('pasted from');
+  });
 });
 
 describe('professional skill duplicates (p. 20)', () => {

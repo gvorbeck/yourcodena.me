@@ -55,14 +55,21 @@ describe('sleep (p. 47)', () => {
 });
 
 describe('planning a SAN loss (pp. 67, 74)', () => {
-  const pass = () => ({ ok: true, roll: 10, chance: 50 });
-  const fail = () => ({ ok: false, roll: 90, chance: 50 });
+  const pass = () => ({ ok: true, outcome: 'success' as const, roll: 10, chance: 50 });
+  const fail = () => ({ ok: false, outcome: 'failure' as const, roll: 90, chance: 50 });
   it('rejects loss text that is not success/failure', () => {
     expect(planSanLoss(live(), 'violence', '1D4', pass)).toEqual({ error: expect.stringContaining('success/failure') });
   });
   it('takes the success or failure amount from the roll', () => {
     expect(planSanLoss(live(), 'violence', '0/1D4', pass, mid)).toMatchObject({ amount: 0, result: expect.stringContaining('Passed') });
     expect(planSanLoss(live(), 'violence', '0/1D4', fail, mid)).toMatchObject({ amount: 3, result: expect.stringContaining('Failed') });
+  });
+  it('a critical success loses the least possible and a fumble the most (p. 66)', () => {
+    const crit = () => ({ ok: true, outcome: 'critical success' as const, roll: 1, chance: 50 });
+    const fumble = () => ({ ok: false, outcome: 'fumble' as const, roll: 100, chance: 50 });
+    expect(planSanLoss(live(), 'violence', '1D4/1D6', crit, mid)).toMatchObject({ amount: 1, result: expect.stringContaining('least') });
+    expect(planSanLoss(live(), 'violence', '1D4/1D6', fumble, mid)).toMatchObject({ amount: 6, result: expect.stringContaining('most') });
+    expect(planSanLoss(live(), 'violence', '0/1D6+2', fumble, mid)).toMatchObject({ amount: 6 }); // extra victims never pass the die's maximum
   });
   it('adaptation passes without rolling, except at 0 WP', () => {
     const test = vi.fn(fail);

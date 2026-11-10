@@ -9,7 +9,7 @@ import { canImprove, diceText, isSuccess, matches, parseDice, sameText } from '.
 import { agentOf, applyHit, bondsOf, canProject, choicesFor, diceEntry, findTest, finishSan, isDice, planSan, rollAgainst, rollExpression, rollTest, sheetLines, type Agent, type Loss, type SanStake } from './dg.js';
 import { bold, formatEntry, formatRoll, plain, type Roll } from './discord.js';
 import { ALIASES } from './commands.js';
-import { agentPath, agentsPath, gamePath, rollsPath, secretPath } from '../../src/lib/paths';
+import { agentPath, agentsPath, gamePath, pendingSanPath, rollsPath, secretPath } from '../../src/lib/paths';
 
 interface Option { name: string; type: number; value?: string | number; focused?: boolean; options?: Option[] }
 export interface Interaction {
@@ -147,7 +147,7 @@ async function commitLoss(gameId: string, agentId: string, viaWebhook: boolean, 
     // Triggers run in no fixed order, so the test rides along with its loss for the webhook post (rollToDiscord).
     if (test) tx.create(rollsOf(gameId).doc(), logged(test, agentId, false, now));
     tx.create(rollsOf(gameId).doc(), { ...logged(r.entry, agentId, viaWebhook, now), ...(test && viaWebhook ? { testLine: formatEntry(test) } : {}) });
-    if (settles) tx.delete(settles);
+    if (settles) { tx.delete(settles); tx.delete(heldCopy(gameId, agentId)); }
     return r;
   });
 }
@@ -158,6 +158,8 @@ async function commitLoss(gameId: string, agentId: string, viaWebhook: boolean, 
 // on record and can't be re-rolled; `/dg san` while one is held shows the same choice again.
 interface HeldSan extends SanStake { gameId: string; agentId: string; userId: string; testLine: string; createdAt: number; n?: number }
 const heldRef = (agentId: string) => db().doc(`discordPending/${agentId}`);
+/** What the site may see of a held loss (rules: browsers read, only Functions write). Written and cleared with heldRef, never alone. */
+const heldCopy = (gameId: string, agentId: string) => db().doc(`${pendingSanPath(gameId)}/${agentId}`);
 type Button = { type: 2; style: 1 | 2; label: string; custom_id: string };
 const rows = (buttons: Button[]) => Array.from({ length: Math.ceil(buttons.length / 5) }, (_, r) => ({ type: 1, components: buttons.slice(r * 5, r * 5 + 5) })).slice(0, 5);
 
@@ -207,7 +209,7 @@ async function sanButton(i: Interaction, now: number): Promise<object> {
     hasWebhook(h.gameId), claimId(h.gameId, presser), agentRef(h.gameId, agentId).get(),
   ]);
   if (!maySettle(h, presser, claim === agentId, manage)) return privately('Only the player of this Agent (or someone with Manage Channels) can decide this SAN loss.');
-  if (!doc.exists) { await ref.delete(); return updateTo('That Agent is no longer in the game.'); }
+  if (!doc.exists) { await Promise.all([ref.delete(), heldCopy(h.gameId, agentId).delete()]); return updateTo('That Agent is no longer in the game.'); }
   const settle = async (projection: { bond: number; n: number } | null) => sanSettled(
     await commitLoss(h.gameId, agentId, viaWebhook, now, (d, name) => finishSan(agentOf(d), h, projection, name, rng), ref), h.testLine, viaWebhook, true);
   if (action === 'take') return settle(null);
@@ -367,6 +369,7 @@ export async function handle(i: Interaction, now = Date.now()): Promise<object> 
     const batch = db().batch();
     if (test) batch.create(rollsOf(gameId).doc(), logged(test, agentId, viaWebhook, now));
     batch.create(heldRef(agentId), h); // create, not set: a second /dg san racing this one fails here instead of replacing it
+    batch.set(heldCopy(gameId, agentId), { amount: h.amount, kind: h.kind, createdAt: now });
     try {
       await batch.commit();
     } catch (e) {

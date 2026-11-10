@@ -7,6 +7,7 @@ const rl = createInterface({ input: process.stdin, output: process.stdout });
 const appId = (await rl.question('Application ID: ')).trim();
 // The token isn't echoed, so it never sits on screen (or in a terminal scrollback someone else reads).
 const asked = rl.question('Bot token (hidden as you type): ');
+// shortcut: reaches readline's private _writeToOutput to hide the token; if a Node upgrade renames it the token echoes, so swap in a raw-mode prompt then.
 (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = () => {};
 const token = (await asked).trim();
 rl.close();
