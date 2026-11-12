@@ -1,6 +1,7 @@
 @media print {
   :root { --bg: #fff; --panel: #fff; --fg: #000; --dim: #444; --line: #000; --inv-bg: #000; --inv-fg: #fff; color-scheme: light; }
   @page { margin: 10mm; }
+  body::before, body::after { display: none; }
   html { font-size: 8pt; }
   .noprint, .menubar, .statusbar, .shell > .win:first-child, .win > header, .dossier > .rule { display: none !important; }
   .shell { display: block; padding: 0; }

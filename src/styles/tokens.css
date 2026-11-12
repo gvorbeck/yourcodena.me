@@ -18,6 +18,7 @@
   --inv-fg: #e6dfc8;
   --warn: #a4160f;
   --ok: #2c6b2f;
+  --scan: color-mix(in srgb, var(--fg) 7%, transparent); /* failing-monitor scan line */
   --gap: 1rem;
   --border-thin: 1px; /* controls, table rows, dividers */
   --border: 2px;      /* windows, bars, popovers */

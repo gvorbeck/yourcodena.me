@@ -245,6 +245,18 @@ code.link { font: inherit; overflow-wrap: anywhere; }
   .win:nth-of-type(even) > header :is(h2, h3) { animation-duration: 13s; animation-delay: -5s; }
   .live .win > header :is(h2, h3) { animation: none; } /* keep live-play headings steady */
 }
+/* Scan lines: two faint lines sweep down the screen, idle most of the time; mismatched durations keep them from looking periodic. */
+body::before, body::after { content: ''; position: fixed; inset: 0 0 auto; height: 2px; background: var(--scan); opacity: 0; pointer-events: none; z-index: 9999; }
+@media (prefers-reduced-motion: no-preference) {
+  body::before { animation: scan 11s linear infinite; }
+  body::after { height: 1px; animation: scan 17s linear infinite -6s; }
+}
+@keyframes scan {
+  0%, 70% { opacity: 0; transform: translateY(-4px); }
+  71% { opacity: 1; }
+  99% { opacity: 1; transform: translateY(100vh); }
+  100% { opacity: 0; transform: translateY(100vh); }
+}
 @keyframes slice {
   0%, 88%, 100% { clip-path: inset(0 0 100% 0); transform: none; }
   89% { clip-path: inset(10% 0 60% 0); transform: translateX(-3px); }
