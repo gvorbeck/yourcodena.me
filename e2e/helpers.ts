@@ -44,7 +44,7 @@ export async function startAgent(page: Page) {
   await choose(page, /^Physician/);
   await choose(page, 'Forensics');
   await choose(page, 'Surgery');
-  await page.locator('#pkg').selectOption({ label: 'Nurse, Paramedic, or Pre-Med' });
+  await page.getByLabel('Package (p. 27)').selectOption({ label: 'Nurse, Paramedic, or Pre-Med' });
   await next(page);
 
   for (const [i, b] of ['Sister', 'Old partner', 'Therapist'].entries()) await page.getByLabel(`Bond ${i + 1} — score 11`).fill(b);

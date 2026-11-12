@@ -5,7 +5,7 @@ import { activeBonds, featureOf, isSuccess, liveOutcome, motivationsOf, professi
 import { pad2, testText } from './rules/outcome';
 import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, refreshSpent, sheetPenalty, coreTests, withBond, type Live } from './model/live';
 import { DETAIL_FIELDS, nameOf, type Character } from './model/character';
-import { Btn, ConfirmDialog, Counter, SkillTable, Win } from './ui';
+import { Btn, ConfirmDialog, Counter, Select, SkillTable, Win } from './ui';
 import { SanSection } from './SanSection';
 import { DiceRoller } from './DiceRoller';
 import { useFocusMain } from './ui/Win';
@@ -239,7 +239,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         {injury !== null && (
           <div className="row noprint">
             <span>Permanent injury: lose {injury} from</span>
-            <select aria-label="Stat to lose" value={injuryStat} onChange={(e) => setInjuryStat(e.target.value as Stat)}>{STATS.map((s) => <option key={s}>{s}</option>)}</select>
+            <Select label="Stat to lose" value={injuryStat} onChange={(v) => setInjuryStat(v as Stat)}>{STATS.map((s) => <option key={s}>{s}</option>)}</Select>
             <Btn onPress={applyInjury}>Apply</Btn>
             <Btn onPress={() => setInjury(null)}>Skip</Btn>
           </div>
@@ -272,10 +272,10 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         <p>Disorders: {l.disorders.length ? l.disorders.join(' · ') : <span className="dim">none</span>}</p>
         <div className="row noprint">
           <input aria-label="New disorder" placeholder="new disorder" value={disorder} maxLength={100} onChange={(e) => setDisorder(e.target.value)} />
-          <select aria-label="Motivation it replaces" value={drop} onChange={(e) => setDrop(e.target.value)}>
+          <Select label="Motivation it replaces" value={drop} onChange={setDrop}>
             <option value="">— no motivation lost —</option>
             {motivations.map((m) => <option key={m}>{m}</option>)}
-          </select>
+          </Select>
           <Btn onPress={addDisorder} disabled={!disorder.trim()}>Add disorder</Btn>
         </div>
 

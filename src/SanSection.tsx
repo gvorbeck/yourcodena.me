@@ -3,7 +3,7 @@ import { activeBonds, type Outcome } from './rules';
 import { SAN_KINDS, SAN_KIND_LABEL, SAN_LOSS, loseSan, maxSanOf, setUnnatural, unnaturalOf, type Live, type SanKind } from './model/live';
 import type { Character } from './model/character';
 import * as play from './model/actions';
-import { Btn, Counter } from './ui';
+import { Btn, Counter, Select } from './ui';
 import { Hint } from './ui/bits';
 
 /** Three boxes toward adapting to a kind of trauma (p. 74). */
@@ -62,9 +62,9 @@ export function SanSection({ c, l, set, setL, act, say, test, onRollSan, undone 
       <Counter label="Unnatural" note="Raises with exposure; maximum SAN is 99 minus it (p. 15)." value={unnaturalOf(c, l)} max={99} onChange={(v) => setL((p) => setUnnatural(c, p, v))} />
       {l.san <= l.bp && <p className="warn">SAN at or below breaking point.</p>}
       <div className="row noprint">
-        <select aria-label="Trauma type" value={san.kind} onChange={(e) => setSan({ ...san, kind: e.target.value as SanKind })}>
+        <Select label="Trauma type" value={san.kind} onChange={(v) => setSan({ ...san, kind: v as SanKind })}>
           {SAN_KINDS.map((k) => <option key={k} value={k}>{SAN_KIND_LABEL[k]}</option>)}
-        </select>
+        </Select>
         <input className="short-input" aria-label="SAN loss as success/failure, like 0/1D4" title="Success/failure loss as printed in the book (pp. 67–68). Add extra victims to the failure die, like 1D6+2 (the total never exceeds the die's maximum)." value={san.loss} onChange={(e) => setSan({ ...san, loss: e.target.value })} />
         <Btn onPress={sanRoll}>Roll SAN loss</Btn>
       </div>
@@ -80,10 +80,9 @@ export function SanSection({ c, l, set, setL, act, say, test, onRollSan, undone 
         )}
       </div>
       <div className="row noprint">
-        <label className="lbl" htmlFor="strain-bond">Bond to strain</label>
-        <select id="strain-bond" value={bond ?? ''} onChange={(e) => setBondPick(Number(e.target.value))} disabled={bond === undefined}>
+        <Select visible label="Bond to strain" value={bond ?? ''} onChange={(v) => setBondPick(Number(v))} disabled={bond === undefined}>
           {bonds.map((b) => <option key={b.i} value={b.i}>{b.name}</option>)}
-        </select>
+        </Select>
         <Btn onPress={repress} disabled={bond === undefined}>Repress insanity (1D4 WP)</Btn>
       </div>
       <Pips label="Violence" n={l.adapt.v} />
