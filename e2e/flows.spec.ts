@@ -135,6 +135,29 @@ test('the Handler boxes flag a downed agent and list bonds and disorders', async
   await expect(bonds).toContainText(/Insomnia/i);
 });
 
+test('the Discord panel connects a webhook and shows it connected', async ({ page }) => {
+  const sent: { url?: string }[] = [];
+  // The real Function is unreachable in tests (helpers.ts aborts cloudfunctions.net); a page route is matched before that one.
+  await page.route('**/discordWebhook', async (route) => {
+    const req = route.request();
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': (await req.headerValue('access-control-request-headers')) ?? '' };
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const { data } = req.postDataJSON();
+    sent.push(data);
+    await route.fulfill({ headers: cors, json: { result: data.url ? { connected: true, name: 'Table channel' } : { connected: false, name: '' } } });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Generate game' }).click();
+  await page.waitForURL(/\/g\//);
+  await page.getByRole('button', { name: /DISCORD/ }).click(); // starts collapsed
+  await page.getByLabel('Webhook URL', { exact: true }).fill('  https://discord.com/api/webhooks/1/abc  ');
+  await page.getByRole('button', { name: 'Connect' }).click();
+  await expect(page.getByText('Rolls post to Discord as')).toContainText('Table channel');
+  expect(sent.at(-1)?.url).toBe('https://discord.com/api/webhooks/1/abc'); // trimmed
+  await page.getByRole('button', { name: 'Disconnect' }).click();
+  await expect(page.getByText('Disconnected. Rolls no longer post to Discord.')).toBeVisible();
+});
+
 test('a Handler adjustment takes a typed skill like Foreign Language(Spanish)', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Generate game' }).click();

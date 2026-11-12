@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { asLoss, pad2, diceLabel, testText, wpNote } from '../rules/outcome';
 import { agentLabel } from '../model/names';
@@ -10,7 +10,7 @@ import { Win } from '../ui/Win';
 import { DiscordPanel } from '../DiscordPanel';
 import GmScreen from '../GmScreen';
 import { Notice, Page } from './Page';
-import { Alert, CopyButton, Hint, Loading, OutcomeText, SubList } from '../ui/bits';
+import { Alert, CopyButton, Hint, LineForm, Loading, OutcomeText, SubList } from '../ui/bits';
 import { agentUrl, gameUrl } from '../lib/paths';
 
 // Lazy: ui/index brings in the rules and react-aria, which this page otherwise doesn't load. Delete loads it through run() first, so a failed load shows an inline error instead of crashing the page.
@@ -90,7 +90,6 @@ export default function Game() {
   });
 
   const [bad, setBad] = useState('');
-  const sheetId = useId();
   const [sheet, setSheet] = useState('');
   const file = useRef<HTMLInputElement>(null);
   const backup = () => run(async () => downloadJson(`${gameId}.dg-game.json`, await exportGame(gameId)));
@@ -104,18 +103,15 @@ export default function Game() {
     setNotice(`Added ${found.length === 1 ? '1 agent' : `${found.length} agents`}.`);
   });
   // A standalone sheet's link (the old /#sheet=… kind) becomes an Agent here, live play included.
-  const addSheet = (e: FormEvent) => {
-    e.preventDefault();
-    run(async () => {
-      setBad(''); setNotice('');
-      const [{ createAgent }, { decodeSheet }] = await Promise.all([import('../lib/agents'), import('../model/live')]);
-      const t = sheet.trim();
-      const s = decodeSheet(t.slice(Math.max(0, t.indexOf('#sheet='))));
-      if (!s) return setBad('That is not a sheet link.');
-      createAgent(gameId, s.c, s.l);
-      setSheet(''); setNotice('Added the sheet as a new agent.');
-    });
-  };
+  const addSheet = () => run(async () => {
+    setBad(''); setNotice('');
+    const [{ createAgent }, { decodeSheet }] = await Promise.all([import('../lib/agents'), import('../model/live')]);
+    const t = sheet.trim();
+    const s = decodeSheet(t.slice(Math.max(0, t.indexOf('#sheet='))));
+    if (!s) return setBad('That is not a sheet link.');
+    createAgent(gameId, s.c, s.l);
+    setSheet(''); setNotice('Added the sheet as a new agent.');
+  });
 
   if (exists.error) return <Notice page={gameId} title="CANNOT REACH GAME"><p className="warn">Could not load game {gameId}. Check your connection and reload.</p></Notice>;
   if (exists.data === undefined) return <Page title={gameId}><Loading what="game" /><Alert>{slow && 'Still trying to reach the game. Check your connection.'}</Alert></Page>;
@@ -170,11 +166,9 @@ export default function Game() {
           <input ref={file} type="file" accept=".json,application/json" hidden aria-label="Agent or backup file"
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importFile(f); }} />
         </div>
-        <form className="row" onSubmit={addSheet}>
-          <label htmlFor={sheetId}>Sheet link</label>
-          <input id={sheetId} type="text" inputMode="url" autoComplete="off" spellCheck={false} value={sheet} onChange={(e) => setSheet(e.target.value)} />
+        <LineForm url label="Sheet link" value={sheet} onChange={setSheet} onSubmit={addSheet}>
           <button className="btn" disabled={busy || !sheet.trim()}>Add sheet</button>
-        </form>
+        </LineForm>
         <Hint>A file is a backup of this or another game, or one Agent exported from the Review step. Backups keep every Agent; the roll log is saved in the file but not restored.</Hint>
         <Alert>{bad}</Alert>
         <Alert>{err}</Alert>
