@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadCharacter, newCharacter, parseCharacter } from '../model/character';
-import { blocking, filterSkills, liveOutcome, parseDice, parseLoss, rollExpr, rollLoss, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
+import { blocking, filterSkills, liveOutcome, parseDice, parseLoss, rollExpr, rollExpression, rollLoss, testOutcome, bondCount, derived, duplicatesKit, kitOf, roll4d6dl, skillsOf, slotsOf, validate } from './index';
 import { asciiSheet } from '../model/sheet';
 import { asLoss, bpNote, diceDetail, diceLabel, hpNote, hurtNote, outcomeClass, wpNote } from './outcome';
 import { PROFESSIONS } from './data/professions';
@@ -375,4 +375,17 @@ it('flags HP and SAN the Handler should watch (pp. 55, 68)', () => {
 
 it('colours roll results, underlining the extremes so colour is not the only cue', () => {
   expect(['critical success', 'success', 'failure', 'fumble'].map(outcomeClass)).toEqual(['ok strong', 'ok', 'warn', 'warn strong']);
+});
+
+describe('rollExpression', () => {
+  const fixed = (...faces: number[]) => { let i = 0; return () => faces[i++]; };
+  it('rolls dice plus a modifier, never below 0', () => {
+    expect(rollExpression('2d6+1', fixed(4, 3))).toEqual({ expr: '2D6+1', dice: [4, 3], mod: 1, total: 8 });
+    expect(rollExpression('D10', fixed(7))).toMatchObject({ expr: '1D10', total: 7 });
+    expect(rollExpression('1d4-2', fixed(1))).toMatchObject({ expr: '1D4-2', total: 0 });
+    expect(rollExpression('7', fixed())).toEqual({ expr: '7', dice: [], mod: 0, total: 7 });
+  });
+  it('rejects anything else, so test names still reach the test lookup', () => {
+    for (const bad of ['', 'alertness', 'stat:STR', 'skill:Firearms', '0d6', '99d6', '2d6+1000']) expect(rollExpression(bad, fixed(1))).toBeNull();
+  });
 });

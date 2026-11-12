@@ -4,7 +4,7 @@ import { bondScoreOf, capsOf, freshLive, loseSan, maxSanOf, parseLive, penaltyNo
 import { planSanLoss, projectRolled } from '../../src/model/actions';
 import { diffPaths, type Change } from '../../src/lib/diff';
 import { agentLabel } from '../../src/model/names';
-import { activeBonds, matches, sameText, diceText, diceTotal, isSuccess, liveOutcome, parseDice, parseLoss, rollDice, rollLoss, testOutcome } from '../../src/rules';
+import { activeBonds, matches, sameText, isSuccess, liveOutcome, parseDice, parseLoss, rollLoss, testOutcome, type DiceRoll } from '../../src/rules';
 import { hurtNote, type DiceEntry, type LossEntry, type LossStat, type TestEntry } from '../../src/rules/outcome';
 
 export type { Test };
@@ -53,16 +53,6 @@ export function sheetLines({ name, c, l }: Agent): string[] {
 }
 
 // ---- Plain dice: `/dg roll test:2D6+1` (anything you roll outward, like damage you deal) and `/dg damage` (HP you lose).
-export interface DiceRoll { expr: string; dice: number[]; mod: number; total: number }
-
-/** "1D10", "2D6+1", "1D4-1" or a flat "3", rolled with `rand(n)` → 1…n. Null when it isn't dice notation. */
-export function rollExpression(input: string, rand: (sides: number) => number): DiceRoll | null {
-  const p = parseDice(input);
-  if (!p) return null;
-  const dice = rollDice(p, rand);
-  return { expr: diceText(p), dice, mod: p.mod, total: diceTotal(p, dice) };
-}
-
 /** True for real dice ("2D6+1"), false for a flat number or anything else: a number typed into `test:` means d%. */
 export const isDice = (input: string) => Boolean(parseDice(input)?.sides);
 

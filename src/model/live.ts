@@ -215,6 +215,11 @@ const adapt = (count: number, reset: boolean) => {
   return { count: count + 1, adapted: count === 2 };
 };
 
+/** How far an Agent is toward adapting (p. 74), for the Handler's boxes; '' when no count is running. */
+export const adaptNote = (l: Live) =>
+  ([['violence', l.adapt.v], ['helplessness', l.adapt.h]] as const)
+    .filter(([, n]) => n).map(([k, n]) => (n === 3 ? `adapted to ${k}` : `${k} ${n}/3`)).join(' · ');
+
 /** Apply a SAN loss (pp. 67–74). `notes` lists what the Handler and player now owe the table. */
 export function loseSan(c: Character, l: Live, loss: number, kind: SanKind, rng = Math.random): { live: Live; notes: string[] } {
   const notes: string[] = [];

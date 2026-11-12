@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from '../../src/model/character';
 import { freshLive, type Live } from '../../src/model/live';
-import { agentOf, applyHit, bondsOf, canProject, choicesFor, diceEntry, findTest, finishSan, isDice, planSan, rollAgainst, rollExpression, rollTest, sheetLines, testsOf } from './dg';
+import { agentOf, applyHit, bondsOf, canProject, choicesFor, diceEntry, findTest, finishSan, isDice, planSan, rollAgainst, rollTest, sheetLines, testsOf } from './dg';
 
 const agent = (live?: Partial<ReturnType<typeof freshLive>>) => {
   const c = newCharacter();
@@ -66,19 +66,6 @@ describe('sheetLines', () => {
     expect(lines[0]).toBe('Drew Rook');
     expect(lines[1]).toBe('HP 7/10 · WP 10/10 · SAN 50/99 · BP 40');
     expect(lines.slice(2)).toEqual(['Exhausted −20%', 'Marked for improvement: Alertness']);
-  });
-});
-
-describe('rollExpression', () => {
-  const fixed = (...faces: number[]) => { let i = 0; return () => faces[i++]; };
-  it('rolls dice plus a modifier, never below 0', () => {
-    expect(rollExpression('2d6+1', fixed(4, 3))).toEqual({ expr: '2D6+1', dice: [4, 3], mod: 1, total: 8 });
-    expect(rollExpression('D10', fixed(7))).toMatchObject({ expr: '1D10', total: 7 });
-    expect(rollExpression('1d4-2', fixed(1))).toMatchObject({ expr: '1D4-2', total: 0 });
-    expect(rollExpression('7', fixed())).toEqual({ expr: '7', dice: [], mod: 0, total: 7 });
-  });
-  it('rejects anything else, so test names still reach the test lookup', () => {
-    for (const bad of ['', 'alertness', 'stat:STR', 'skill:Firearms', '0d6', '99d6', '2d6+1000']) expect(rollExpression(bad, fixed(1))).toBeNull();
   });
 });
 

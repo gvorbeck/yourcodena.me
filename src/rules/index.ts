@@ -59,14 +59,19 @@ export function parseDice(expr: string): Dice | null {
 /** Parsed dice written back out the standard way: "2D6+1", "3". */
 export const diceText = (d: Dice) => `${d.sides ? `${d.count}D${d.sides}` : d.count}${modText(d.mod)}`;
 /** Rolls parsed dice with `face(sides)` → 1…sides, returning each die (empty for a flat number). */
-export const rollDice = (d: Dice, face: (sides: number) => number) => Array.from({ length: d.sides ? d.count : 0 }, () => face(d.sides));
+const rollDice = (d: Dice, face: (sides: number) => number) => Array.from({ length: d.sides ? d.count : 0 }, () => face(d.sides));
 /** The total of rolled `dice` (from rollDice) plus the modifier, never below 0. */
-export const diceTotal = (d: Dice, dice: number[]) => Math.max(0, d.mod + (d.sides ? sum(dice) : d.count));
-/** "1D6", "1D6+2" or "3" → a total (never below 0); null when it isn't dice notation. */
-export function rollExpr(expr: string, rng = Math.random): number | null {
-  const d = parseDice(expr);
-  return d && diceTotal(d, rollDice(d, (n) => 1 + Math.floor(rng() * n)));
+const diceTotal = (d: Dice, dice: number[]) => Math.max(0, d.mod + (d.sides ? sum(dice) : d.count));
+export interface DiceRoll { expr: string; dice: number[]; mod: number; total: number }
+/** "1D10", "2D6+1" or a flat "3", rolled with `face(sides)` → 1…sides, keeping each die. Null when it isn't dice notation. */
+export function rollExpression(input: string, face: (sides: number) => number): DiceRoll | null {
+  const p = parseDice(input);
+  if (!p) return null;
+  const dice = rollDice(p, face);
+  return { expr: diceText(p), dice, mod: p.mod, total: diceTotal(p, dice) };
 }
+/** "1D6", "1D6+2" or "3" → a total (never below 0); null when it isn't dice notation. */
+export const rollExpr = (expr: string, rng = Math.random) => rollExpression(expr, (n) => 1 + Math.floor(rng() * n))?.total ?? null;
 /** A SAN loss roll: extra victims ("1D6+2") add to the die but never past its maximum (p. 67 footnote). */
 export function rollLoss(expr: string, rng = Math.random): number | null {
   const v = rollExpr(expr, rng), d = parseDice(expr);

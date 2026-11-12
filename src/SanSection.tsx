@@ -65,7 +65,7 @@ export function SanSection({ c, l, set, setL, act, say, test, onRollSan, undone 
         <select aria-label="Trauma type" value={san.kind} onChange={(e) => setSan({ ...san, kind: e.target.value as SanKind })}>
           {SAN_KINDS.map((k) => <option key={k} value={k}>{SAN_KIND_LABEL[k]}</option>)}
         </select>
-        <input className="san-loss" aria-label="SAN loss as success/failure, like 0/1D4" title="Success/failure loss as printed in the book (pp. 67–68). Add extra victims to the failure die, like 1D6+2 (the total never exceeds the die's maximum)." value={san.loss} onChange={(e) => setSan({ ...san, loss: e.target.value })} />
+        <input className="short-input" aria-label="SAN loss as success/failure, like 0/1D4" title="Success/failure loss as printed in the book (pp. 67–68). Add extra victims to the failure die, like 1D6+2 (the total never exceeds the die's maximum)." value={san.loss} onChange={(e) => setSan({ ...san, loss: e.target.value })} />
         <Btn onPress={sanRoll}>Roll SAN loss</Btn>
       </div>
       <Hint className="noprint">Loss is success/failure, like 0/1D4. Extra victims go on the failure die: 1D6+2, capped at 6. Tap “SAN” above for a plain SAN test.</Hint>

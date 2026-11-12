@@ -102,6 +102,25 @@ test('the GM screen opens to the rules boxes', async ({ page }) => {
   await expect(lethality.locator('.term').first()).toHaveText('Hit'); // 'Hit: …' rows show the term as its own heading
 });
 
+test('the live sheet rolls plain dice', async ({ page }) => {
+  await createAgent(page);
+  await page.getByLabel('Dice', { exact: true }).fill('2d6 + 1');
+  await page.getByRole('button', { name: 'Roll', exact: true }).click();
+  await expect(page.locator('output').filter({ hasText: /^#1 2D6\+1 \(\d\+\d\+1\) → \d+$/ })).toBeVisible(); // typed loosely, shown as the bot shows it
+  await page.getByLabel('Dice', { exact: true }).fill('nope');
+  await page.getByRole('button', { name: 'Roll', exact: true }).click();
+  await expect(page.getByText(/Write dice like 2D6\+1\./)).toBeVisible();
+});
+
+test('the Sanity box shows how far an agent is toward adapting', async ({ page }) => {
+  const { gameId, agentId, gameUrl } = await createAgent(page);
+  await savedHp(gameId, agentId, 13);
+  await (await agentDoc(gameId, agentId)).ref.update({ 'live.adapt.v': 2 });
+  await page.goto(gameUrl);
+  const sanity = page.getByRole('region', { name: 'SANITY' }).getByRole('listitem').filter({ hasText: 'LAMP' });
+  await expect(sanity).toContainText(/violence 2\/3/i);
+});
+
 test('the Handler boxes flag a downed agent and list bonds and disorders', async ({ page }) => {
   const { gameId, agentId, gameUrl } = await createAgent(page);
   await savedHp(gameId, agentId, 13);

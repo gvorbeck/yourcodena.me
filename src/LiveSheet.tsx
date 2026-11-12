@@ -7,6 +7,7 @@ import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTes
 import { DETAIL_FIELDS, nameOf, type Character } from './model/character';
 import { Btn, ConfirmDialog, Counter, SkillTable, Win } from './ui';
 import { SanSection } from './SanSection';
+import { DiceRoller } from './DiceRoller';
 import { useFocusMain } from './ui/Win';
 import { useTitle } from './pages/Page';
 import { Alert, CopyButton, Hint, OutcomeText } from './ui/bits';
@@ -193,6 +194,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         </div>
         <p className="noprint live-note"><small>{!game ? "Saved in this page's link: bookmark it to resume. A copied link is a snapshot."
           : game.failed ? <Alert inline>{game.failed}</Alert> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
+        <DiceRoller />
         <div role="status" className="noprint">
           {game?.held && <p className="warn">A {game.held.amount} SAN loss ({game.held.kind}) is waiting on a choice in Discord: project it onto a Bond or take it. SAN drops once it is settled.</p>}
         </div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from './character';
-import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond, topSkills, sheetOf, bondScoreOf, conditionsOf } from './live';
+import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond, topSkills, sheetOf, bondScoreOf, conditionsOf, adaptNote } from './live';
 
 it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   const c = newCharacter();
@@ -33,6 +33,14 @@ describe('SAN loss', () => {
     const r = loseSan(c, { ...live(), san: 45 }, 5, 'unnatural');
     expect(r.live).toMatchObject({ san: 40, bp: 30 });
     expect(r.notes.join()).toMatch(/Temporary insanity.*Breaking Point/);
+  });
+  it('adaptNote reports progress, and stays empty until a count runs (p. 74)', () => {
+    let l = live();
+    expect(adaptNote(l)).toBe('');
+    l = loseSan(c, l, 1, 'violence').live;
+    expect(adaptNote(l)).toBe('violence 1/3');
+    for (let i = 0; i < 2; i++) l = loseSan(c, l, 1, 'violence').live;
+    expect(adaptNote(l)).toBe('adapted to violence');
   });
   it('adapts after three losses in a row, and a reset clears the count (p. 74)', () => {
     let l = live();

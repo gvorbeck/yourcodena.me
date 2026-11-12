@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Panel, type Row } from './ui/Panel';
-import { bondScoreOf, capsOf, conditionsOf, effStat, sheetOf, topSkills } from './model/live';
+import { adaptNote, bondScoreOf, capsOf, conditionsOf, effStat, sheetOf, topSkills } from './model/live';
 import { agentLabel } from './model/names';
 import { activeBonds } from './rules';
 import { bpNote, hpNote, pad2 } from './rules/outcome';
@@ -35,10 +35,13 @@ export default function HandlerPanels({ gameId, agents, held = {} }: { gameId: s
         return noted(s.id, s.link, `HP ${pad2(s.l.hp)}/${pad2(max)}`, hpNote(s.l.hp, max));
       })} />
 
-      <Panel title="SANITY" page="pp. 64, 68" rows={sheets.map((s) => {
+      {/* Adaptation sits here because a third loss of one kind adapts the Agent (p. 74). */}
+      <Panel title="SANITY" page="pp. 64, 68, 74" rows={sheets.map((s) => {
         const h = held[s.id];
-        return noted(s.id, s.link, `SAN ${pad2(s.l.san)} / BP ${pad2(s.l.bp)}`,
+        const r = noted(s.id, s.link, `SAN ${pad2(s.l.san)} / BP ${pad2(s.l.bp)}`,
           [bpNote(s.l.san, s.l.bp), h && `${h.amount} SAN loss (${h.kind}) waits on a Discord choice`].filter(Boolean).join(' · '));
+        const adapt = adaptNote(s.l);
+        return adapt ? { ...r, lines: [...(r.lines ?? []), { left: adapt }] } : r;
       })} />
 
       {/* Only agents with something to report, so the one that needs attention stands out. */}
