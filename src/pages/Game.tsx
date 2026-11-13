@@ -10,7 +10,7 @@ import { Win } from '../ui/Win';
 import { DiscordPanel } from '../DiscordPanel';
 import GmScreen from '../GmScreen';
 import { Notice, Page } from './Page';
-import { Alert, CopyButton, Hint, LineForm, Loading, OutcomeText, SubList } from '../ui/bits';
+import { Alert, CopyButton, Hint, LineForm, Loading, OutcomeText, SubList, useJsonPicker } from '../ui/bits';
 import { agentUrl, gameUrl } from '../lib/paths';
 
 // Lazy: ui/index brings in the rules and react-aria, which this page otherwise doesn't load. Delete loads it through run() first, so a failed load shows an inline error instead of crashing the page.
@@ -91,7 +91,6 @@ export default function Game() {
 
   const [bad, setBad] = useState('');
   const [sheet, setSheet] = useState('');
-  const file = useRef<HTMLInputElement>(null);
   const backup = () => run(async () => downloadJson(`${gameId}.dg-game.json`, await exportGame(gameId)));
   // A game backup, an exported Agent or a Green Agent file: each Agent in it is added as a new one.
   const importFile = (f: File) => run(async () => {
@@ -102,6 +101,7 @@ export default function Game() {
     found.forEach(({ c, live }) => createAgent(gameId, c, live));
     setNotice(`Added ${found.length === 1 ? '1 agent' : `${found.length} agents`}.`);
   });
+  const picker = useJsonPicker(importFile, 'Agent or backup file');
   // A standalone sheet's link (the old /#sheet=… kind) becomes an Agent here, live play included.
   const addSheet = () => run(async () => {
     setBad(''); setNotice('');
@@ -162,9 +162,8 @@ export default function Game() {
         <h3>Backup and import</h3>
         <div className="row">
           <button className="btn" onClick={backup} disabled={busy}>Download game backup</button>
-          <button className="btn" onClick={() => file.current?.click()} disabled={busy}>Add agents from a file</button>
-          <input ref={file} type="file" accept=".json,application/json" hidden aria-label="Agent or backup file"
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importFile(f); }} />
+          <button className="btn" onClick={picker.open} disabled={busy}>Add agents from a file</button>
+          {picker.input}
         </div>
         <LineForm url label="Sheet link" value={sheet} onChange={setSheet} onSubmit={addSheet}>
           <button className="btn" disabled={busy || !sheet.trim()}>Add sheet</button>

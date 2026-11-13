@@ -2,7 +2,7 @@
 // Checks that need "did it reach the server?" use a second browser context: it has its own offline cache, so it can only see saved data.
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { agentDoc, createAgent, freshPage, hp, savedHp } from './helpers';
+import { agentDoc, createAgent, freshPage, hp, savedHp, startAgent } from './helpers';
 import { newCharacter } from '../src/model/character';
 import { encodeSheet, freshLive } from '../src/model/live';
 
@@ -156,6 +156,22 @@ test('the Discord panel connects a webhook and shows it connected', async ({ pag
   expect(sent.at(-1)?.url).toBe('https://discord.com/api/webhooks/1/abc'); // trimmed
   await page.getByRole('button', { name: 'Disconnect' }).click();
   await expect(page.getByText('Disconnected. Rolls no longer post to Discord.')).toBeVisible();
+});
+
+test('importing an agent file in the editor replaces the agent, and a bad file says so', async ({ page }) => {
+  await startAgent(page);
+  const fresh = newCharacter();
+  const file = (body: string) => ({ name: 'agent.json', mimeType: 'application/json', buffer: Buffer.from(body) });
+  const importFile = async (f: ReturnType<typeof file>) => {
+    await page.getByRole('button', { name: /Import agent/ }).click();
+    await page.getByRole('button', { name: 'Import', exact: true }).click(); // confirms the replace
+    await page.locator('input[type=file]').setInputFiles(f);
+  };
+  await importFile(file('nope'));
+  await expect(page.getByText('Not a valid Agent file.')).toBeVisible();
+  await importFile(file(JSON.stringify({ ...fresh, details: { ...fresh.details, name: 'Imported Person' } })));
+  await expect(page.getByText('Agent: Imported Person')).toBeVisible();
+  await expect(page.getByText('Not a valid Agent file.')).toBeHidden();
 });
 
 test('a Handler adjustment takes a typed skill like Foreign Language(Spanish)', async ({ page }) => {

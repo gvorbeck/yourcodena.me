@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { importJson, nameOf, type Character } from './model/character';
 import { store } from './lib/storage';
 import { gameUrl } from './lib/paths';
-import { Alert } from './ui/bits';
+import { Alert, useJsonPicker } from './ui/bits';
 import { blocking, clamp, plural, type validate } from './rules';
 import { Btn, ConfirmDialog, Win, type Up } from './ui';
 import { Page } from './pages/Page';
@@ -29,10 +29,12 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
   const prevStep = useRef(step);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (prevStep.current !== step) { scrollTo(0, 0); heading.current?.focus(); } prevStep.current = step; }, [step]);
-  const file = useRef<HTMLInputElement>(null);
   const [askImport, setAskImport] = useState(false);
   const [importError, setImportError] = useState(false);
   const [imports, setImports] = useState(0); // keys the step so its local state (e.g. roll undo) resets on import
+  const picker = useJsonPicker(async (f) => {
+    try { setC(await importJson(f)); setStep(0); setImports((n) => n + 1); setImportError(false); } catch { setImportError(true); }
+  });
   const pickFile = () => setAskImport(true);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
@@ -60,13 +62,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
       actions={<>
         <Link to={gameUrl(gameId)}>&lt; Game {gameId}</Link>
         <button onClick={pickFile} aria-keyshortcuts="Alt+I">[Alt+I] Import agent</button>
-        <input ref={file} type="file" accept=".json,application/json" hidden
-          onChange={async (e) => {
-            const f = e.target.files?.[0];
-            e.target.value = '';
-            if (!f) return;
-            try { setC(await importJson(f)); setStep(0); setImports((n) => n + 1); setImportError(false); } catch { setImportError(true); }
-          }} />
+        {picker.input}
       </>}
       status={<>
         <span>Agent: {name}</span>
@@ -76,7 +72,7 @@ export function Editor({ agentId, c, issues, setC, gameId, failed, onLive }: Edi
       </>}
     >
       <div role="alert" className="noprint">{importError && <p className="warn page">Not a valid Agent file.</p>}</div>
-      <ConfirmDialog open={askImport} title="Import an agent" confirm="Import" onClose={() => setAskImport(false)} onConfirm={() => file.current?.click()}>
+      <ConfirmDialog open={askImport} title="Import an agent" confirm="Import" onClose={() => setAskImport(false)} onConfirm={picker.open}>
         Importing a file replaces this Agent. Continue?
       </ConfirmDialog>
       <div className="shell">
