@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { asLoss, pad2, diceLabel, testText, wpNote } from '../rules/outcome';
-import { agentLabel } from '../model/names';
 import { useRun } from '../lib/useRun';
 import { downloadJson } from '../lib/download';
 import { createGame, deleteAgent, exportGame, useAgents, type AgentCard, useGameExists, useHeldSan, useRolls, type RollDoc } from '../lib/games';
@@ -72,9 +71,8 @@ export default function Game() {
 
   const advance = (list: AgentCard[]) => run(async () => {
     const { gains, failed } = await (await import('../lib/agents')).advanceAll(gameId, list.map((a) => a.id));
-    const name = (a: AgentCard) => agentLabel(a.codename, a.name);
-    const lines = list.filter((a) => gains[a.id]?.length).map((a) => `${name(a)}: ${gains[a.id].map(([k, n]) => `${k} +${n}`).join(', ')}`);
-    const missed = list.filter((a) => failed.includes(a.id)).map(name);
+    const lines = list.filter((a) => gains[a.id]?.length).map((a) => `${a.label}: ${gains[a.id].map(([k, n]) => `${k} +${n}`).join(', ')}`);
+    const missed = list.filter((a) => failed.includes(a.id)).map((a) => a.label);
     setNotice([
       lines.length ? `Skills advanced (p. 28). ${lines.join('; ')}.` : !missed.length && 'No agent had checked skills that could advance.',
       missed.length && `Could not save ${missed.join(', ')}. Check your connection and press again.`,
@@ -144,11 +142,11 @@ export default function Game() {
             {list.map((a) => (
               <li key={a.id}>
                 <div className="info">
-                  <Link to={agentUrl(gameId, a.id)}>{agentLabel(a.codename, a.name)}</Link>
+                  <Link to={agentUrl(gameId, a.id)}>{a.label}</Link>
                   <span className="dim">{[a.codename && a.name, a.profession].filter(Boolean).join(' · ') || 'Not started'}</span>
                   {a.vitals ? <span>HP {a.vitals.hp} · <span className={wpNote(a.vitals.wp) ? 'warn' : undefined}>WP {a.vitals.wp}{wpNote(a.vitals.wp) && ` (${wpNote(a.vitals.wp)})`}</span> · SAN {a.vitals.san}</span> : <span className="dim">Creation incomplete</span>}
                 </div>
-                <button className="btn" onClick={() => run(async () => { await import('../ui'); setDoomed(a); })} disabled={busy} aria-label={`Delete ${agentLabel(a.codename, a.name)}`}>Delete</button>
+                <button className="btn" onClick={() => run(async () => { await import('../ui'); setDoomed(a); })} disabled={busy} aria-label={`Delete ${a.label}`}>Delete</button>
               </li>
             ))}
           </ul>
@@ -174,7 +172,7 @@ export default function Game() {
         <Alert>{deleteFailed && 'Could not delete the agent. Check your connection and try again.'}</Alert>
         {doomed && <Suspense><ConfirmDialog open title="Delete this agent?" confirm="Delete" onClose={() => setDoomed(null)}
           onConfirm={() => remove(doomed)}>
-          Delete {agentLabel(doomed.codename, doomed.name)} for everyone in this game? This cannot be undone. Their past rolls stay in the log.
+          Delete {doomed.label} for everyone in this game? This cannot be undone. Their past rolls stay in the log.
         </ConfirmDialog></Suspense>}
         {advancing && <Suspense><ConfirmDialog open title="End the session?" confirm="Advance all" onClose={() => setAdvancing(null)}
           onConfirm={() => advance(advancing)}>

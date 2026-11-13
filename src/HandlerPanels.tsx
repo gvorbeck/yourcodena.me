@@ -2,7 +2,6 @@ import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Panel, type Row } from './ui/Panel';
 import { adaptNote, bondScoreOf, capsOf, conditionsOf, effStat, sheetOf, topSkills } from './model/live';
-import { agentLabel } from './model/names';
 import { activeBonds } from './rules';
 import { bpNote, hpNote, pad2 } from './rules/outcome';
 import type { AgentCard, HeldSan } from './lib/games';
@@ -18,8 +17,7 @@ export default function HandlerPanels({ gameId, agents, held = {} }: { gameId: s
   const { sheets, top, conditions } = useMemo(() => {
     const sheets = agents.flatMap((a) => {
       const s = sheetOf(a.character, a.live);
-      const name = agentLabel(a.codename, a.name);
-      return s ? [{ ...s, id: a.id, name, dex: effStat(s.c, s.l, 'DEX'), link: <Link to={agentUrl(gameId, a.id)}>{name}</Link> }] : [];
+      return s ? [{ ...s, id: a.id, name: a.label, dex: effStat(s.c, s.l, 'DEX'), link: <Link to={agentUrl(gameId, a.id)}>{a.label}</Link> }] : [];
     });
     return { sheets, top: topSkills(sheets), conditions: sheets.map((s) => ({ s, ...conditionsOf(s.l) })).filter((x) => x.lines.length) };
   }, [gameId, agents]);
