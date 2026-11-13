@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newCharacter } from './character';
-import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond, topSkills, sheetOf, bondScoreOf, conditionsOf, adaptNote } from './live';
+import { parseLive, reconcile, advanceSkills, maxSanOf, setUnnatural, decodeSheet, encodeSheet, freshLive, untouched, loseSan, loseStat, UndoStack, canHeal, describeChange, canInjuryTest, refreshSpent, sameState, withBond, topSkills, sheetOf, bondScoreOf, conditionsOf, adaptNote, gainsText } from './live';
 
 it('round-trips a sheet through the URL hash, including non-ASCII', () => {
   const c = newCharacter();
@@ -292,4 +292,9 @@ describe('conditionsOf', () => {
   });
   it('flags WP 0, where every test fails', () => expect(conditionsOf({ ...freshLive(newCharacter()), wp: 0 }).lines).toEqual(['WP 0: every test fails']));
   it('is empty for a fresh sheet', () => expect(conditionsOf(freshLive(newCharacter()))).toEqual({ penalty: 0, lines: [] }));
+});
+
+it('lists skill gains for the player', () => {
+  expect(gainsText([['Alertness', 3], ['Foreign Language(Spanish)', 1]])).toBe('Alertness +3, Foreign Language(Spanish) +1');
+  expect(gainsText([])).toBe('');
 });

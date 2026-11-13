@@ -94,6 +94,9 @@ export function advanceSkills(c: Character, l: Live, rng = Math.random): { live:
   return { live: capSan(c, { ...l, checked: [], advance }), gains };
 }
 
+/** Skill gains as the player reads them: "Alertness +3, Law +1". */
+export const gainsText = (gains: [string, number][]) => gains.map(([k, n]) => `${k} +${n}`).join(', ');
+
 /** Replace one Bond score without disturbing the others; holes (a link with fewer scores than Bonds) take `fallback`. */
 export const withBond = (bonds: number[], i: number, v: number, fallback: number) =>
   Array.from({ length: Math.max(bonds.length, i + 1) }, (_, k) => (k === i ? Math.max(0, v) : bonds[k] ?? fallback));

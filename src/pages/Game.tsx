@@ -70,8 +70,9 @@ export default function Game() {
   };
 
   const advance = (list: AgentCard[]) => run(async () => {
-    const { gains, failed } = await (await import('../lib/agents')).advanceAll(gameId, list.map((a) => a.id));
-    const lines = list.filter((a) => gains[a.id]?.length).map((a) => `${a.label}: ${gains[a.id].map(([k, n]) => `${k} +${n}`).join(', ')}`);
+    const [{ advanceAll }, { gainsText }] = await Promise.all([import('../lib/agents'), import('../model/live')]);
+    const { gains, failed } = await advanceAll(gameId, list.map((a) => a.id));
+    const lines = list.filter((a) => gains[a.id]?.length).map((a) => `${a.label}: ${gainsText(gains[a.id])}`);
     const missed = list.filter((a) => failed.includes(a.id)).map((a) => a.label);
     setNotice([
       lines.length ? `Skills advanced (p. 28). ${lines.join('; ')}.` : !missed.length && 'No agent had checked skills that could advance.',

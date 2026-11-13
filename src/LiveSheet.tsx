@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
 import { activeBonds, featureOf, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, testOutcome, type Outcome } from './rules';
 import { pad2, testText } from './rules/outcome';
-import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, refreshSpent, sheetPenalty, coreTests, withBond, type Live } from './model/live';
+import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, gainsText, refreshSpent, sheetPenalty, coreTests, withBond, type Live } from './model/live';
 import { DETAIL_FIELDS, nameOf, type Character } from './model/character';
 import { Btn, ConfirmDialog, Counter, Select, SkillTable, Win } from './ui';
 import { SanSection } from './SanSection';
@@ -105,7 +105,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const endSession = () => {
     const r = advanceSkills(c, latest.current); // the newest state, like act(), so a change merged in this render isn't dropped
     setL(r.live);
-    say(r.gains.length ? `Skills advanced (p. 28): ${r.gains.map(([k, n]) => `${k} +${n}`).join(', ')}.` : 'No checked skills could advance.');
+    say(r.gains.length ? `Skills advanced (p. 28): ${gainsText(r.gains)}.` : 'No checked skills could advance.');
   };
   const [disorder, setDisorder] = useState('');
   const [drop, setDrop] = useState('');
