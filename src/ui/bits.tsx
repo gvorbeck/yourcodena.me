@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 import { copyLabel, copyNote, useCopy } from '../lib/useCopy';
 import { outcomeClass } from '../rules/outcome';
 
@@ -18,6 +18,25 @@ export const OutcomeText = ({ o }: { o: string }) => <span className={outcomeCla
 /** `quiet` for a placeholder inside a page that already announced its own loading. */
 export const Loading =({ what, className = 'dim', quiet }: { what?: string; className?: string; quiet?: boolean }) =>
   <p className={className} role={quiet ? undefined : 'status'}>Loading{what && ` ${what}`}…</p>;
+
+/** A one-line form: label, text input, then `children` (the submit button). `url`: a URL keyboard on phones. */
+export function LineForm({ label, value, onChange, onSubmit, url, disabled, children }: { label: string; value: string; onChange: (v: string) => void; onSubmit: () => void; url?: boolean; disabled?: boolean; children: ReactNode }) {
+  const id = useId();
+  return (
+    <form className="row" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+      <label htmlFor={id}>{label}</label>
+      <input id={id} type="text" inputMode={url ? 'url' : undefined} autoComplete="off" spellCheck={false} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} />
+      {children}
+    </form>
+  );
+}
+
+/** A hidden JSON file input: render `input` anywhere, call `open()` to show the picker, and `onFile` gets the chosen file (the input resets, so the same file can be picked again). */
+export function useJsonPicker(onFile: (f: File) => void, label?: string) {
+  const ref = useRef<HTMLInputElement>(null);
+  const input = <input ref={ref} type="file" accept=".json,application/json" hidden aria-label={label} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onFile(f); }} />;
+  return { open: () => ref.current?.click(), input };
+}
 
 /** Copies `text()` (read at click time) and says so, on the button and to screen readers. */
 export function CopyButton({ text, label, ok }: { text: () => string; label: string; ok?: string }) {

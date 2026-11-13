@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
 import { activeBonds, featureOf, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, testOutcome, type Outcome } from './rules';
 import { pad2, testText } from './rules/outcome';
-import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, refreshSpent, sheetPenalty, coreTests, withBond, type Live } from './model/live';
+import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, gainsText, refreshSpent, sheetPenalty, coreTests, withBond, type Live } from './model/live';
 import { DETAIL_FIELDS, nameOf, type Character } from './model/character';
-import { Btn, ConfirmDialog, Counter, SkillTable, Win } from './ui';
+import { Btn, ConfirmDialog, Counter, Select, SkillTable, Win } from './ui';
 import { SanSection } from './SanSection';
+import { DiceRoller } from './DiceRoller';
 import { useFocusMain } from './ui/Win';
 import { useTitle } from './pages/Page';
 import { Alert, CopyButton, Hint, OutcomeText } from './ui/bits';
@@ -104,7 +105,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
   const endSession = () => {
     const r = advanceSkills(c, latest.current); // the newest state, like act(), so a change merged in this render isn't dropped
     setL(r.live);
-    say(r.gains.length ? `Skills advanced (p. 28): ${r.gains.map(([k, n]) => `${k} +${n}`).join(', ')}.` : 'No checked skills could advance.');
+    say(r.gains.length ? `Skills advanced (p. 28): ${gainsText(r.gains)}.` : 'No checked skills could advance.');
   };
   const [disorder, setDisorder] = useState('');
   const [drop, setDrop] = useState('');
@@ -193,6 +194,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         </div>
         <p className="noprint live-note"><small>{!game ? "Saved in this page's link: bookmark it to resume. A copied link is a snapshot."
           : game.failed ? <Alert inline>{game.failed}</Alert> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
+        <DiceRoller />
         <div role="status" className="noprint">
           {game?.held && <p className="warn">A {game.held.amount} SAN loss ({game.held.kind}) is waiting on a choice in Discord: project it onto a Bond or take it. SAN drops once it is settled.</p>}
         </div>
@@ -237,7 +239,7 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         {injury !== null && (
           <div className="row noprint">
             <span>Permanent injury: lose {injury} from</span>
-            <select aria-label="Stat to lose" value={injuryStat} onChange={(e) => setInjuryStat(e.target.value as Stat)}>{STATS.map((s) => <option key={s}>{s}</option>)}</select>
+            <Select label="Stat to lose" value={injuryStat} onChange={(v) => setInjuryStat(v as Stat)}>{STATS.map((s) => <option key={s}>{s}</option>)}</Select>
             <Btn onPress={applyInjury}>Apply</Btn>
             <Btn onPress={() => setInjury(null)}>Skip</Btn>
           </div>
@@ -270,10 +272,10 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         <p>Disorders: {l.disorders.length ? l.disorders.join(' · ') : <span className="dim">none</span>}</p>
         <div className="row noprint">
           <input aria-label="New disorder" placeholder="new disorder" value={disorder} maxLength={100} onChange={(e) => setDisorder(e.target.value)} />
-          <select aria-label="Motivation it replaces" value={drop} onChange={(e) => setDrop(e.target.value)}>
+          <Select label="Motivation it replaces" value={drop} onChange={setDrop}>
             <option value="">— no motivation lost —</option>
             {motivations.map((m) => <option key={m}>{m}</option>)}
-          </select>
+          </Select>
           <Btn onPress={addDisorder} disabled={!disorder.trim()}>Add disorder</Btn>
         </div>
 

@@ -94,6 +94,9 @@ export function advanceSkills(c: Character, l: Live, rng = Math.random): { live:
   return { live: capSan(c, { ...l, checked: [], advance }), gains };
 }
 
+/** Skill gains as the player reads them: "Alertness +3, Law +1". */
+export const gainsText = (gains: [string, number][]) => gains.map(([k, n]) => `${k} +${n}`).join(', ');
+
 /** Replace one Bond score without disturbing the others; holes (a link with fewer scores than Bonds) take `fallback`. */
 export const withBond = (bonds: number[], i: number, v: number, fallback: number) =>
   Array.from({ length: Math.max(bonds.length, i + 1) }, (_, k) => (k === i ? Math.max(0, v) : bonds[k] ?? fallback));
@@ -214,6 +217,11 @@ const adapt = (count: number, reset: boolean) => {
   if (reset) return { count: 0, adapted: false };
   return { count: count + 1, adapted: count === 2 };
 };
+
+/** How far an Agent is toward adapting (p. 74), for the Handler's boxes; '' when no count is running. */
+export const adaptNote = (l: Live) =>
+  ([['violence', l.adapt.v], ['helplessness', l.adapt.h]] as const)
+    .filter(([, n]) => n).map(([k, n]) => (n === 3 ? `adapted to ${k}` : `${k} ${n}/3`)).join(' · ');
 
 /** Apply a SAN loss (pp. 67–74). `notes` lists what the Handler and player now owe the table. */
 export function loseSan(c: Character, l: Live, loss: number, kind: SanKind, rng = Math.random): { live: Live; notes: string[] } {

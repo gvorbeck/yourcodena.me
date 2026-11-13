@@ -4,7 +4,7 @@ import { PACKAGES } from '../rules/data/creation';
 import { BONUS_PICKS, BONUS_POINTS, MAX_CREATION_SKILL, TYPED_SKILLS, TYPE_SUGGESTIONS, baseRating, familyOf, typeOf } from '../rules/data/skills';
 import { CUSTOM_ID, CUSTOM_MAX_RATING, customBudget, customLeft, duplicatesKit, plural, professionOf, slotsOf, type Alt, type Slot } from '../rules';
 import { MAX_NAME } from '../model/character';
-import { Btn, Choice, Num, Pick, RadioGroup, Label, Rule, SkillPicker, SkillTable, Text, TypeInput, type StepProps } from '../ui';
+import { Btn, Choice, Num, Pick, Select, RadioGroup, Label, Rule, SkillPicker, SkillTable, Text, TypeInput, type StepProps } from '../ui';
 
 const altLabel = (a: Alt) => `${a.family}${a.type ? `(${a.type})` : a.askType ? ' (type)' : ''} ${a.rating}%`;
 
@@ -66,10 +66,9 @@ export function ProfessionStep({ c, up }: StepProps) {
               <h3>New profession</h3>
               <Text label="Name" value={c.custom.name} max={MAX_NAME} onChange={(v) => up((d) => { d.custom.name = v; })} />
               <div className="row mt-s">
-                <label className="lbl" htmlFor="cp-bonds">Bonds</label>
-                <select id="cp-bonds" className="auto-width" value={c.custom.bonds} onChange={(e) => up((d) => { d.custom.bonds = Number(e.target.value); })}>
+                <Select visible label="Bonds" className="auto-width" value={c.custom.bonds} onChange={(v) => up((d) => { d.custom.bonds = Number(v); })}>
                   {[1, 2, 3, 4].map((n) => <option key={n}>{n}</option>)}
-                </select>
+                </Select>
                 <span className="dim">{budget} points · <span className={left === 0 ? 'ok' : 'warn'}>{left} left</span> · max {CUSTOM_MAX_RATING}% each</span>
               </div>
               {c.custom.skills.map((k, i) => (
@@ -117,16 +116,15 @@ export function ProfessionStep({ c, up }: StepProps) {
 
       <h3>Bonus skill points</h3>
       <div className="row">
-        <label className="lbl" htmlFor="pkg">Package (p. 27)</label>
-        <select id="pkg" className="auto-width" value={c.bonusPackage}
-          onChange={(e) => up((d) => {
-            d.bonusPackage = e.target.value;
-            const pk = PACKAGES.find((k) => k.id === e.target.value);
+        <Select visible label="Package (p. 27)" className="auto-width" value={c.bonusPackage}
+          onChange={(v) => up((d) => {
+            d.bonusPackage = v;
+            const pk = PACKAGES.find((k) => k.id === v);
             if (pk) d.bonus = pk.skills.map((s) => (s === '?' ? '' : s.replace('*', '')));
           })}>
           <option value="">— custom —</option>
           {PACKAGES.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
-        </select>
+        </Select>
         <span className="dim">Pick {BONUS_PICKS}; repeats stack. Not Unnatural.</span>
       </div>
       <div className="grid mt-s">

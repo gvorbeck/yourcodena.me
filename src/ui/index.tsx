@@ -72,6 +72,17 @@ export const ConfirmDialog = ({ open, title, children, confirm, onConfirm, onClo
   </ModalOverlay>
 );
 
+/** A native select, labelled for screen readers; `visible` also shows the label beside it (clicking it focuses the select). */
+export function Select({ label, visible, value, onChange, className, disabled, children }: { label: string; visible?: boolean; value: string | number; onChange: (v: string) => void; className?: string; disabled?: boolean; children: ReactNode }) {
+  const id = useId();
+  return (
+    <>
+      {visible && <label className="lbl" htmlFor={id}>{label}</label>}
+      <select id={visible ? id : undefined} aria-label={visible ? undefined : label} className={className} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>{children}</select>
+    </>
+  );
+}
+
 export const Choice = ({ value, children, disabled }: { value: string; children: ReactNode; disabled?: boolean }) => (
   <Radio className="choice radio" value={value} isDisabled={disabled}><span className="mark" />{children}</Radio>
 );

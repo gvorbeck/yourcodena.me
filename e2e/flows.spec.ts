@@ -2,7 +2,7 @@
 // Checks that need "did it reach the server?" use a second browser context: it has its own offline cache, so it can only see saved data.
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { agentDoc, createAgent, freshPage, hp, savedHp } from './helpers';
+import { agentDoc, createAgent, freshPage, hp, savedHp, startAgent } from './helpers';
 import { newCharacter } from '../src/model/character';
 import { encodeSheet, freshLive } from '../src/model/live';
 
@@ -102,6 +102,25 @@ test('the GM screen opens to the rules boxes', async ({ page }) => {
   await expect(lethality.locator('.term').first()).toHaveText('Hit'); // 'Hit: …' rows show the term as its own heading
 });
 
+test('the live sheet rolls plain dice', async ({ page }) => {
+  await createAgent(page);
+  await page.getByLabel('Dice', { exact: true }).fill('2d6 + 1');
+  await page.getByRole('button', { name: 'Roll', exact: true }).click();
+  await expect(page.locator('output').filter({ hasText: /^#1 2D6\+1 \(\d\+\d\+1\) → \d+$/ })).toBeVisible(); // typed loosely, shown as the bot shows it
+  await page.getByLabel('Dice', { exact: true }).fill('nope');
+  await page.getByRole('button', { name: 'Roll', exact: true }).click();
+  await expect(page.getByText(/Write dice like 2D6\+1\./)).toBeVisible();
+});
+
+test('the Sanity box shows how far an agent is toward adapting', async ({ page }) => {
+  const { gameId, agentId, gameUrl } = await createAgent(page);
+  await savedHp(gameId, agentId, 13);
+  await (await agentDoc(gameId, agentId)).ref.update({ 'live.adapt.v': 2 });
+  await page.goto(gameUrl);
+  const sanity = page.getByRole('region', { name: 'SANITY' }).getByRole('listitem').filter({ hasText: 'LAMP' });
+  await expect(sanity).toContainText(/violence 2\/3/i);
+});
+
 test('the Handler boxes flag a downed agent and list bonds and disorders', async ({ page }) => {
   const { gameId, agentId, gameUrl } = await createAgent(page);
   await savedHp(gameId, agentId, 13);
@@ -114,6 +133,45 @@ test('the Handler boxes flag a downed agent and list bonds and disorders', async
   const bonds = page.getByRole('region', { name: 'BONDS & DISORDERS' }).getByRole('listitem').filter({ hasText: 'LAMP' });
   await expect(bonds).toContainText(/Sister\s*11/i);
   await expect(bonds).toContainText(/Insomnia/i);
+});
+
+test('the Discord panel connects a webhook and shows it connected', async ({ page }) => {
+  const sent: { url?: string }[] = [];
+  // The real Function is unreachable in tests (helpers.ts aborts cloudfunctions.net); a page route is matched before that one.
+  await page.route('**/discordWebhook', async (route) => {
+    const req = route.request();
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': (await req.headerValue('access-control-request-headers')) ?? '' };
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const { data } = req.postDataJSON();
+    sent.push(data);
+    await route.fulfill({ headers: cors, json: { result: data.url ? { connected: true, name: 'Table channel' } : { connected: false, name: '' } } });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Generate game' }).click();
+  await page.waitForURL(/\/g\//);
+  await page.getByRole('button', { name: /DISCORD/ }).click(); // starts collapsed
+  await page.getByLabel('Webhook URL', { exact: true }).fill('  https://discord.com/api/webhooks/1/abc  ');
+  await page.getByRole('button', { name: 'Connect' }).click();
+  await expect(page.getByText('Rolls post to Discord as')).toContainText('Table channel');
+  expect(sent.at(-1)?.url).toBe('https://discord.com/api/webhooks/1/abc'); // trimmed
+  await page.getByRole('button', { name: 'Disconnect' }).click();
+  await expect(page.getByText('Disconnected. Rolls no longer post to Discord.')).toBeVisible();
+});
+
+test('importing an agent file in the editor replaces the agent, and a bad file says so', async ({ page }) => {
+  await startAgent(page);
+  const fresh = newCharacter();
+  const file = (body: string) => ({ name: 'agent.json', mimeType: 'application/json', buffer: Buffer.from(body) });
+  const importFile = async (f: ReturnType<typeof file>) => {
+    await page.getByRole('button', { name: /Import agent/ }).click();
+    await page.getByRole('button', { name: 'Import', exact: true }).click(); // confirms the replace
+    await page.locator('input[type=file]').setInputFiles(f);
+  };
+  await importFile(file('nope'));
+  await expect(page.getByText('Not a valid Agent file.')).toBeVisible();
+  await importFile(file(JSON.stringify({ ...fresh, details: { ...fresh.details, name: 'Imported Person' } })));
+  await expect(page.getByText('Agent: Imported Person')).toBeVisible();
+  await expect(page.getByText('Not a valid Agent file.')).toBeHidden();
 });
 
 test('a Handler adjustment takes a typed skill like Foreign Language(Spanish)', async ({ page }) => {
