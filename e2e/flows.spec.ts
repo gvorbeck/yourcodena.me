@@ -9,6 +9,7 @@ import { encodeSheet, freshLive } from '../src/model/live';
 test('a new agent goes through creation and shows on the game page', async ({ page }) => {
   const { gameUrl } = await createAgent(page);
   await expect(hp(page)).toHaveText('13 / 13');
+  await expect(page.getByRole('navigation', { name: 'Application' }).getByRole('link', { name: 'YOURCODENA.ME' })).toBeVisible(); // the live sheet keeps the way home
   await page.getByRole('button', { name: /PERSONNEL FILE/ }).click(); // starts collapsed
   await expect(page.getByRole('region', { name: 'PERSONNEL FILE' })).toContainText('Codename: LAMP');
   await expect(page.getByRole('group', { name: 'Unnatural' })).toHaveAccessibleDescription(/maximum SAN is 99 minus it/); // counter notes reach screen readers
@@ -247,6 +248,8 @@ test('a SAN loss waiting for a decision keeps its buttons out of the announced r
 test('a game backup downloads and its agents can be added back from the file', async ({ page }) => {
   await createAgent(page);
   await page.getByRole('link', { name: '< Game' }).click(); // in-app, so the sheet's autosave flushes first
+  await expect(page.getByRole('button', { name: 'Download game backup' })).toBeHidden(); // a rare task, so it starts collapsed
+  await page.getByRole('button', { name: /BACKUP AND IMPORT/ }).click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download game backup' }).click()]);
   const path = await download.path();
   expect(JSON.parse(readFileSync(path, 'utf8')).agents).toHaveLength(1);
@@ -261,10 +264,45 @@ test('a standalone sheet link can be added to a game, live play and all', async 
   await page.goto('/');
   await page.getByRole('button', { name: 'Generate game' }).click();
   await page.waitForURL(/\/g\/[^/]+$/);
+  await page.getByRole('button', { name: /BACKUP AND IMPORT/ }).click();
   await page.getByLabel('Sheet link').fill(`https://yourcodena.me/${encodeSheet(c, { ...freshLive(c), hp: 7 })}`);
   await page.getByRole('button', { name: 'Add sheet' }).click();
   await expect(page.locator('ul.agents > li').filter({ hasText: 'Solo' })).toContainText('HP 7');
   await page.getByLabel('Sheet link').fill('https://example.com/nothing');
   await page.getByRole('button', { name: 'Add sheet' }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'not a sheet link' })).toBeVisible();
+});
+
+test('an unfinished agent is listed redacted and cannot open the live sheet, and the review hides empty sections', async ({ page }) => {
+  const { gameUrl } = await startAgent(page);
+  await page.getByRole('button', { name: /Review & output/i }).click();
+  await expect(page.getByRole('button', { name: 'Live sheet >' })).toBeDisabled();
+  await expect(page.getByText(/^Employer:/)).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Motivations' })).toHaveCount(0);
+  await page.getByRole('link', { name: /^< Game/ }).click();
+  await expect(page).toHaveURL(new RegExp(`${gameUrl}$`));
+  await expect(page.locator('ul.agents .redact')).toHaveText('Unnamed agent');
+});
+
+test('HP turns red at 2 or fewer, SAN only at the Breaking Point, and each roll replaces the latest one', async ({ page }) => {
+  await createAgent(page);
+  const san = page.getByRole('group', { name: 'SAN', exact: true }).locator('output');
+  await expect(san).not.toHaveClass(/warn/);
+  for (let i = 0; i < 11; i++) await page.getByRole('button', { name: 'Decrease HP' }).click(); // 13 -> 2
+  await expect(hp(page)).toHaveClass(/warn/);
+  await page.getByRole('button', { name: 'Increase HP' }).click();
+  await expect(hp(page)).not.toHaveClass(/warn/);
+  await page.getByRole('button', { name: 'Luck', exact: true }).click();
+  await page.getByRole('button', { name: 'Luck', exact: true }).click();
+  await expect(page.locator('.rollbar .latest')).toHaveCount(1);
+  await expect(page.locator('.rollbar > span')).toHaveCount(2);
+});
+
+test('a bad file on the game page says so inside the backup box', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Generate game' }).click();
+  await page.waitForURL(/\/g\/[^/]+$/);
+  await page.getByRole('button', { name: /BACKUP AND IMPORT/ }).click();
+  await page.getByLabel('Agent or backup file').setInputFiles({ name: 'nope.json', mimeType: 'application/json', buffer: Buffer.from('nope') });
+  await expect(page.getByRole('region', { name: 'BACKUP AND IMPORT' }).getByRole('alert')).toContainText('not an Agent or a game backup');
 });

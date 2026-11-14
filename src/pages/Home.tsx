@@ -42,7 +42,7 @@ export default function Home() {
         <label className="lbl" htmlFor={inputId}>Game ID</label>
         <form className="idform" onSubmit={open}>
           <input id={inputId} placeholder="game id" value={raw} onChange={(e) => setRaw(e.target.value)} autoCapitalize="none" autoComplete="off" spellCheck={false} />
-          <button className="btn" disabled={!isOpenableId(slug)}>Open</button>
+          <button className="btn primary" disabled={!isOpenableId(slug)}>Open</button>
         </form>
         <Hint>{slug && slug !== raw ? `Opens ${slug}. ` : ''}Letters, numbers and dashes, at least {MIN_ID}. An ID nobody has used yet offers to create that game.</Hint>
         {recent.length > 0 && (
@@ -55,7 +55,7 @@ export default function Home() {
       </Win>
       <Win title="START A NEW GAME">
         <p>Get a fresh game ID to share with your table. Anyone with the ID can see the game's agents and rolls, so it works like an unlisted link.</p>
-        <div className="row"><button className="btn" onClick={generate} disabled={busy}>{busy ? 'Creating…' : 'Generate game'}</button></div>
+        <div className="row"><button className="btn primary" onClick={generate} disabled={busy}>{busy ? 'Creating…' : 'Generate game'}</button></div>
         <Alert>{err}</Alert>
       </Win>
     </Page>

@@ -5,7 +5,7 @@ import { SkipLink } from './Win';
 const TITLE = 'YOURCODENA.ME';
 
 /** Skip link plus the top menu bar; `children` are the page's own actions, aligned right. */
-export const MenuBar = ({ subtitle, children }: { subtitle: string; children?: ReactNode }) => (
+export const MenuBar = ({ subtitle = '// Delta Green agents & rolls', children }: { subtitle?: string; children?: ReactNode }) => (
   <>
     <SkipLink />
     <nav className="menubar" aria-label="Application">

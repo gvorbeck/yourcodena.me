@@ -25,7 +25,7 @@ export const Notice = ({ page, title, children }: { page?: string; title: string
   <Page title={page}><Win title={title}>{children}</Win></Page>;
 
 /** Menu bar, <main> and status bar shared by every page except the live sheet. */
-export const Page = ({ title, heading, subtitle = '// Delta Green agents & rolls', actions, status, wide, children }: PageProps) => {
+export const Page = ({ title, heading, subtitle, actions, status, wide, children }: PageProps) => {
   useTitle(title);
   useFocusMain();
   return (

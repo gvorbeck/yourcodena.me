@@ -5,7 +5,7 @@ import { DETAIL_FIELDS, exportJson } from '../model/character';
 import { Btn, SkillTable, Rule, type StepProps } from '../ui';
 import { CopyButton } from '../ui/bits';
 
-export function ReviewStep({ c, issues, onLive }: StepProps & { issues: Issue[]; onLive: () => void }) {
+export function ReviewStep({ c, issues }: StepProps & { issues: Issue[] }) {
   const done = blocking(issues).length === 0;
   const d = derived(c);
   const p = professionOf(c);
@@ -16,19 +16,18 @@ export function ReviewStep({ c, issues, onLive }: StepProps & { issues: Issue[];
         <Btn onPress={() => window.print()}>Print / PDF</Btn>
         <Btn onPress={() => exportJson(c)}>Export JSON</Btn>
         <CopyButton text={() => asciiSheet(c)} label="Copy Text" ok="Copied ✓" />
-        <Btn disabled={!done} onPress={onLive}>Live Sheet</Btn>
       </div>
       {issues.length > 0 && (
         <ul className="issues noprint">{issues.map((i, n) => <li key={n}>[{i.step}] {i.msg}</li>)}</ul>
       )}
       <div className="dossier">
         <Rule />
-        <h2>Personnel file {done ? <span className="ok">Cleared</span> : <span className="stamp">Incomplete</span>}</h2>
+        <h2>Personnel file {done ? <span className="stamp ok">Cleared</span> : <span className="stamp">Incomplete</span>}</h2>
         <div className="cols">
           <p>Name: {det.name || '—'}{det.codename && ` (codename ${det.codename})`}</p>
           <p>Profession: {p?.name ?? '—'}</p>
-          <p>Employer: {det.employer || '—'} {det.rank && `(${det.rank})`}</p>
-          <p>Age: {det.age || '—'} · Sex: {det.sex || '—'} · Nationality: {det.nationality || '—'}</p>
+          {(det.employer || det.rank) && <p>Employer: {det.employer || '—'} {det.rank && `(${det.rank})`}</p>}
+          {(det.age || det.sex || det.nationality) && <p>{[['Age', det.age], ['Sex', det.sex], ['Nationality', det.nationality]].filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(' · ')}</p>}
         </div>
         <h3>Statistics</h3>
         <table>
@@ -45,8 +44,10 @@ export function ReviewStep({ c, issues, onLive }: StepProps & { issues: Issue[];
         <h3>Bonds</h3>
         <ul>{activeBonds(c).map((b) => <li key={b.i}>{b.name} — {d.bondScore}{b.note && ` · ${b.note}`}</li>)}</ul>
         {disorderOf(c) && <p><span className="dim">disorder:</span> {disorderOf(c)}</p>}
-        <h3>Motivations</h3>
-        <ul>{motivationsOf(c).map((m, i) => <li key={i}>{m}</li>)}</ul>
+        {motivationsOf(c).length > 0 && <>
+          <h3>Motivations</h3>
+          <ul>{motivationsOf(c).map((m, i) => <li key={i}>{m}</li>)}</ul>
+        </>}
         {DETAIL_FIELDS.filter((f) => f.prose && det[f.key]).map((f) => (
           <p key={f.key}><span className="dim">{f.label}:</span> {det[f.key]}</p>
         ))}

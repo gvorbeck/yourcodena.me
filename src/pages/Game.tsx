@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { asLoss, pad2, diceLabel, testText, wpNote } from '../rules/outcome';
+import { asLoss, pad2, diceLabel, lowHp, testText, wpNote } from '../rules/outcome';
+import { UNNAMED } from '../model/names';
 import { useRun } from '../lib/useRun';
 import { downloadJson } from '../lib/download';
 import { createGame, deleteAgent, exportGame, useAgents, type AgentCard, useGameExists, useHeldSan, useRolls, type RollDoc } from '../lib/games';
@@ -37,6 +38,8 @@ function EntryCells({ r }: { r: RollDoc }) {
 // UTC and 24-hour, so the whole table agrees across time zones and the time fits on one line.
 const when = (t: number) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
 
+const FAILED = 'Something went wrong. Check your connection and try again.';
+
 export default function Game() {
   const { gameId = '' } = useParams();
   const nav = useNavigate();
@@ -46,7 +49,8 @@ export default function Game() {
   const held = useHeldSan(gameId);
   const [slow, setSlow] = useState(false); // a never-opened game can't be read offline, and the page can only wait
   useEffect(() => { setSlow(false); const t = setTimeout(() => setSlow(true), 10_000); return () => clearTimeout(t); }, [gameId]);
-  const { busy, err, run } = useRun('Something went wrong. Check your connection and try again.');
+  const { busy, err, run } = useRun(FAILED);
+  const box = useRun(FAILED); // its own error, shown in the backup box beside the buttons
   const [doomed, setDoomed] = useState<AgentCard | null>(null);
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [advancing, setAdvancing] = useState<AgentCard[] | null>(null); // the agents the confirm dialog will advance
@@ -71,6 +75,7 @@ export default function Game() {
 
   const advance = (list: AgentCard[]) => run(async () => {
     const [{ advanceAll }, { gainsText }] = await Promise.all([import('../lib/agents'), import('../model/live')]);
+    setAdded('');
     const { gains, failed } = await advanceAll(gameId, list.map((a) => a.id));
     const lines = list.filter((a) => gains[a.id]?.length).map((a) => `${a.label}: ${gainsText(gains[a.id])}`);
     const missed = list.filter((a) => failed.includes(a.id)).map((a) => a.label);
@@ -90,26 +95,27 @@ export default function Game() {
 
   const [bad, setBad] = useState('');
   const [sheet, setSheet] = useState('');
-  const backup = () => run(async () => downloadJson(`${gameId}.dg-game.json`, await exportGame(gameId)));
+  const [added, setAdded] = useState(''); // said in the backup box, where the press happened
+  const backup = () => box.run(async () => { setAdded(''); downloadJson(`${gameId}.dg-game.json`, await exportGame(gameId)); });
   // A game backup, an exported Agent or a Green Agent file: each Agent in it is added as a new one.
-  const importFile = (f: File) => run(async () => {
-    setBad(''); setNotice('');
+  const importFile = (f: File) => box.run(async () => {
+    setBad(''); setAdded(''); setNotice('');
     const { createAgent, readImport } = await import('../lib/agents');
     const found = await f.text().then((t) => readImport(JSON.parse(t))).catch(() => null);
     if (!found) return setBad('That file is not an Agent or a game backup.');
     found.forEach(({ c, live }) => createAgent(gameId, c, live));
-    setNotice(`Added ${found.length === 1 ? '1 agent' : `${found.length} agents`}.`);
+    setAdded(`Added ${found.length === 1 ? '1 agent' : `${found.length} agents`}.`);
   });
   const picker = useJsonPicker(importFile, 'Agent or backup file');
   // A standalone sheet's link (the old /#sheet=… kind) becomes an Agent here, live play included.
-  const addSheet = () => run(async () => {
-    setBad(''); setNotice('');
+  const addSheet = () => box.run(async () => {
+    setBad(''); setAdded(''); setNotice('');
     const [{ createAgent }, { decodeSheet }] = await Promise.all([import('../lib/agents'), import('../model/live')]);
     const t = sheet.trim();
     const s = decodeSheet(t.slice(Math.max(0, t.indexOf('#sheet='))));
     if (!s) return setBad('That is not a sheet link.');
     createAgent(gameId, s.c, s.l);
-    setSheet(''); setNotice('Added the sheet as a new agent.');
+    setSheet(''); setAdded('Added the sheet as a new agent.');
   });
 
   if (exists.error) return <Notice page={gameId} title="CANNOT REACH GAME"><p className="warn">Could not load game {gameId}. Check your connection and reload.</p></Notice>;
@@ -143,32 +149,21 @@ export default function Game() {
             {list.map((a) => (
               <li key={a.id}>
                 <div className="info">
-                  <Link to={agentUrl(gameId, a.id)}>{a.label}</Link>
+                  <Link to={agentUrl(gameId, a.id)}>{a.label === UNNAMED ? <span className="redact">{UNNAMED}</span> : a.label}</Link>
                   <span className="dim">{[a.codename && a.name, a.profession].filter(Boolean).join(' · ') || 'Not started'}</span>
-                  {a.vitals ? <span>HP {a.vitals.hp} · <span className={wpNote(a.vitals.wp) ? 'warn' : undefined}>WP {a.vitals.wp}{wpNote(a.vitals.wp) && ` (${wpNote(a.vitals.wp)})`}</span> · SAN {a.vitals.san}</span> : <span className="dim">Creation incomplete</span>}
+                  {a.vitals ? <span><span className={lowHp(a.vitals.hp) ? 'warn' : undefined}>HP {a.vitals.hp}</span> · <span className={wpNote(a.vitals.wp) ? 'warn' : undefined}>WP {a.vitals.wp}{wpNote(a.vitals.wp) && ` (${wpNote(a.vitals.wp)})`}</span> · SAN {a.vitals.san}</span> : <span className="dim">Creation incomplete</span>}
                 </div>
-                <button className="btn" onClick={() => run(async () => { await import('../ui'); setDoomed(a); })} disabled={busy} aria-label={`Delete ${a.label}`}>Delete</button>
+                <button className="btn danger" onClick={() => run(async () => { await import('../ui'); setDoomed(a); })} disabled={busy} aria-label={`Delete ${a.label}`}>Delete</button>
               </li>
             ))}
           </ul>
         )}</SubList>
         <div className="row">
-          <button ref={newAgent} className="btn" onClick={() => addAgent(false)} disabled={busy}>New agent</button>
+          <button ref={newAgent} className="btn primary" onClick={() => addAgent(false)} disabled={busy}>New agent</button>
           {hasSavedAgent() && <button className="btn" onClick={() => addAgent(true)} disabled={busy}>Add the agent saved in this browser</button>}
           {!!cards?.length && <button className="btn" onClick={() => run(async () => { await import('../ui'); setNotice(''); setAdvancing(cards); })} disabled={busy}>End session: advance all checked skills</button>}
         </div>
         <p role="status">{notice}</p>
-        <h3>Backup and import</h3>
-        <div className="row">
-          <button className="btn" onClick={backup} disabled={busy}>Download game backup</button>
-          <button className="btn" onClick={picker.open} disabled={busy}>Add agents from a file</button>
-          {picker.input}
-        </div>
-        <LineForm url label="Sheet link" value={sheet} onChange={setSheet} onSubmit={addSheet}>
-          <button className="btn" disabled={busy || !sheet.trim()}>Add sheet</button>
-        </LineForm>
-        <Hint>A file is a backup of this or another game, or one Agent exported from the Review step. Backups keep every Agent; the roll log is saved in the file but not restored.</Hint>
-        <Alert>{bad}</Alert>
         <Alert>{err}</Alert>
         <Alert>{deleteFailed && 'Could not delete the agent. Check your connection and try again.'}</Alert>
         {doomed && <Suspense><ConfirmDialog open title="Delete this agent?" confirm="Delete" onClose={() => setDoomed(null)}
@@ -205,6 +200,20 @@ export default function Game() {
 
       <GmScreen />
       <DiscordPanel gameId={gameId} />
+      <Win title="BACKUP AND IMPORT" collapsible>
+        <div className="row">
+          <button className="btn" onClick={backup} disabled={box.busy}>Download game backup</button>
+          <button className="btn" onClick={picker.open} disabled={box.busy}>Add agents from a file</button>
+          {picker.input}
+        </div>
+        <LineForm url label="Sheet link" value={sheet} onChange={setSheet} onSubmit={addSheet}>
+          <button className="btn" disabled={box.busy || !sheet.trim()}>Add sheet</button>
+        </LineForm>
+        <Hint>A file is a backup of this or another game, or one Agent exported from the Review step. Backups keep every Agent; the roll log is saved in the file but not restored.</Hint>
+        <p role="status">{added}</p>
+        <Alert>{bad}</Alert>
+        <Alert>{box.err}</Alert>
+      </Win>
     </Page>
   );
 }
