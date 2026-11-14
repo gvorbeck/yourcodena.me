@@ -15,9 +15,13 @@ export const Hint = ({ children, className }: { children: ReactNode; className?:
 /** A d% result in its colour: SUCCESS, FUMBLE… */
 export const OutcomeText = ({ o }: { o: string }) => <span className={outcomeClass(o)}>{o.toUpperCase()}</span>;
 
-/** `quiet` for a placeholder inside a page that already announced its own loading. */
-export const Loading =({ what, className = 'dim', quiet }: { what?: string; className?: string; quiet?: boolean }) =>
-  <p className={className} role={quiet ? undefined : 'status'}>Loading{what && ` ${what}`}…</p>;
+/** `quiet` for a placeholder inside a page that already announced its own loading; a page's own gets redacted lines under it. */
+export const Loading =({ what, className = 'dim', quiet }: { what?: string; className?: string; quiet?: boolean }) => (
+  <div className={className} role={quiet ? undefined : 'status'}>
+    <p>Loading{what && ` ${what}`}…</p>
+    {!quiet && <div className="redact-lines" aria-hidden>{[28, 40, 18].map((n) => <span key={n} className="redact">{'x'.repeat(n)}</span>)}</div>}
+  </div>
+);
 
 /** A one-line form: label, text input, then `children` (the submit button). `url`: a URL keyboard on phones. */
 export function LineForm({ label, value, onChange, onSubmit, url, disabled, children }: { label: string; value: string; onChange: (v: string) => void; onSubmit: () => void; url?: boolean; disabled?: boolean; children: ReactNode }) {

@@ -39,8 +39,8 @@ export const Btn = ({ children, onPress, disabled, className, label }: { childre
   <Button className={className ? `btn ${className}` : 'btn'} onPress={onPress} isDisabled={disabled} aria-label={label}>{children}</Button>
 );
 
-/** A labelled number with − and + buttons; `onRoll` makes the label a button that rolls it. */
-export function Counter({ label, note, value, max, step = 1, onChange, onRoll }: { label: string; note?: string; value: number; max?: number; step?: number; onChange: (v: number) => void; onRoll?: () => void }) {
+/** A labelled number with − and + buttons; `onRoll` makes the label a button that rolls it, `warn` turns the number red. */
+export function Counter({ label, note, value, max, step = 1, warn, onChange, onRoll }: { label: string; note?: string; value: number; max?: number; step?: number; warn?: boolean; onChange: (v: number) => void; onRoll?: () => void }) {
   const set = (v: number) => onChange(clamp(v, 0, max ?? Infinity));
   const noteId = useId();
   return (
@@ -48,7 +48,7 @@ export function Counter({ label, note, value, max, step = 1, onChange, onRoll }:
     <div className={note ? 'row counter noted' : 'row counter'} role="group" aria-label={label} aria-describedby={note ? noteId : undefined}>
       <strong>{onRoll ? <button className="rollable" onClick={onRoll}>{label}</button> : label}</strong>
       <Btn label={`Decrease ${label}`} onPress={() => set(value - step)}>−</Btn>
-      <output>{value}{max !== undefined && ` / ${max}`}</output>
+      <output className={warn ? 'warn' : undefined}>{value}{max !== undefined && ` / ${max}`}</output>
       <Btn label={`Increase ${label}`} onPress={() => set(value + step)}>+</Btn>
       {note && <span className="dim note" id={noteId}>{note}</span>}
     </div>
@@ -64,7 +64,7 @@ export const ConfirmDialog = ({ open, title, children, confirm, onConfirm, onClo
         <Heading slot="title">{title}</Heading>
         <p>{children}</p>
         <div className="row">
-          <Btn onPress={() => { onClose(); onConfirm(); }}>{confirm}</Btn>
+          <Btn className="primary" onPress={() => { onClose(); onConfirm(); }}>{confirm}</Btn>
           <Btn onPress={onClose}>Cancel</Btn>
         </div>
       </Dialog>

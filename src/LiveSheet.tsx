@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STATS, STAT_NAMES, type Stat } from './rules/data/creation';
 import { activeBonds, featureOf, isSuccess, liveOutcome, motivationsOf, professionOf, rollD100, testOutcome, type Outcome } from './rules';
-import { pad2, testText } from './rules/outcome';
+import { lowHp, pad2, testText, wpNote } from './rules/outcome';
 import { MAX_NOTES, UndoStack, advanceSkills, bondScoreOf, canHeal, canInjuryTest, capsOf, effStat, encodeSheet, gainsText, refreshSpent, sheetPenalty, coreTests, withBond, type Live } from './model/live';
 import { DETAIL_FIELDS, nameOf, type Character } from './model/character';
 import { Btn, ConfirmDialog, Counter, Select, SkillTable, Win } from './ui';
 import { SanSection } from './SanSection';
 import { DiceRoller } from './DiceRoller';
 import { useFocusMain } from './ui/Win';
+import { MenuBar } from './ui/MenuBar';
 import { useTitle } from './pages/Page';
 import { Alert, CopyButton, Hint, OutcomeText } from './ui/bits';
 import { gameUrl } from './lib/paths';
@@ -167,11 +168,15 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
 
 
   return (
+    <>
+    {/* shortcut: game sheets only; on a standalone sheet the logo's in-app link would drop the hash that holds the sheet. Add it there with the Leave dialog if those sheets need it. */}
+    {game && <MenuBar subtitle="// Live sheet" />}
     <main id="main" tabIndex={-1}>
     <h1 className="sr-only">Live sheet: {name}</h1>
     <div className="shell live">
       <div className="rollbar noprint">
-        {rolls.length === 0 ? <span className="dim">Tap a stat, Luck or skill name to roll d% against it (at or below passes).</span> : rolls.map((r, i) => (
+        <Btn className="phone-only" onPress={() => jump('.live-skills', '.skill-find')}>Skills ↓</Btn>
+        {rolls.length === 0 ? <span className="dim hint">Tap a stat, Luck or skill name to roll d% against it (at or below passes).</span> : rolls.map((r, i) => (
           <span key={r.id} className={i === 0 ? 'latest' : 'dim'}><RollLine r={r} /></span>
         ))}
       </div>
@@ -190,7 +195,6 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
           </ConfirmDialog>
           <Btn onPress={() => window.print()}>Print / PDF</Btn>
           <Btn onPress={undo} disabled={undoLabel === null}>{undoLabel ? `Undo: ${undoLabel}` : 'Undo'}</Btn>
-          <Btn className="phone-only" onPress={() => jump('.live-skills', '.skill-find')}>Skills ↓</Btn>
         </div>
         <p className="noprint live-note"><small>{!game ? "Saved in this page's link: bookmark it to resume. A copied link is a snapshot."
           : game.failed ? <Alert inline>{game.failed}</Alert> : `Saved to game ${game.gameId}. Your rolls appear in its log.`}</small></p>
@@ -217,10 +221,10 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
         </div>
 
         <h3>Vitals</h3>
-        <Counter label="HP" value={l.hp} max={d.hp} onChange={(v) => set('hp', v)} />
+        <Counter label="HP" warn={lowHp(l.hp)} value={l.hp} max={d.hp} onChange={(v) => set('hp', v)} />
         {l.hp === 0 && <p className="warn">0 HP: dead. First Aid within CON minutes can resuscitate (p. 55).</p>}
         {l.hp > 0 && l.hp <= 2 && <p className="warn">2 HP or fewer: unconscious. Make the CON×5 injury test, and SAN 0/1D6 (pp. 55, 67). A hit for half your HP also stuns.</p>}
-        <Counter label="WP" value={l.wp} max={d.wp} onChange={(v) => set('wp', v)} />
+        <Counter label="WP" warn={!!wpNote(l.wp)} value={l.wp} max={d.wp} onChange={(v) => set('wp', v)} />
         {l.wp === 0 && <p className="warn">0 WP: the Handler controls the Agent and no test can succeed (p. 47).</p>}
         {l.wp > 0 && l.wp <= 2 && <p className="warn">1–2 WP: emotional breakdown, −20% to everything (p. 47).</p>}
         <Counter label="Penalty %" value={l.penalty} step={10} max={60} onChange={(v) => set('penalty', v)} />
@@ -306,5 +310,6 @@ export function LiveSheet({ c, init, game }: { c: Character; init: Live; game?: 
       </Win>
     </div>
     </main>
+    </>
   );
 }

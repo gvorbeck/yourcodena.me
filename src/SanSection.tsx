@@ -57,7 +57,7 @@ export function SanSection({ c, l, set, setL, act, say, test, onRollSan, undone 
   return (
     <>
       <h3>Sanity</h3>
-      <Counter label="SAN" value={l.san} max={maxSanOf(c, l)} onChange={(v) => set('san', v)} onRoll={onRollSan} />
+      <Counter label="SAN" warn={l.san <= l.bp} value={l.san} max={maxSanOf(c, l)} onChange={(v) => set('san', v)} onRoll={onRollSan} />
       <Counter label="Breaking pt" value={l.bp} onChange={(v) => set('bp', v)} />
       <Counter label="Unnatural" note="Raises with exposure; maximum SAN is 99 minus it (p. 15)." value={unnaturalOf(c, l)} max={99} onChange={(v) => setL((p) => setUnnatural(c, p, v))} />
       {l.san <= l.bp && <p className="warn">SAN at or below breaking point.</p>}
